@@ -4,29 +4,30 @@ Updated: 2026-09-21 Asia/Makassar
 
 ## Progress completed
 
-- Analyzed GitHub Actions full-system run `96403546724`.
-- Confirmed run #1 Prisma-generation-order fix worked: PostgreSQL Prisma Client generated successfully before lint.
-- Fixed all six concrete TypeScript/schema mismatches exposed by run #2 across Advanced Inventory, Payroll, Returns and Worker reporting/loyalty paths.
-- Preserved branch/company scoping for return reports by resolving explicit branch warehouse IDs.
-- Upgraded dependency-audit evidence so high/critical blockers include exact package/advisory/fix details instead of aggregate counts only.
-- Added run #2 regression guards.
+- Analyzed GitHub full-system log bundle `logs_96411633256.zip`.
+- GitHub dependency-free regression reached **659 tests: 658 PASS / 1 FAIL**; no TypeScript compile failure was reached because build gate correctly stopped on the regression failure.
+- Confirmed the single failure was a stale return test: Prisma `InventoryMovementType` supports `SALE_RETURN`, not `ORDER_RETURN`; source already uses `SALE_RETURN` for inventory movement and retains `ORDER_RETURN` for accounting event identity.
+- Strengthened the regression so it validates this distinction against all three Prisma schemas instead of merely changing the expected string.
+- Confirmed production dependency audit exposes 12 high/critical blockers and remains mandatory/fail-closed.
+- Added an isolated GitHub security dependency proposal generator. It creates a candidate lockfile only in a temp workspace, audits it, and uploads the proposal; it does not mutate the source under test.
 
 ## Local validation
 
-- Focused run #2 tests: **8/8 PASS**.
+- Focused run #3 tests: **14/14 PASS**.
+- Full dependency-free regression: **663/663 PASS**.
 - Workflow validator: **21/21 PASS**.
-- Repository validator: **773 files / 173 Prisma models PASS** before handoff regeneration.
-- Full dependency-free suite was attempted; environment terminated it after test 643, with all executed tests PASS. Do not claim full-suite completion for this batch.
-- Source fingerprint before handoff regeneration: `274e26323d4d1a135b8a26c2044e4c9a4020bbc5b1b8aa21990987c9c27dbcb6`.
+- Repository validator: **777 files / 173 Prisma models PASS** before handoff regeneration.
+- GitHub YAML parse: **5/5 PASS**.
+- Source fingerprint before handoff regeneration: `aef163aad4d8d8d6528b84bbc0e464a9e4505afb3a0a0f1e509a72797a185b4c`.
 
 ## Status
 
-Ready for GitHub run #3. Not a UAT candidate and not production-ready.
+Ready for GitHub run #4. Dependency audit is intentionally still blocking on the committed old lock. Not a UAT candidate and not production-ready.
 
 ## Next steps
 
-1. Overlay/push the run #2 patch to GitHub.
+1. Overlay/push the run #3 patch.
 2. Run `Toko360 Full System Simulation` again.
-3. Share the complete Actions log/evidence bundle.
-4. If dependency audit still fails, use the new `AUDIT_BLOCKER` lines to upgrade exact affected packages in one batch.
-5. Continue fixing all failures surfaced by the same GitHub run before another push.
+3. Share the full Actions logs/evidence.
+4. Also share the generated `security-dependency-proposal` artifact if present.
+5. Use that audited lock proposal for the next dependency-remediation batch; do not bypass the current production audit.

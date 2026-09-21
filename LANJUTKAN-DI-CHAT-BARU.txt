@@ -1,52 +1,46 @@
 TOKO360 — LANJUTKAN DI CHAT BARU
-Generated: 2026-09-16 Asia/Makassar
+Generated: 2026-09-21 Asia/Makassar
 
-UPLOAD ZIP CHECKPOINT:
-  toko360-github-full-system-test-farm-checkpoint-20260916.zip
-JANGAN audit ulang W0-W7 atau membuka kembali inventory, Storefront, Delivery, reporting, payroll-adjustment, maupun release-gate lama tanpa bukti regression runtime.
+BASELINE AKTIF:
+  GitHub run #3 patch — return regression contract + isolated security lock proposal.
+
+JANGAN audit ulang W0-W7 atau modul bisnis lama tanpa bukti regression runtime.
 
 BACA DULU:
 - handoff/CURRENT-WORK.md
 - handoff/quality/latest.json
-- handoff/quality/github-full-system-simulation-hardening-20260916.md
-- handoff/quality/github-full-system-simulation-latest.json
-- .github/ci/README.md
+- handoff/quality/github-run3-regression-security-proposal-20260921.md
+- handoff/generated/FIRST-CHAT.md
 - .github/workflows/full-system-simulation.yml
+- .github/ci/security-dependency-plan.json
 - chat-session.md
 
-STATE TERAKHIR LOKAL:
-- 647/647 dependency-free regression PASS.
-- Focused GitHub/runtime/release suite 89/89 PASS.
-- ci:preflight:local PASS.
-- Workflow 21/21 PASS.
-- Repository 769 files / 173 Prisma models PASS sebelum regenerasi handoff final.
-- 5/5 GitHub workflow YAML parse PASS.
-- 48/48 scripts/*.mjs node --check PASS.
-- Critical UAT automated coverage 12/12 mapped; human Stage-20 tetap wajib.
-- Source fingerprint: ce586efd67227ff72bdb14978136eefa8a8036d679ccfb12f3ac19c0035ebc84 (497 executable/config/test files).
+STATE TERAKHIR:
+- Uploaded GitHub log bundle logs_96411633256.zip analyzed.
+- GitHub regression reached 659 tests: 658 PASS / 1 FAIL.
+- The single failure was a stale expectation for ORDER_RETURN inventory movement; Prisma enum only permits SALE_RETURN.
+- Source remains strict: stock movement SALE_RETURN, accounting event ORDER_RETURN.
+- Production dependency audit still blocks 12 high/critical findings. No bypass was added.
+- New isolated security proposal generator creates/audits a candidate lock only in temp and uploads it as evidence.
+- Local focused tests: 14/14 PASS.
+- Local full dependency-free regression: 663/663 PASS.
+- Workflow validator: 21/21 PASS.
+- Repository validator: 778 files / 173 Prisma models PASS after handoff regeneration.
+- GitHub workflow YAML: 5/5 PASS.
+- Source fingerprint: aef163aad4d8d8d6528b84bbc0e464a9e4505afb3a0a0f1e509a72797a185b4c.
 - package-lock SHA-256: f08fd71c1a85921cd3953c735dfc748cec9f0405e4104de7a90b5f64edd76e73.
-- Local full-system summary sengaja FAIL/LOCAL_PRE_GITHUB_VALIDATION karena heavy GitHub run belum dilakukan pada fingerprint ini.
-- Jangan klaim build/runtime GitHub PASS, UAT candidate, promotion ready, atau production ready.
 
-PERUBAHAN BESAR YANG SUDAH SIAP DITES GITHUB:
-- reusable full-system PostgreSQL 16 + exact six-app artifact simulation;
-- deterministic build + production dependency audit;
-- Stage-18 ownership migration/restore, payroll migration, Stage-19 tenant HTTP/DB;
-- built six-process Chromium UAT;
-- authenticated Admin/POS/Employee coverage + Storefront render + JS exception failure screenshot;
-- live DB-polling worker report job -> DONE -> CSV download;
-- staging certification, load, index profile, DR;
-- automated Stage-20 with exactly 12 human scenarios still PENDING;
-- exact artifact mutation check + immutable GitHub artifact digest;
-- always-written summary/evidence and aggregate fail-closed assertion;
-- stale evidence invalidation and reusable tag/manual release workflow.
+NEXT:
+1. Overlay/push this patch to GitHub.
+2. Run Toko360 Full System Simulation.
+3. Build should now pass the stale return regression and continue into artifact-dependent Stage-18/19/browser/runtime gates unless a new concrete failure appears.
+4. Main production dependency audit is expected to remain FAIL on the committed old lock.
+5. Download/share handoff/quality/security-dependency-proposal/ from the GitHub evidence artifact.
+6. Adopt the generated package manifests/lock only if proposal audit PASS; then rerun the same full-system simulation.
+7. Continue from concrete GitHub evidence only.
 
-URUTAN LANJUT:
-1. Push/upload exact checkpoint ini ke GitHub main/develop atau workflow_dispatch `Toko360 Full System Simulation`.
-2. Biarkan workflow heavy selesai; jangan hentikan hanya karena satu diagnostic gate gagal.
-3. Ambil `toko360-full-system-evidence-<sha>` + failing logs; jika build/artifact berhasil, simpan `toko360-tested-runtime-<sha>`.
-4. Perbaiki hanya failure konkret dalam batch besar berikutnya.
-5. Ulangi workflow yang sama sampai automated simulation PASS.
-6. Baru lakukan human Stage-20 pada same source/artifact/DB -> verify UAT candidate -> promotion/production chain yang sudah ada.
-
-JANGAN REBUILD artifact setelah exact build-artifact PASS bila sedang mengikuti rantai release yang sama.
+DO NOT CLAIM YET:
+- committed dependency audit PASS;
+- full GitHub simulation PASS;
+- UAT candidate;
+- production ready.

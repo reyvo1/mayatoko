@@ -131,6 +131,12 @@ jobs:
         continue-on-error: true
         run: npm run ci:audit:production
 
+      - name: Generate isolated security dependency lock proposal when audit blocks
+        if: always() && steps.dependency_audit.outcome != 'success'
+        id: security_dependency_proposal
+        continue-on-error: true
+        run: npm run ci:security:proposal
+
       - name: Verify 12 critical UAT scenarios have automated regression coverage
         if: always()
         id: critical_coverage
@@ -431,6 +437,7 @@ jobs:
           name: toko360-full-system-evidence-${{ github.sha }}
           path: |
             handoff/quality/*.json
+            handoff/quality/security-dependency-proposal/**
             logs/**
             work-items/generated/T360-20260802-145524/evidence/*.json
           if-no-files-found: warn

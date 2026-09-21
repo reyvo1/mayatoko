@@ -97,7 +97,8 @@
     "ci:worker:probe": "node scripts/ci-worker-runtime-probe.mjs",
     "ci:audit:production": "node scripts/ci-audit-production-deps.mjs",
     "test:dependency-free": "node --test tests/*.test.mjs",
-    "ci:preflight:local": "npm run workflow:validate && npm run validate:repo && npm run test:dependency-free"
+    "ci:preflight:local": "npm run workflow:validate && npm run validate:repo && npm run test:dependency-free",
+    "ci:security:proposal": "node scripts/ci-propose-security-dependency-refresh.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

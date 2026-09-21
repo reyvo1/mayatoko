@@ -42,13 +42,24 @@ test('staff workflow requires operational inspection before refund posting', () 
 });
 
 test('refund posts inventory/accounting/tax reversal and only marks full order refunded when cumulative quantities are complete', () => {
-  assert.match(service, /type: 'ORDER_RETURN'/);
+  assert.match(service, /type: 'SALE_RETURN'/);
   assert.match(service, /taxableBase: item\.netAmount\.negated\(\)/);
   assert.match(service, /taxAmount: item\.taxAmount\.negated\(\)/);
   assert.match(service, /const fullOrderReturn = orderItems\.every/);
   assert.match(service, /status: 'REFUNDED'/);
   assert.match(seed, /code: 'ORDER-RETURN', eventType: 'ORDER_RETURN'/);
   assert.match(reports, /'ORDER_RETURN'/);
+});
+
+
+test('order returns reuse the SALE_RETURN inventory movement enum while preserving ORDER_RETURN accounting identity', () => {
+  for (const schema of schemas) {
+    const block = schema.match(/enum InventoryMovementType \{([\s\S]*?)\n\}/)?.[1] || '';
+    assert.match(block, /\bSALE_RETURN\b/);
+    assert.doesNotMatch(block, /\bORDER_RETURN\b/);
+  }
+  assert.match(service, /type: 'SALE_RETURN'/);
+  assert.match(service, /eventType: 'ORDER_RETURN'/);
 });
 
 test('public and staff routes expose the lifecycle without Postman-only gaps', () => {
