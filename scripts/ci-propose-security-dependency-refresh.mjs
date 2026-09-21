@@ -85,6 +85,29 @@ function patchPackageJsons(tempRoot, candidate) {
   writeJson(rootFile, rootPkg);
 }
 
+
+function packageNameFromLockKey(key) {
+  const marker = '/node_modules/';
+  if (key === 'node_modules') return null;
+  if (key.startsWith('node_modules/')) return key.slice('node_modules/'.length);
+  const index = key.lastIndexOf(marker);
+  return index >= 0 ? key.slice(index + marker.length) : null;
+}
+
+function verifyOverrideResolution(lock, overrides = {}) {
+  const checks = [];
+  for (const [name, expected] of Object.entries(overrides)) {
+    // Current security plan intentionally uses exact versions for transitive pins.
+    if (!/^\\d+\\.\\d+\\.\\d+(?:[-+].+)?$/.test(String(expected))) continue;
+    const matches = Object.entries(lock?.packages || {})
+      .filter(([key, value]) => packageNameFromLockKey(key) === name && value?.version)
+      .map(([key, value]) => ({ key, version: value.version }));
+    const ok = matches.length > 0 && matches.every((item) => item.version === expected);
+    checks.push({ name, expected, matches, ok });
+  }
+  return checks;
+}
+
 function run(root, args) {
   const result = spawnNpmSync(args, { cwd: root, encoding: 'utf8', env: { ...process.env, CI: 'true' }, maxBuffer: 20 * 1024 * 1024 });
   return {
@@ -121,22 +144,33 @@ function evaluateCandidate({ root, outputDir, sourceIdentity, committedLockSha25
     direct: candidate.direct || {},
     overrides: candidate.overrides || {},
     committedLockSha256,
+    lockStrategy: 'fresh-from-manifests',
     proposedLockSha256: null,
     audit: null,
+    overrideResolution: [],
     error: null,
   };
   fs.mkdirSync(candidateOutput, { recursive: true });
   try {
     copyJson(path.join(root, 'package.json'), path.join(tempRoot, 'package.json'));
-    fs.copyFileSync(path.join(root, 'package-lock.json'), path.join(tempRoot, 'package-lock.json'));
     for (const rel of workspaceFiles) copyJson(path.join(root, rel), path.join(tempRoot, rel));
     patchPackageJsons(tempRoot, candidate);
 
+    // Deliberately do not seed the candidate with the committed lock. Security proposals must
+    // resolve from the patched manifests so transitive overrides/advisory fixes are actually
+    // exercised instead of inheriting stale vulnerable resolutions from the old lockfile.
     const install = run(tempRoot, ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund']);
     fs.writeFileSync(path.join(candidateOutput, 'npm-install-package-lock-only.log'), `${install.stdout}${install.stderr}`);
     if (install.error || install.exitCode !== 0) {
       const tail = `${install.stderr || install.stdout || ''}`.trim().split(/\r?\n/).slice(-24).join(' | ').slice(-4000);
       throw new Error(`security proposal lock refresh failed with exit ${install.exitCode}${install.error ? `: ${install.error}` : ''}${tail ? `; npm=${tail}` : ''}`);
+    }
+
+    const candidateLock = readJson(path.join(tempRoot, 'package-lock.json'));
+    result.overrideResolution = verifyOverrideResolution(candidateLock, candidate.overrides || {});
+    const unresolvedOverrides = result.overrideResolution.filter((item) => !item.ok);
+    if (unresolvedOverrides.length) {
+      throw new Error(`security proposal override resolution mismatch: ${unresolvedOverrides.map((item) => `${item.name} expected=${item.expected} actual=${item.matches.map((m) => m.version).join(',') || '<missing>'}`).join('; ')}`);
     }
 
     const auditRun = run(tempRoot, ['audit', '--omit=dev', '--audit-level=high', '--json']);

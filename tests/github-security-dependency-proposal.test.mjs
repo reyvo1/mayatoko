@@ -38,6 +38,11 @@ test('security proposal is isolated, records each candidate lock/audit, and neve
   assert.match(script, /mkdtempSync/);
   assert.match(script, /isolated: true/);
   assert.match(script, /package-lock-only/);
+  assert.match(script, /lockStrategy: 'fresh-from-manifests'/);
+  assert.match(script, /Deliberately do not seed the candidate with the committed lock/);
+  assert.match(script, /verifyOverrideResolution/);
+  assert.match(script, /security proposal override resolution mismatch/);
+  assert.doesNotMatch(script, /copyFileSync\(path\.join\(root, 'package-lock\.json'\), path\.join\(tempRoot, 'package-lock\.json'\)\)/);
   assert.match(script, /preferredCandidate/);
   assert.match(script, /PROPOSAL_CANDIDATE/);
   assert.match(script, /PROPOSAL_BLOCKER/);

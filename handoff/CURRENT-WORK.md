@@ -1,42 +1,54 @@
 # CURRENT WORK — TOKO360
 
 Updated: 2026-09-21 (Asia/Makassar)
-Checkpoint type: **GITHUB RUN #6 PATCH — POS ORIGIN/CORS + DR SCRATCH + SECURITY CANDIDATE FIXES**
+Checkpoint type: **GITHUB RUN #7 PREP — FRESH SECURITY LOCK RESOLUTION**
 Version remains: `0.5.3`.
-UI cosmetics remain deferred; functional correctness and runtime proof remain the priority.
+UI cosmetics remain deferred; runtime proof and release safety remain the priority.
 
 ## Verified state
 
-- GitHub full-system log `logs_96435823574.zip` advanced substantially: exact build artifact remained valid and most runtime/staging gates passed.
-- GitHub gate outcomes from that run:
-  - PASS: build/artifact identity, critical UAT coverage, restore DB creation, Stage-18, payroll migration, Stage-19 (**11/11**), persistent runtime start, worker runtime probe, staging certification, load smoke, index profile, Stage-20 prepare, Stage-20 automated, UAT-candidate fail-closed proof, exact-artifact preservation/transport.
-  - FAIL: production dependency audit (**12 high/critical**), built-browser POS online bootstrap, PostgreSQL DR rehearsal.
-- POS root cause patched at CI contract level: browser surfaces and API now use one `localhost` host family matching `CORS_ORIGINS`; CI preflight rejects future browser-origin/CORS mismatch. Browser UAT also records POS body/origin/in-page health diagnostics if bootstrap still fails.
-- DR root cause patched without weakening production safety: source DB still requires TEST/STAGING marker; isolated restore target may use explicit `restore`/`dr`/`scratch` marker and still must differ from source and reject prod/live.
-- Security proposal remains isolated and authoritative audit remains blocking. Candidate plan now patches production Nest runtime peers while deliberately keeping Nest CLI/schematics on the committed v11 toolchain so the proposal is not blocked merely by Nest 12 schematics requiring TypeScript 6. A second candidate still tests the audit-suggested Prisma 6.12 pair only as a diagnostic.
-- Full dependency-free regression **673/673 PASS** using four deterministic chunks.
-- Focused changed-path tests **18/18 PASS** before full suite; new run-6 contract tests included in the 673 total.
-- Workflow validator **21/21 PASS**.
-- Repository validator **782 files / 173 Prisma models PASS**.
-- GitHub YAML parse **5/5 PASS**.
-- Source fingerprint before final context regeneration: `d7686ad5a72ec2cfc680c591ca839c8cc68142fe529ceecea0f6a84286c6ba6c`.
+Latest uploaded GitHub full-system evidence proves the heavy automated stack is now healthy except for committed dependency security:
 
-Quality record: `handoff/quality/github-run6-pos-dr-security-fixes-20260921.md`.
+- PASS: deterministic install/build, exact artifact identity/transport, critical UAT coverage, Stage-18, payroll migration, Stage-19 **11/11**, built-browser Admin/Storefront/POS/Employee, worker runtime probe, staging certification, load smoke, index profile, PostgreSQL DR rehearsal, Stage-20 prepare and automated Stage-20.
+- Built-browser now passes POS authenticated online/offline bootstrap and Employee Portal authenticated runtime.
+- PostgreSQL DR now passes backup -> checksum -> isolated restore -> restored DB smoke.
+- Load evidence: **600/600 successful, 0 errors, p95 30.59 ms**.
+- Exact tested runtime artifact remained stable with build artifact ID `67c8003fb254230952fb8527caf5c83e446942fa878d7236c42afd542680d7b2`.
+- FAIL remains only on the committed production dependency audit: **12 high/critical findings**.
+- Human Stage-20 UAT is still explicitly **PENDING** and remains mandatory.
+- Production was not touched.
+
+Security proposal diagnosis:
+
+- prior isolated candidates patched Next/Nest manifests but inherited the committed lock resolution graph;
+- stale transitive resolutions (`deepmerge-ts`, `nanoid`, etc.) therefore remained despite declared overrides;
+- proposal generation is now changed to create a **fresh lock from patched manifests**, with explicit verification that exact override versions actually resolve before audit;
+- the checked-out package lock is never overwritten and the primary audit remains blocking.
+
+Local validation of this patch:
+
+- dependency-free regression **673/673 PASS**;
+- focused security proposal tests **4/4 PASS**;
+- workflow validator **21/21 PASS**;
+- repository validator **783 files / 173 Prisma models PASS**;
+- source fingerprint `cc90588955a6d1508e2fc3bc8abe65b9659560250a0d00b4075b54824fc2c17f`.
+
+Quality record: `handoff/quality/github-run7-security-fresh-lock-prep-20260921.md`.
 
 ## ACTIVE NEXT WORK
 
-1. Overlay/push this patch and rerun `Toko360 Full System Simulation`.
-2. Confirm built-browser passes POS authenticated online/offline-config bootstrap with aligned localhost/CORS origins. If not, use `posDiagnostic` evidence (browser origin, body text, in-page health fetch) rather than guessing.
-3. Confirm PostgreSQL DR rehearsal accepts isolated `toko360_dr_restore` and proceeds through backup/checksum/restore/smoke.
-4. Inspect isolated security proposal output. The committed production dependency audit must remain red until a reviewed package manifest/lock is actually adopted and survives deterministic install, Prisma, regression, six-app build, PostgreSQL integration, browser UAT, and the rest of this pipeline.
-5. Do not rebuild the exact tested artifact between build and runtime gates.
-6. Human Stage-20 UAT remains mandatory even if automated Stage-20 is green.
+1. Overlay/push the run #7 patch and rerun `Toko360 Full System Simulation`.
+2. Inspect `handoff/quality/security-dependency-proposal/` from GitHub evidence.
+3. Require a candidate with **0 high/critical** and successful exact override-resolution checks. Do not adopt a candidate merely because direct versions changed.
+4. If a clean candidate exists, adopt its manifests + package-lock in a separate reviewed patch.
+5. Rerun the complete heavy pipeline on the adopted lock: deterministic install, Prisma, 673+ regression, six-app build, Stage-18/19, browser, worker, staging/load/index, DR, automated Stage-20.
+6. Only after committed dependency audit PASS may the automated full-system simulation become PASS.
+7. Human Stage-20 UAT remains mandatory before UAT-candidate approval.
 
 ## Do not claim yet
 
-- dependency audit PASS on committed source;
+- committed dependency audit PASS;
 - full GitHub simulation PASS;
+- human UAT PASS;
 - UAT candidate;
 - production ready.
-
-Production is not touched by this workflow.

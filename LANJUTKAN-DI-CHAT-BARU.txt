@@ -2,45 +2,46 @@ TOKO360 — LANJUTKAN DI CHAT BARU
 Generated: 2026-09-21 Asia/Makassar
 
 BASELINE AKTIF:
-  GitHub run #3 patch — return regression contract + isolated security lock proposal.
+  GitHub run #7 prep — fresh security lock resolution.
 
 JANGAN audit ulang W0-W7 atau modul bisnis lama tanpa bukti regression runtime.
 
 BACA DULU:
 - handoff/CURRENT-WORK.md
 - handoff/quality/latest.json
-- handoff/quality/github-run3-regression-security-proposal-20260921.md
+- handoff/quality/github-run7-security-fresh-lock-prep-20260921.md
 - handoff/generated/FIRST-CHAT.md
 - .github/workflows/full-system-simulation.yml
 - .github/ci/security-dependency-plan.json
+- scripts/ci-propose-security-dependency-refresh.mjs
 - chat-session.md
 
 STATE TERAKHIR:
-- Uploaded GitHub log bundle logs_96411633256.zip analyzed.
-- GitHub regression reached 659 tests: 658 PASS / 1 FAIL.
-- The single failure was a stale expectation for ORDER_RETURN inventory movement; Prisma enum only permits SALE_RETURN.
-- Source remains strict: stock movement SALE_RETURN, accounting event ORDER_RETURN.
-- Production dependency audit still blocks 12 high/critical findings. No bypass was added.
-- New isolated security proposal generator creates/audits a candidate lock only in temp and uploads it as evidence.
-- Local focused tests: 14/14 PASS.
-- Local full dependency-free regression: 663/663 PASS.
+- Latest GitHub full-system automated gates PASS except committed dependency security audit.
+- PASS: build/artifact, Stage-18, payroll migration, Stage-19 11/11, built-browser including authenticated POS, worker, staging, load, index, DR, automated Stage-20.
+- Load: 600/600 successful, 0 errors, p95 30.59 ms.
+- Dependency audit: FAIL with 12 high/critical findings on committed lock.
+- Human Stage-20 UAT: PENDING by design.
+- Security candidate generator now creates a fresh lock from patched manifests instead of seeding the committed lock.
+- Exact transitive overrides are verified against the generated candidate lock before audit.
+- Primary committed audit remains blocking; no bypass added.
+- Local regression: 673/673 PASS.
 - Workflow validator: 21/21 PASS.
-- Repository validator: 778 files / 173 Prisma models PASS after handoff regeneration.
-- GitHub workflow YAML: 5/5 PASS.
-- Source fingerprint: aef163aad4d8d8d6528b84bbc0e464a9e4505afb3a0a0f1e509a72797a185b4c.
-- package-lock SHA-256: f08fd71c1a85921cd3953c735dfc748cec9f0405e4104de7a90b5f64edd76e73.
+- Repository validator: 783 files / 173 Prisma models PASS.
+- Patched source fingerprint: cc90588955a6d1508e2fc3bc8abe65b9659560250a0d00b4075b54824fc2c17f.
 
 NEXT:
-1. Overlay/push this patch to GitHub.
+1. Overlay/push run #7 patch.
 2. Run Toko360 Full System Simulation.
-3. Build should now pass the stale return regression and continue into artifact-dependent Stage-18/19/browser/runtime gates unless a new concrete failure appears.
-4. Main production dependency audit is expected to remain FAIL on the committed old lock.
-5. Download/share handoff/quality/security-dependency-proposal/ from the GitHub evidence artifact.
-6. Adopt the generated package manifests/lock only if proposal audit PASS; then rerun the same full-system simulation.
-7. Continue from concrete GitHub evidence only.
+3. Download/share full-system evidence and security-dependency-proposal artifact.
+4. Require proposal high/critical = 0 plus override-resolution checks PASS.
+5. Adopt clean manifests + lock only in a separate patch.
+6. Rerun the entire heavy pipeline on the adopted lock.
+7. Then perform human Stage-20 UAT.
 
 DO NOT CLAIM YET:
 - committed dependency audit PASS;
 - full GitHub simulation PASS;
+- human UAT PASS;
 - UAT candidate;
 - production ready.
