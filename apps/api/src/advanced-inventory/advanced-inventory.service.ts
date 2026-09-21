@@ -229,7 +229,7 @@ export class AdvancedInventoryService {
       const productIds = [...new Set(balances.map((row) => row.productId))];
       const [locations, products] = await Promise.all([
         tx.warehouseLocation.findMany({ where: { id: { in: locationIds }, warehouseId }, select: { id: true, code: true, name: true, type: true, isDefault: true, isActive: true } }),
-        tx.product.findMany({ where: { id: { in: productIds }, companyId: scope.companyId }, select: { id: true, sku: true, name: true, baseUnit: true } }),
+        tx.product.findMany({ where: { id: { in: productIds }, companyId: scope.companyId }, select: { id: true, sku: true, name: true, unit: true } }),
       ]);
       const locationMap = new Map(locations.map((row) => [row.id, row]));
       const productMap = new Map(products.map((row) => [row.id, row]));

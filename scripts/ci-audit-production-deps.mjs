@@ -13,10 +13,34 @@ export function vulnerabilityCounts(audit) {
   return Object.fromEntries(['info','low','moderate','high','critical','total'].map((key) => [key, Number(value[key] || 0)]));
 }
 
+export function blockingFindings(audit) {
+  return Object.values(audit?.vulnerabilities || {})
+    .filter((item) => item && ['high', 'critical'].includes(String(item.severity || '').toLowerCase()))
+    .map((item) => ({
+      name: item.name || 'unknown',
+      severity: String(item.severity || 'unknown').toLowerCase(),
+      isDirect: Boolean(item.isDirect),
+      range: item.range || null,
+      via: Array.isArray(item.via) ? item.via.map((entry) => typeof entry === 'string' ? entry : {
+        source: entry?.source ?? null,
+        name: entry?.name ?? null,
+        severity: entry?.severity ?? null,
+        title: entry?.title ?? null,
+        range: entry?.range ?? null,
+        url: entry?.url ?? null,
+      }) : [],
+      effects: Array.isArray(item.effects) ? item.effects : [],
+      nodes: Array.isArray(item.nodes) ? item.nodes : [],
+      fixAvailable: item.fixAvailable ?? null,
+    }))
+    .sort((a, b) => `${a.severity}:${a.name}`.localeCompare(`${b.severity}:${b.name}`));
+}
+
 export function evaluateAudit(audit) {
   const counts = vulnerabilityCounts(audit);
+  const findings = blockingFindings(audit);
   const blocking = counts.high + counts.critical;
-  return { counts, blocking, passed: blocking === 0 };
+  return { counts, findings, blocking, passed: blocking === 0 };
 }
 
 function runAudit(root) {
@@ -48,14 +72,14 @@ export async function auditProductionDependencies({ root = process.cwd(), output
     result = {
       generatedAt: new Date().toISOString(), status: evaluated.passed ? 'PASS' : 'FAIL', sourceIdentity,
       scope: 'production-dependencies', policy: { command: 'npm audit --omit=dev --audit-level=high --json', blockSeverities: ['high','critical'], autoFix: false },
-      vulnerabilities: evaluated.counts, blockingCount: evaluated.blocking, productionTouched: false,
+      vulnerabilities: evaluated.counts, blockingCount: evaluated.blocking, blockingFindings: evaluated.findings, productionTouched: false,
       ...(evaluated.passed ? {} : { error: `${evaluated.blocking} high/critical production dependency vulnerabilities detected.` }),
     };
   } catch (error) {
     result = {
       generatedAt: new Date().toISOString(), status: 'FAIL', sourceIdentity, scope: 'production-dependencies',
       policy: { command: 'npm audit --omit=dev --audit-level=high --json', blockSeverities: ['high','critical'], autoFix: false },
-      vulnerabilities: null, blockingCount: null, productionTouched: false,
+      vulnerabilities: null, blockingCount: null, blockingFindings: [], productionTouched: false,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -67,5 +91,13 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   const result = await auditProductionDependencies();
   console.log(`Production dependency audit ${result.status}${result.error ? ` — ${result.error}` : ''}`);
+  for (const finding of result.blockingFindings || []) {
+    const fix = finding.fixAvailable === true ? 'fixAvailable=true' : finding.fixAvailable ? `fixAvailable=${JSON.stringify(finding.fixAvailable)}` : 'fixAvailable=false';
+    console.log(`AUDIT_BLOCKER package=${finding.name} severity=${finding.severity} direct=${finding.isDirect} range=${finding.range ?? 'unknown'} ${fix}`);
+    for (const via of finding.via || []) {
+      if (typeof via === 'string') console.log(`  via=${via}`);
+      else console.log(`  via=${via.name ?? 'advisory'} severity=${via.severity ?? 'unknown'} range=${via.range ?? 'unknown'} title=${via.title ?? ''} url=${via.url ?? ''}`);
+    }
+  }
   if (result.status !== 'PASS') process.exitCode = 2;
 }

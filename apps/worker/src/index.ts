@@ -722,7 +722,7 @@ async function processLoyaltyExpiries(): Promise<void> {
   for (const candidate of candidates) {
     try {
       await prisma.$transaction(async (tx) => {
-        const account = await tx.loyaltyAccount.findUnique({ where: { id: candidate.accountId }, include: { program: false } });
+        const account = await tx.loyaltyAccount.findUnique({ where: { id: candidate.accountId } });
         if (!account || account.points <= 0) return;
         const program = await tx.loyaltyProgram.findUnique({ where: { id: account.programId }, select: { companyId: true } });
         if (!program) return;
@@ -1064,9 +1064,14 @@ async function buildReportCsv(job: { reportType: string; companyId: string; bran
   }
 
   if (job.reportType === 'RETURNS') {
+    const branchWarehouses = await prisma.warehouse.findMany({
+      where: { branchId: job.branchId, branch: { companyId: job.companyId } },
+      select: { id: true },
+    });
+    const branchWarehouseIds = branchWarehouses.map((row) => row.id);
     const [saleReturns, purchaseReturns] = await Promise.all([
-      prisma.saleReturn.findMany({ where: { warehouse: { branchId: job.branchId }, createdAt: { gte: from, lte: to } }, select: { number: true, status: true, refundMethod: true, refundAmount: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 5000 }),
-      prisma.purchaseReturn.findMany({ where: { warehouse: { branchId: job.branchId }, createdAt: { gte: from, lte: to } }, select: { number: true, status: true, amount: true, payableOffsetAmount: true, supplierReceivableAmount: true, supplierCreditNoteNumber: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 5000 }),
+      prisma.saleReturn.findMany({ where: { warehouseId: { in: branchWarehouseIds }, createdAt: { gte: from, lte: to } }, select: { number: true, status: true, refundMethod: true, refundAmount: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 5000 }),
+      prisma.purchaseReturn.findMany({ where: { warehouseId: { in: branchWarehouseIds }, createdAt: { gte: from, lte: to } }, select: { number: true, status: true, amount: true, payableOffsetAmount: true, supplierReceivableAmount: true, supplierCreditNoteNumber: true, createdAt: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 5000 }),
     ]);
     const rows: Array<Array<unknown>> = [];
     for (const row of saleReturns) rows.push(['SALE_RETURN', row.createdAt.toISOString(), row.number, row.status, Number(row.refundAmount), row.refundMethod ?? '', '', '', '']);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { evaluateAudit, vulnerabilityCounts } from '../scripts/ci-audit-production-deps.mjs';
+import { blockingFindings, evaluateAudit, vulnerabilityCounts } from '../scripts/ci-audit-production-deps.mjs';
 
 test('production dependency audit blocks high/critical but records lower severities', () => {
   const safe = { metadata: { vulnerabilities: { info: 0, low: 2, moderate: 1, high: 0, critical: 0, total: 3 } } };
@@ -25,4 +25,25 @@ test('GitHub full-system simulation requires source-bound production dependency 
   assert.match(audit, /--audit-level=high/);
   assert.match(audit, /autoFix: false/);
   assert.doesNotMatch(audit, /audit fix/);
+});
+
+
+test('production dependency audit preserves actionable blocking package/advisory details', () => {
+  const audit = {
+    metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 1, critical: 0, total: 1 } },
+    vulnerabilities: {
+      example: {
+        name: 'example', severity: 'high', isDirect: true, range: '<2.0.0',
+        via: [{ source: 123, name: 'example', severity: 'high', title: 'prototype pollution', range: '<2.0.0', url: 'https://example.invalid/advisory' }],
+        effects: [], nodes: ['node_modules/example'], fixAvailable: { name: 'example', version: '2.0.0', isSemVerMajor: false },
+      },
+    },
+  };
+  assert.equal(blockingFindings(audit).length, 1);
+  assert.equal(blockingFindings(audit)[0].name, 'example');
+  const evaluated = evaluateAudit(audit);
+  assert.equal(evaluated.findings[0].fixAvailable.version, '2.0.0');
+  const source = fs.readFileSync('scripts/ci-audit-production-deps.mjs', 'utf8');
+  assert.match(source, /blockingFindings: evaluated\.findings/);
+  assert.match(source, /AUDIT_BLOCKER package=/);
 });

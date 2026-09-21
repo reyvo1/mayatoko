@@ -1049,7 +1049,13 @@ export class PayrollService {
           payrollExpense: debit, salaryPayable: run.netTotal, payrollTaxPayable: run.taxTotal,
           payrollOtherPayable, gross: debit, net: run.grossTotal, tax: run.taxTotal,
         },
-        accountCodes: accounts,
+        accountCodes: {
+          payrollExpense: accounts.payrollExpense,
+          salaryPayable: accounts.salaryPayable,
+          payrollTaxPayable: accounts.payrollTaxPayable,
+          payrollOtherPayable: accounts.payrollOtherPayable,
+          ...(accounts.payrollReceivable ? { payrollReceivable: accounts.payrollReceivable } : {}),
+        },
         taxLines: taxCode && run.taxTotal.greaterThan(0) ? [{
           taxCodeId: taxCode.id, direction: 'WITHHOLDING', taxableBase: results.reduce((sum, row) => sum.plus(row.taxableIncome), decimal(0)), taxAmount: run.taxTotal,
           counterpartyType: 'EMPLOYEE_GROUP', counterpartyId: run.id, documentNumber: run.number,

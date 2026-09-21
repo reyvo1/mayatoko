@@ -989,7 +989,7 @@ export class ReturnsService {
             create: { warehouseId: row.warehouseId, productId: item.productId, quantity: item.quantity, available: item.quantity },
             update: { quantity: { increment: item.quantity }, available: { increment: item.quantity } },
           });
-          await tx.inventoryMovement.create({ data: { warehouseId: row.warehouseId, productId: item.productId, locationId: locationStock.locationId, type: 'ORDER_RETURN', quantity: item.quantity, balanceAfter: inventory.quantity, referenceType: 'OrderReturn', referenceId: row.id } });
+          await tx.inventoryMovement.create({ data: { warehouseId: row.warehouseId, productId: item.productId, locationId: locationStock.locationId, type: 'SALE_RETURN', quantity: item.quantity, balanceAfter: inventory.quantity, referenceType: 'OrderReturn', referenceId: row.id } });
         }
       }
       await this.assertReturnTaxCodes(tx, user, scope, row.items.map((item) => item.taxCodeId));
