@@ -63,11 +63,11 @@ jobs:
       T360_UAT_PREPARE_EMPLOYEE_SELF: 'true'
       T360_UAT_EXPECTED_HOST: localhost
       T360_UAT_EXPECTED_DATABASE: toko360_staging
-      T360_API_URL: http://127.0.0.1:4000/api/v1
-      T360_STOREFRONT_URL: http://127.0.0.1:3000
-      T360_ADMIN_URL: http://127.0.0.1:3001
-      T360_POS_URL: http://127.0.0.1:3002
-      T360_EMPLOYEE_URL: http://127.0.0.1:3003
+      T360_API_URL: http://localhost:4000/api/v1
+      T360_STOREFRONT_URL: http://localhost:3000
+      T360_ADMIN_URL: http://localhost:3001
+      T360_POS_URL: http://localhost:3002
+      T360_EMPLOYEE_URL: http://localhost:3003
 
     steps:
       - name: Checkout exact source

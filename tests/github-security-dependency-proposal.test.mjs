@@ -13,23 +13,25 @@ const byId = Object.fromEntries(plan.candidates.map((candidate) => [candidate.id
 test('security dependency proposal evaluates multiple isolated candidates without weakening the committed audit gate', () => {
   assert.ok(Array.isArray(plan.candidates));
   assert.equal(plan.candidates.length, 2);
-  const currentPrisma = byId['framework-patched-prisma-current'];
-  const auditCompat = byId['framework-patched-prisma-audit-compat'];
+  const currentPrisma = byId['runtime-framework-patched-prisma-current'];
+  const auditCompat = byId['runtime-framework-patched-prisma-audit-compat'];
   assert.ok(currentPrisma);
   assert.ok(auditCompat);
   assert.equal(currentPrisma.direct.next, '16.3.5');
-  assert.equal(currentPrisma.direct['@nestjs/core'], '12.0.3');
-  assert.equal(currentPrisma.direct['@nestjs/platform-express'], '12.0.3');
+  assert.equal(currentPrisma.direct['@nestjs/core'], '12.0.4');
+  assert.equal(currentPrisma.direct['@nestjs/platform-express'], '12.0.4');
   assert.equal(currentPrisma.direct['@nestjs/config'], '12.0.0');
   assert.equal(currentPrisma.direct['@nestjs/jwt'], '12.0.2');
   assert.equal(currentPrisma.direct['@nestjs/swagger'], '12.0.1');
-  assert.equal(currentPrisma.direct['@nestjs/cli'], '12.0.3');
+  assert.equal(currentPrisma.direct['@nestjs/cli'], undefined);
   assert.equal(currentPrisma.direct['@nestjs/testing'], '12.0.3');
-  assert.equal(currentPrisma.direct['@nestjs/schematics'], '12.0.3');
+  assert.equal(currentPrisma.direct['@nestjs/schematics'], undefined);
   assert.equal(currentPrisma.overrides['deepmerge-ts'], '8.0.1');
   assert.equal(auditCompat.direct.prisma, '6.12.0');
   assert.equal(auditCompat.direct['@prisma/client'], '6.12.0');
   assert.match(auditCompat.description, /Never auto-adopt/i);
+  assert.ok(plan.notes.some((note) => /TypeScript >=6\.0/.test(note)));
+
 });
 
 test('security proposal is isolated, records each candidate lock/audit, and never overwrites the checked-out package lock', () => {

@@ -8,11 +8,11 @@ import { sourceFingerprint } from './lib/source-fingerprint.mjs';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const root = process.cwd();
 const output = path.resolve(root, process.env.T360_BROWSER_UAT_OUTPUT || 'handoff/quality/browser-uat-latest.json');
-const adminUrl = process.env.T360_ADMIN_URL || 'http://127.0.0.1:3001';
-const apiUrl = process.env.T360_API_URL || 'http://127.0.0.1:4000/api/v1';
-const storefrontUrl = process.env.T360_STOREFRONT_URL || 'http://127.0.0.1:3000';
-const posUrl = process.env.T360_POS_URL || 'http://127.0.0.1:3002';
-const employeeUrl = process.env.T360_EMPLOYEE_URL || 'http://127.0.0.1:3003';
+const adminUrl = process.env.T360_ADMIN_URL || 'http://localhost:3001';
+const apiUrl = process.env.T360_API_URL || 'http://localhost:4000/api/v1';
+const storefrontUrl = process.env.T360_STOREFRONT_URL || 'http://localhost:3000';
+const posUrl = process.env.T360_POS_URL || 'http://localhost:3002';
+const employeeUrl = process.env.T360_EMPLOYEE_URL || 'http://localhost:3003';
 const surfaces = [
   ['storefront', storefrontUrl],
   ['admin', adminUrl],
@@ -125,6 +125,21 @@ async function waitExpression(cdp, expression, label, timeoutMs = 30000) {
 async function navigateAndAssert(cdp, url, expression, label, timeoutMs = 45000) {
   await cdp.call('Page.navigate', { url });
   await waitExpression(cdp, `document.readyState === 'complete' && (${expression})`, label, timeoutMs);
+}
+
+async function browserPageDiagnostic(cdp, healthUrl) {
+  const result = await cdp.call('Runtime.evaluate', {
+    expression: `(async () => {
+      const snapshot = { origin: location.origin, href: location.href, text: (document.body?.innerText || '').slice(0, 4000) };
+      try {
+        const response = await fetch(${JSON.stringify('__HEALTH_URL__')}, { cache: 'no-store' });
+        snapshot.health = { ok: response.ok, status: response.status, text: (await response.text()).slice(0, 1000) };
+      } catch (error) { snapshot.health = { ok: false, error: String(error) }; }
+      return snapshot;
+    })()`.replace('__HEALTH_URL__', healthUrl.replaceAll('\\', '\\').replaceAll('"', '\"')),
+    returnByValue: true, awaitPromise: true,
+  });
+  return result?.result?.value || null;
 }
 
 async function main() {
@@ -241,7 +256,12 @@ async function main() {
     evidence.checks.push({ id: 'POS_BROWSER_RENDER', status: 'PASS', url: posUrl });
     await cdp.call('Runtime.evaluate', { expression: `localStorage.setItem('toko360_pos_token', ${access}); location.reload(); true`, returnByValue: true });
     await waitExpression(cdp, `document.body && document.body.innerText.includes('TOKO360 POS') && document.body.innerText.includes('Kasir') && document.body.innerText.includes('Gudang/toko')`, 'POS authenticated cashier shell', 45000);
-    await waitExpression(cdp, `document.body && document.body.innerText.includes('Server online') && !document.body.innerText.includes('Gagal memuat data.')`, 'POS online data/offline-config bootstrap', 45000);
+    try {
+      await waitExpression(cdp, `document.body && document.body.innerText.includes('Server online') && !document.body.innerText.includes('Gagal memuat data.')`, 'POS online data/offline-config bootstrap', 45000);
+    } catch (error) {
+      evidence.posDiagnostic = await browserPageDiagnostic(cdp, `${apiUrl}/health`).catch((diagnosticError) => ({ diagnosticError: diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError) }));
+      throw error;
+    }
     evidence.checks.push({ id: 'POS_AUTHENTICATED_RUNTIME', status: 'PASS', assertions: ['cashier shell', 'warehouse selector', 'server online', 'offline config/data bootstrap'] });
 
     await navigateAndAssert(cdp, employeeUrl, `document.body && document.body.innerText.includes('TOKO360 HR') && document.body.innerText.includes('Portal Karyawan')`, 'Employee Portal browser render');

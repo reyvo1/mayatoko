@@ -68,6 +68,22 @@ export function validateGithubSimulationConfig(env = process.env) {
   }
   if (restoreDatabase === drRestoreDatabase) throw new Error('Stage18 restore dan DR restore wajib database berbeda.');
 
+  const corsOrigins = String(env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003').split(',').map((value) => value.trim()).filter(Boolean);
+  const browserDefaults = { T360_STOREFRONT_URL: 'http://localhost:3000', T360_ADMIN_URL: 'http://localhost:3001', T360_POS_URL: 'http://localhost:3002', T360_EMPLOYEE_URL: 'http://localhost:3003' };
+  for (const [key, fallback] of Object.entries(browserDefaults)) {
+    const raw = String(env[key] || fallback);
+    let origin;
+    try { origin = new URL(raw).origin; } catch { throw new Error(`${key} tidak valid.`); }
+    if (!corsOrigins.includes(origin)) throw new Error(`${key} origin ${origin} tidak tercakup CORS_ORIGINS GitHub simulation.`);
+  }
+  const publicApiUrl = String(env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1');
+  const probeApiUrl = String(env.T360_API_URL || 'http://localhost:4000/api/v1');
+  let publicApi; let probeApi;
+  try { publicApi = new URL(publicApiUrl); probeApi = new URL(probeApiUrl); } catch { throw new Error('NEXT_PUBLIC_API_URL/T360_API_URL tidak valid.'); }
+  if (publicApi.origin !== probeApi.origin || publicApi.pathname.replace(/\/$/, '') !== probeApi.pathname.replace(/\/$/, '')) {
+    throw new Error('NEXT_PUBLIC_API_URL dan T360_API_URL wajib menunjuk API base yang sama pada GitHub simulation.');
+  }
+
   const adminEmail = required(env, 'SEED_ADMIN_EMAIL');
   const adminPassword = required(env, 'SEED_ADMIN_PASSWORD');
   if (adminPassword.length < 14) throw new Error('SEED_ADMIN_PASSWORD CI minimal 14 karakter.');

@@ -20,13 +20,16 @@ function parsePostgres(raw, label) {
   if (!url.hostname || !database || !url.username) throw new Error(`${label} wajib memuat host, database, dan user.`);
   return { hostname: url.hostname, port: url.port || '5432', database, raw };
 }
-function lockedTarget(raw, expectedHost, expectedDatabase, label, targetMode) {
+function lockedTarget(raw, expectedHost, expectedDatabase, label, targetMode, { scratch = false } = {}) {
   const connection = parsePostgres(raw, label);
   if (!expectedHost || !expectedDatabase) throw new Error(`${label} membutuhkan expected host/database.`);
   if (connection.hostname !== expectedHost || connection.database !== expectedDatabase) throw new Error(`${label} tidak cocok dengan expected host/database.`);
   if (unsafe.test(connection.hostname) || unsafe.test(connection.database)) throw new Error(`${label} menolak target production/live.`);
-  const marker = targetMode === 'TEST' ? /test/i : /stag/i;
-  if (!marker.test(connection.database)) throw new Error(`${label} database harus memuat penanda ${targetMode}.`);
+  const environmentMarker = targetMode === 'TEST' ? /test/i : /stag/i;
+  const scratchMarker = /(restore|dr|scratch)/i;
+  if (!environmentMarker.test(connection.database) && !(scratch && scratchMarker.test(connection.database))) {
+    throw new Error(`${label} database harus memuat penanda ${targetMode}${scratch ? ' atau restore/dr/scratch' : ''}.`);
+  }
   return connection;
 }
 function sameDatabase(a, b) { return a.hostname.toLowerCase() === b.hostname.toLowerCase() && a.port === b.port && a.database === b.database; }
@@ -53,7 +56,7 @@ try {
   if (!['TEST', 'STAGING'].includes(mode)) throw new Error('T360_DR_TARGET harus TEST atau STAGING.');
   if (process.env.T360_DR_CONFIRM !== CONFIRM) throw new Error(`T360_DR_CONFIRM harus ${CONFIRM}.`);
   const source = lockedTarget(process.env.T360_DR_SOURCE_DATABASE_URL, process.env.T360_DR_SOURCE_EXPECTED_HOST, process.env.T360_DR_SOURCE_EXPECTED_DATABASE, 'T360_DR_SOURCE_DATABASE_URL', mode);
-  const restore = lockedTarget(process.env.T360_DR_RESTORE_DATABASE_URL, process.env.T360_DR_RESTORE_EXPECTED_HOST, process.env.T360_DR_RESTORE_EXPECTED_DATABASE, 'T360_DR_RESTORE_DATABASE_URL', mode);
+  const restore = lockedTarget(process.env.T360_DR_RESTORE_DATABASE_URL, process.env.T360_DR_RESTORE_EXPECTED_HOST, process.env.T360_DR_RESTORE_EXPECTED_DATABASE, 'T360_DR_RESTORE_DATABASE_URL', mode, { scratch: true });
   if (sameDatabase(source, restore)) throw new Error('Database restore scratch wajib berbeda dari database source staging/test.');
   evidence.sourceTarget = { profile: 'postgresql', hostHash: shortHash(source.hostname), databaseHash: shortHash(source.database) };
   evidence.restoreTarget = { profile: 'postgresql', hostHash: shortHash(restore.hostname), databaseHash: shortHash(restore.database) };

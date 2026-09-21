@@ -10,4 +10,6 @@ test('browser UAT authenticates POS and requires live cashier/offline-config boo
   assert.match(source, /POS online data\/offline-config bootstrap/);
   assert.match(source, /Server online/);
   assert.match(source, /POS_AUTHENTICATED_RUNTIME/);
+  assert.match(source, /evidence\.posDiagnostic/);
+  assert.match(source, /browserPageDiagnostic/);
 });

@@ -4,37 +4,39 @@ Updated: 2026-09-21 Asia/Makassar
 
 ## Progress completed
 
-- Analyzed both GitHub log bundles from the latest push:
-  - `logs_96427604570.zip` — full-system simulation.
-  - `logs_96427604678.zip` — workflow governance.
-- Full-system simulation advanced past compile/build and produced/uploaded the exact tested runtime artifact.
-- Identified and patched the next real blockers in one batch:
-  - Stage-19 lacked tenant-local COURIER master data required by storefront order creation.
-  - Browser UAT raced Chromium shutdown and profile deletion (`ENOTEMPTY`).
-  - Persistent runtime was missing `T360_SOURCE_FINGERPRINT`, cascading into worker/staging/load identity failures.
-  - Stage-20 referenced `logDir` before definition.
-  - Governance called the TypeScript-backed repository validator without installing lockfile dependencies.
-  - DR/security proposal logs were too generic to safely fix the next failure without guessing.
-- Security audit remains mandatory and blocking. The dependency proposal remains isolated and cannot alter committed package manifests/lock automatically.
+- Analyzed GitHub full-system log `logs_96435823574.zip`.
+- The heavy pipeline now proves most exact-artifact runtime/staging gates are healthy:
+  - Stage-19 **11/11 PASS**.
+  - Worker queued-report runtime probe PASS.
+  - Staging certification PASS.
+  - Load smoke PASS.
+  - PostgreSQL index profile PASS.
+  - Automated Stage-20 PASS while human UAT remains PENDING.
+  - Exact build artifact remained unchanged through the simulation.
+- Remaining GitHub blockers were only dependency audit, POS built-browser bootstrap, and DR rehearsal.
+- Patched POS CI hostname/CORS mismatch by aligning all browser/runtime URLs to `localhost` and adding preflight validation that browser origins are covered by CORS and API bases agree.
+- Added POS failure diagnostics (origin/body/in-page API health) so a future browser failure is actionable in one run.
+- Patched DR target policy so the source remains strictly TEST/STAGING while an isolated restore DB may be explicitly named restore/dr/scratch; production/live and same-database targets remain rejected.
+- Refined isolated security dependency candidates so production Nest runtime packages can be evaluated without unnecessarily migrating Nest CLI/schematics to the TypeScript-6-requiring v12 toolchain. Primary audit remains blocking and no package-lock is auto-adopted.
 
 ## Local validation
 
-- Focused changed-path tests: **44/44 PASS**.
-- Full dependency-free coverage: **670/670 PASS** using segmented/filewise runs to avoid command wall-time limits.
+- Full dependency-free regression: **673/673 PASS** across four chunks (163 + 147 + 151 + 212).
+- Focused changed-path validation before full suite: **18/18 PASS**.
 - Workflow validator: **21/21 PASS**.
-- Repository validator: **780 files / 173 Prisma models PASS**.
+- Repository validator: **782 files / 173 Prisma models PASS**.
 - GitHub YAML parse: **5/5 PASS**.
-- Changed script syntax checks: PASS.
-- Source fingerprint before final context regeneration: `dc5a5e300f25eeab750e1fd917d16c740593d3f3f51e49d39f763f3f59dfd8fb`.
+- Modified JS/MJS syntax checks: PASS.
+- Source fingerprint before final context regeneration: `d7686ad5a72ec2cfc680c591ca839c8cc68142fe529ceecea0f6a84286c6ba6c`.
 
 ## Status
 
-Ready for another GitHub run. No gate was weakened and no red result was converted to green. The committed dependency lock still intentionally fails the high/critical production audit, so this is not a UAT candidate and not production-ready.
+Ready for GitHub rerun. No gate was weakened. The committed production dependency lock still intentionally fails the high/critical audit, so this is not a UAT candidate and not production-ready.
 
 ## Next steps
 
-1. Overlay/push the run #5 patch.
-2. Run both full-system simulation and workflow governance.
-3. Share both log ZIPs again.
-4. Use the new DR/security diagnostics if those gates remain red.
-5. Continue fixing concrete GitHub failures in large batches without weakening required gates.
+1. Overlay/push the run #6 patch.
+2. Run `Toko360 Full System Simulation`.
+3. Share the next full-system log ZIP plus `security-dependency-proposal` artifact if GitHub produces it.
+4. If POS is still red, inspect the new `posDiagnostic` evidence instead of guessing.
+5. If security proposal yields an audit-clean candidate, adopt it only in a separate reviewed patch and rerun the complete deterministic pipeline.
