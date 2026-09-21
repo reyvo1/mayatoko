@@ -23,12 +23,12 @@
     "prisma:push:postgres:no-generate": "dotenv -e ../../.env -- prisma db push --skip-generate --schema prisma/schema.postgresql.prisma"
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/jwt": "^11.0.0",
-    "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/common": "12.0.4",
+    "@nestjs/config": "12.0.0",
+    "@nestjs/core": "12.0.4",
+    "@nestjs/jwt": "12.0.2",
+    "@nestjs/platform-express": "12.0.4",
+    "@nestjs/swagger": "12.0.1",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
@@ -39,7 +39,7 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.0",
+    "@nestjs/testing": "12.0.3",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
     "eslint": "^9.0.0",
