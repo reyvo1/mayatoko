@@ -50,9 +50,9 @@ async function main() {
     await runNpm(['run', 'db:local:prepare'], 'SQLITE_DB_PREPARE', sqliteEnv);
     await runNpm(['run', 'test:db:smoke'], 'SQLITE_DB_SMOKE', sqliteEnv);
     await runNpm(['run', 'db:postgres:generate'], 'PRISMA_GENERATE_POSTGRES_FINAL', postgresEnv);
-    await runNpm(['run', 'build'], 'SIX_APP_PRODUCTION_BUILD');
+    await runNpm(['run', 'build'], 'SIX_APP_PRODUCTION_BUILD', { NODE_ENV: 'production' });
     evidence.sourceIdentityAfter = sourceFingerprint(root);
-    if (evidence.sourceIdentityAfter.value !== evidence.sourceIdentityBefore.value) throw new Error('Source fingerprint berubah selama build gate; evidence dibatalkan.');
+    if (evidence.sourceIdentityAfter.value !== evidence.sourceIdentityBefore.value) throw new Error(`Source fingerprint berubah selama build gate; evidence dibatalkan. before=${evidence.sourceIdentityBefore.value}/${evidence.sourceIdentityBefore.fileCount} after=${evidence.sourceIdentityAfter.value}/${evidence.sourceIdentityAfter.fileCount}`);
     const artifactManifest = buildArtifactManifest({ root, sourceIdentity: evidence.sourceIdentityAfter });
     evidence.buildArtifactId = artifactManifest.artifact.id;
     fs.writeFileSync(artifactOutput, JSON.stringify(artifactManifest, null, 2) + '\n');

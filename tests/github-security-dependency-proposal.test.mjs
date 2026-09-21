@@ -8,24 +8,37 @@ const script = read('scripts/ci-propose-security-dependency-refresh.mjs');
 const workflow = read('.github/workflows/full-system-simulation.yml');
 const pkg = JSON.parse(read('package.json'));
 
-test('security dependency proposal pins current patched direct versions and advisory overrides', () => {
-  assert.equal(plan.direct.next, '16.3.5');
-  assert.equal(plan.direct['@nestjs/common'], '11.2.5');
-  assert.equal(plan.direct['@nestjs/core'], '11.2.5');
-  assert.equal(plan.direct['@nestjs/platform-express'], '11.2.5');
-  assert.equal(plan.direct['@nestjs/swagger'], '11.4.7');
-  assert.equal(plan.overrides['deepmerge-ts'], '8.0.0');
-  assert.equal(plan.overrides['js-yaml'], '5.2.2');
-  assert.equal(plan.overrides.multer, '2.4.0');
-  assert.equal(plan.overrides.nanoid, '3.3.19');
-  assert.equal(plan.overrides.postcss, '8.5.28');
-  assert.equal(plan.overrides.sharp, '0.35.4');
+const byId = Object.fromEntries(plan.candidates.map((candidate) => [candidate.id, candidate]));
+
+test('security dependency proposal evaluates multiple isolated candidates without weakening the committed audit gate', () => {
+  assert.ok(Array.isArray(plan.candidates));
+  assert.equal(plan.candidates.length, 2);
+  const currentPrisma = byId['framework-patched-prisma-current'];
+  const auditCompat = byId['framework-patched-prisma-audit-compat'];
+  assert.ok(currentPrisma);
+  assert.ok(auditCompat);
+  assert.equal(currentPrisma.direct.next, '16.3.5');
+  assert.equal(currentPrisma.direct['@nestjs/core'], '12.0.4');
+  assert.equal(currentPrisma.direct['@nestjs/platform-express'], '12.0.3');
+  assert.equal(currentPrisma.direct['@nestjs/config'], '12.0.0');
+  assert.equal(currentPrisma.direct['@nestjs/jwt'], '12.0.2');
+  assert.equal(currentPrisma.direct['@nestjs/swagger'], '12.0.1');
+  assert.equal(currentPrisma.direct['@nestjs/cli'], '12.0.3');
+  assert.equal(currentPrisma.direct['@nestjs/testing'], '12.0.3');
+  assert.equal(currentPrisma.direct['@nestjs/schematics'], '12.0.3');
+  assert.equal(currentPrisma.overrides['deepmerge-ts'], '8.0.1');
+  assert.equal(auditCompat.direct.prisma, '6.12.0');
+  assert.equal(auditCompat.direct['@prisma/client'], '6.12.0');
+  assert.match(auditCompat.description, /Never auto-adopt/i);
 });
 
-test('security proposal is isolated and never overwrites the checked-out package lock', () => {
+test('security proposal is isolated, records each candidate lock/audit, and never overwrites the checked-out package lock', () => {
   assert.match(script, /mkdtempSync/);
   assert.match(script, /isolated: true/);
   assert.match(script, /package-lock-only/);
+  assert.match(script, /preferredCandidate/);
+  assert.match(script, /PROPOSAL_CANDIDATE/);
+  assert.match(script, /PROPOSAL_BLOCKER/);
   assert.match(script, /handoff\/quality\/security-dependency-proposal/);
   assert.doesNotMatch(script, /copyFileSync\(proposedLock,\s*beforeLock/);
 });

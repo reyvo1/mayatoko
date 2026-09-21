@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { sourceFingerprint } from '../scripts/lib/source-fingerprint.mjs';
 
 const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
@@ -19,6 +21,26 @@ test('source fingerprint is deterministic and covers executable source roots', (
   assert.ok(a.fileCount > 100);
 });
 
+test('source fingerprint ignores TypeScript incremental build metadata but still tracks authored source', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 't360-fingerprint-'));
+  try {
+    fs.mkdirSync(path.join(root, 'apps', 'demo'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'apps', 'demo', 'index.ts'), 'export const value = 1;\n');
+    fs.writeFileSync(path.join(root, 'package.json'), '{\"name\":\"fingerprint-test\"}\n');
+    fs.writeFileSync(path.join(root, 'package-lock.json'), '{\"lockfileVersion\":3}\n');
+    const before = sourceFingerprint(root);
+    fs.writeFileSync(path.join(root, 'apps', 'demo', 'tsconfig.tsbuildinfo'), 'generated incremental metadata');
+    const withBuildInfo = sourceFingerprint(root);
+    assert.equal(withBuildInfo.value, before.value);
+    assert.equal(withBuildInfo.fileCount, before.fileCount);
+    fs.writeFileSync(path.join(root, 'apps', 'demo', 'index.ts'), 'export const value = 2;\n');
+    const authoredChange = sourceFingerprint(root);
+    assert.notEqual(authoredChange.value, before.value);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('build gate records deterministic install, both Prisma profiles and six-app build', () => {
   assert.equal(pkg.scripts['build:gate'], 'node scripts/run-build-gate.mjs');
   assert.match(buildGate, /setup:dependencies/);
@@ -29,6 +51,7 @@ test('build gate records deterministic install, both Prisma profiles and six-app
   assert.match(buildGate, /SQLITE_DB_SMOKE/);
   assert.match(buildGate, /db:postgres:generate/);
   assert.match(buildGate, /SIX_APP_PRODUCTION_BUILD/);
+  assert.match(buildGate, /SIX_APP_PRODUCTION_BUILD', \{ NODE_ENV: 'production' \}/);
   assert.match(buildGate, /sourceIdentityBefore/);
   assert.match(buildGate, /sourceIdentityAfter/);
 });

@@ -4,30 +4,34 @@ Updated: 2026-09-21 Asia/Makassar
 
 ## Progress completed
 
-- Analyzed GitHub full-system log bundle `logs_96411633256.zip`.
-- GitHub dependency-free regression reached **659 tests: 658 PASS / 1 FAIL**; no TypeScript compile failure was reached because build gate correctly stopped on the regression failure.
-- Confirmed the single failure was a stale return test: Prisma `InventoryMovementType` supports `SALE_RETURN`, not `ORDER_RETURN`; source already uses `SALE_RETURN` for inventory movement and retains `ORDER_RETURN` for accounting event identity.
-- Strengthened the regression so it validates this distinction against all three Prisma schemas instead of merely changing the expected string.
-- Confirmed production dependency audit exposes 12 high/critical blockers and remains mandatory/fail-closed.
-- Added an isolated GitHub security dependency proposal generator. It creates a candidate lockfile only in a temp workspace, audits it, and uploads the proposal; it does not mutate the source under test.
+- Analyzed GitHub full-system log bundle `logs_96419266866.zip`.
+- GitHub dependency-free regression **663/663 PASS**.
+- GitHub SQLite prepare/seed/smoke PASS and PostgreSQL Prisma generation PASS.
+- GitHub production build completed successfully for all six apps: API, worker, Storefront, Admin, POS, Employee Portal.
+- Identified the post-build gate failure as a source-identity bug: generated TypeScript incremental metadata (`*.tsbuildinfo`) was being fingerprinted as authored source.
+- Fixed source fingerprint to exclude generated incremental metadata only; added regression proving real `.ts` source changes still change the fingerprint.
+- Production build step now forces standard `NODE_ENV=production`, removing the non-standard Next build environment warning source.
+- Kept production dependency audit mandatory. Current committed lock still has 12 high/critical findings.
+- Expanded isolated dependency remediation diagnostics to test two candidates in the same GitHub run, including a framework-patched/current-Prisma candidate and a separately marked audit-compat Prisma exploration. Neither can mutate committed source/lock.
 
 ## Local validation
 
-- Focused run #3 tests: **14/14 PASS**.
-- Full dependency-free regression: **663/663 PASS**.
+- Focused tests: **10/10 PASS**.
+- Full dependency-free regression: **664/664 PASS**.
 - Workflow validator: **21/21 PASS**.
-- Repository validator: **777 files / 173 Prisma models PASS** before handoff regeneration.
+- Repository validator: PASS — **779 files / 173 Prisma models**.
 - GitHub YAML parse: **5/5 PASS**.
-- Source fingerprint before handoff regeneration: `aef163aad4d8d8d6528b84bbc0e464a9e4505afb3a0a0f1e509a72797a185b4c`.
+- Changed Node scripts syntax: PASS.
+- Source fingerprint: `efb2b60d00e7d559d6c8b49dba2311c7b889d3b6147606079563f63884e7630b` before final handoff regeneration.
 
 ## Status
 
-Ready for GitHub run #4. Dependency audit is intentionally still blocking on the committed old lock. Not a UAT candidate and not production-ready.
+Ready for the next GitHub full-system run. Build itself is now proven to compile all six apps in GitHub, but build-artifact evidence was invalidated by generated metadata in the prior run. Dependency audit remains intentionally blocking. Not a UAT candidate and not production-ready.
 
 ## Next steps
 
-1. Overlay/push the run #3 patch.
+1. Overlay/push this patch.
 2. Run `Toko360 Full System Simulation` again.
-3. Share the full Actions logs/evidence.
-4. Also share the generated `security-dependency-proposal` artifact if present.
-5. Use that audited lock proposal for the next dependency-remediation batch; do not bypass the current production audit.
+3. Share full Actions logs/evidence.
+4. Share `security-dependency-proposal` artifact/directory if available.
+5. Use runtime failures and candidate audit results for the next large remediation batch; do not weaken gates.

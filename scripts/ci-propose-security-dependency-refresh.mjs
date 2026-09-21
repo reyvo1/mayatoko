@@ -41,27 +41,47 @@ function workspacePackageFiles(root) {
   return out.sort();
 }
 
-function patchPackageJsons(tempRoot, plan) {
+function setDeclaredVersion(pkg, name, version) {
+  if (pkg.dependencies?.[name]) { pkg.dependencies[name] = version; return true; }
+  if (pkg.devDependencies?.[name]) { pkg.devDependencies[name] = version; return true; }
+  return false;
+}
+
+function patchPackageJsons(tempRoot, candidate) {
+  const direct = candidate.direct || {};
   const nextApps = ['admin', 'storefront', 'pos', 'employee-portal'];
-  for (const app of nextApps) {
-    const file = path.join(tempRoot, 'apps', app, 'package.json');
-    const pkg = readJson(file);
-    if (!pkg.dependencies?.next) throw new Error(`${app} does not declare next`);
-    pkg.dependencies.next = plan.direct.next;
-    writeJson(file, pkg);
+  if (direct.next) {
+    for (const app of nextApps) {
+      const file = path.join(tempRoot, 'apps', app, 'package.json');
+      const pkg = readJson(file);
+      if (!pkg.dependencies?.next) throw new Error(`${app} does not declare next`);
+      pkg.dependencies.next = direct.next;
+      writeJson(file, pkg);
+    }
   }
 
   const apiFile = path.join(tempRoot, 'apps/api/package.json');
   const api = readJson(apiFile);
-  for (const name of ['@nestjs/common', '@nestjs/core', '@nestjs/platform-express', '@nestjs/swagger']) {
-    if (!api.dependencies?.[name]) throw new Error(`API does not declare ${name}`);
-    api.dependencies[name] = plan.direct[name];
+  for (const [name, version] of Object.entries(direct)) {
+    if (name === 'next') continue;
+    let changed = setDeclaredVersion(api, name, version);
+    if (name === '@prisma/client') {
+      const workerFile = path.join(tempRoot, 'apps/worker/package.json');
+      if (fs.existsSync(workerFile)) {
+        const worker = readJson(workerFile);
+        if (setDeclaredVersion(worker, name, version)) {
+          writeJson(workerFile, worker);
+          changed = true;
+        }
+      }
+    }
+    if (!changed) throw new Error(`No workspace declaration found for ${name}`);
   }
   writeJson(apiFile, api);
 
   const rootFile = path.join(tempRoot, 'package.json');
   const rootPkg = readJson(rootFile);
-  rootPkg.overrides = { ...(rootPkg.overrides || {}), ...plan.overrides };
+  rootPkg.overrides = { ...(rootPkg.overrides || {}), ...(candidate.overrides || {}) };
   writeJson(rootFile, rootPkg);
 }
 
@@ -75,39 +95,49 @@ function run(root, args) {
   };
 }
 
-export function generateSecurityDependencyProposal({ root = ROOT, outputDir = OUTPUT_DIR } = {}) {
-  const sourceIdentity = sourceFingerprint(root);
-  const plan = readJson(path.join(root, '.github/ci/security-dependency-plan.json'));
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'toko360-security-deps-'));
-  const beforeLock = path.join(root, 'package-lock.json');
-  const workspaceFiles = workspacePackageFiles(root);
+function blockerLines(findings = []) {
+  const lines = [];
+  for (const finding of findings) {
+    const fix = finding.fixAvailable === true ? 'fixAvailable=true' : finding.fixAvailable ? `fixAvailable=${JSON.stringify(finding.fixAvailable)}` : 'fixAvailable=false';
+    lines.push(`PROPOSAL_BLOCKER package=${finding.name} severity=${finding.severity} direct=${finding.isDirect} range=${finding.range ?? 'unknown'} ${fix}`);
+    for (const via of finding.via || []) {
+      if (typeof via === 'string') lines.push(`  via=${via}`);
+      else lines.push(`  via=${via.name ?? 'advisory'} severity=${via.severity ?? 'unknown'} range=${via.range ?? 'unknown'} title=${via.title ?? ''} url=${via.url ?? ''}`);
+    }
+  }
+  return lines;
+}
+
+function evaluateCandidate({ root, outputDir, sourceIdentity, committedLockSha256, workspaceFiles, candidate }) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `toko360-security-deps-${candidate.id}-`));
+  const candidateOutput = path.join(outputDir, candidate.id);
   const result = {
-    generatedAt: new Date().toISOString(),
+    id: candidate.id,
+    description: candidate.description || null,
     status: 'FAIL',
     sourceIdentity,
     productionTouched: false,
     isolated: true,
-    plan,
-    committedLockSha256: sha256(beforeLock),
+    direct: candidate.direct || {},
+    overrides: candidate.overrides || {},
+    committedLockSha256,
     proposedLockSha256: null,
     audit: null,
     error: null,
   };
-
-  fs.rmSync(outputDir, { recursive: true, force: true });
-  fs.mkdirSync(outputDir, { recursive: true });
+  fs.mkdirSync(candidateOutput, { recursive: true });
   try {
     copyJson(path.join(root, 'package.json'), path.join(tempRoot, 'package.json'));
-    fs.copyFileSync(beforeLock, path.join(tempRoot, 'package-lock.json'));
+    fs.copyFileSync(path.join(root, 'package-lock.json'), path.join(tempRoot, 'package-lock.json'));
     for (const rel of workspaceFiles) copyJson(path.join(root, rel), path.join(tempRoot, rel));
-    patchPackageJsons(tempRoot, plan);
+    patchPackageJsons(tempRoot, candidate);
 
     const install = run(tempRoot, ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund']);
-    fs.writeFileSync(path.join(outputDir, 'npm-install-package-lock-only.log'), `${install.stdout}${install.stderr}`);
+    fs.writeFileSync(path.join(candidateOutput, 'npm-install-package-lock-only.log'), `${install.stdout}${install.stderr}`);
     if (install.error || install.exitCode !== 0) throw new Error(`security proposal lock refresh failed with exit ${install.exitCode}${install.error ? `: ${install.error}` : ''}`);
 
     const auditRun = run(tempRoot, ['audit', '--omit=dev', '--audit-level=high', '--json']);
-    fs.writeFileSync(path.join(outputDir, 'npm-audit.json'), auditRun.stdout || '{}');
+    fs.writeFileSync(path.join(candidateOutput, 'npm-audit.json'), auditRun.stdout || '{}');
     let auditJson;
     try { auditJson = JSON.parse(auditRun.stdout || '{}'); }
     catch { throw new Error(`security proposal npm audit did not return valid JSON: ${auditRun.stderr.slice(-500)}`); }
@@ -116,29 +146,70 @@ export function generateSecurityDependencyProposal({ root = ROOT, outputDir = OU
 
     const proposedLock = path.join(tempRoot, 'package-lock.json');
     result.proposedLockSha256 = sha256(proposedLock);
-    copyJson(path.join(tempRoot, 'package.json'), path.join(outputDir, 'package.json'));
-    fs.copyFileSync(proposedLock, path.join(outputDir, 'package-lock.json'));
+    copyJson(path.join(tempRoot, 'package.json'), path.join(candidateOutput, 'package.json'));
+    fs.copyFileSync(proposedLock, path.join(candidateOutput, 'package-lock.json'));
     for (const rel of workspaceFiles) {
-      if (['apps/admin/package.json','apps/storefront/package.json','apps/pos/package.json','apps/employee-portal/package.json','apps/api/package.json'].includes(rel)) {
-        copyJson(path.join(tempRoot, rel), path.join(outputDir, rel));
-      }
+      if (fs.existsSync(path.join(tempRoot, rel))) copyJson(path.join(tempRoot, rel), path.join(candidateOutput, rel));
     }
+
     result.status = evaluated.passed ? 'PASS' : 'FAIL';
-    if (!evaluated.passed) result.error = `${evaluated.blocking} high/critical vulnerabilities remain in the isolated proposal.`;
+    if (!evaluated.passed) result.error = `${evaluated.blocking} high/critical vulnerabilities remain in candidate ${candidate.id}.`;
   } catch (error) {
     result.error = error instanceof Error ? error.message : String(error);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
-
-  writeJson(path.join(outputDir, 'proposal.json'), result);
+  writeJson(path.join(candidateOutput, 'proposal.json'), result);
   return result;
+}
+
+export function generateSecurityDependencyProposal({ root = ROOT, outputDir = OUTPUT_DIR } = {}) {
+  const sourceIdentity = sourceFingerprint(root);
+  const plan = readJson(path.join(root, '.github/ci/security-dependency-plan.json'));
+  const candidates = Array.isArray(plan.candidates) ? plan.candidates : [];
+  if (!candidates.length) throw new Error('security dependency plan must declare candidates[]');
+  const beforeLock = path.join(root, 'package-lock.json');
+  const workspaceFiles = workspacePackageFiles(root);
+  const committedLockSha256 = sha256(beforeLock);
+
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const results = candidates.map((candidate) => evaluateCandidate({
+    root, outputDir, sourceIdentity, committedLockSha256, workspaceFiles, candidate,
+  }));
+  const preferred = results.find((item) => item.status === 'PASS') || null;
+  const summary = {
+    generatedAt: new Date().toISOString(),
+    status: preferred ? 'PASS' : 'FAIL',
+    sourceIdentity,
+    productionTouched: false,
+    isolated: true,
+    committedLockSha256,
+    preferredCandidate: preferred?.id || null,
+    candidates: results.map((item) => ({
+      id: item.id,
+      description: item.description,
+      status: item.status,
+      proposedLockSha256: item.proposedLockSha256,
+      audit: item.audit,
+      error: item.error,
+    })),
+    notes: plan.notes || [],
+    error: preferred ? null : 'No isolated security dependency candidate is audit-clean.',
+  };
+  writeJson(path.join(outputDir, 'proposal.json'), summary);
+  return summary;
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const result = generateSecurityDependencyProposal();
-  console.log(`Security dependency proposal ${result.status} — isolated=${result.isolated} output=${path.relative(ROOT, OUTPUT_DIR)}`);
-  if (result.error) console.error(result.error);
+  console.log(`Security dependency proposal ${result.status} — isolated=${result.isolated} output=${path.relative(ROOT, OUTPUT_DIR)} preferred=${result.preferredCandidate || '<none>'}`);
+  for (const candidate of result.candidates || []) {
+    console.log(`PROPOSAL_CANDIDATE id=${candidate.id} status=${candidate.status} blocking=${candidate.audit?.blocking ?? 'unknown'} lock=${candidate.proposedLockSha256 || '<none>'}`);
+    for (const line of blockerLines(candidate.audit?.findings || [])) console.log(line);
+    if (candidate.error) console.error(`  error=${candidate.error}`);
+  }
   if (result.status !== 'PASS') process.exitCode = 2;
 }

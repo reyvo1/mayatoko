@@ -10,7 +10,7 @@ const ROOT_ENTRIES = [
   'run-postgres-dr-drill.cmd', 'run-production-promotion-gate.cmd', 'run-production-smoke.cmd', 'verify-production-ready.cmd',
 ];
 const SKIP_DIRS = new Set(['node_modules', '.git', '.next', 'dist', 'coverage', 'logs', 'data']);
-const SKIP_FILE = /(?:\.db(?:-journal|-shm|-wal)?|\.sqlite3?(?:-journal|-shm|-wal)?|\.log)$/i;
+const SKIP_FILE = /(?:\.db(?:-journal|-shm|-wal)?|\.sqlite3?(?:-journal|-shm|-wal)?|\.log|\.tsbuildinfo)$/i;
 
 function filesUnder(root, entry) {
   const absolute = path.join(root, entry);
