@@ -363,13 +363,12 @@ export default function HrPayrollView({ token }: { token: string }) {
         <Panel eyebrow="5B. KEWAJIBAN PAYROLL" title="PPh / BPJS / Potongan" badge={selectedLiability ? 'Run terpilih' : 'Belum tersedia'}>
           {selectedLiability ? <Table
             head={['Kewajiban', 'Diakui', 'Dibayar', 'Pending', 'Sisa', 'Aksi']}
-            rows={[
-              ['PPh payroll (2103)', selectedLiability.tax, '2103' as const],
-              ['BPJS/potongan (2104)', selectedLiability.socialAndOther, '2104' as const],
-            ].map(([label, bucket, code]) => {
-              const data = bucket as LiabilityBucket;
+            rows={([
+              ['PPh payroll (2103)', selectedLiability.tax, '2103'],
+              ['BPJS/potongan (2104)', selectedLiability.socialAndOther, '2104'],
+            ] satisfies Array<[string, LiabilityBucket, '2103' | '2104']>).map(([label, data, code]) => {
               const available = Number(data.availableToPay ?? 0);
-              return [label, rupiah(Number(data.recognized)), rupiah(Number(data.paid)), rupiah(Number(data.pending)), <strong>{rupiah(Number(data.outstanding))}</strong>, available > 0 ? <button type="button" className="secondary" disabled={busy} onClick={() => void createLiabilityDraft(code as '2103' | '2104', available)}>Buat draft bayar</button> : '-'];
+              return [label, rupiah(Number(data.recognized)), rupiah(Number(data.paid)), rupiah(Number(data.pending)), <strong>{rupiah(Number(data.outstanding))}</strong>, available > 0 ? <button type="button" className="secondary" disabled={busy} onClick={() => void createLiabilityDraft(code, available)}>Buat draft bayar</button> : '-'];
             })}
           /> : <div className="notice">Posting payroll terlebih dahulu untuk membentuk kewajiban.</div>}
         </Panel>

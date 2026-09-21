@@ -12,6 +12,14 @@ type BalanceSheet = { totalAssets: number; totalLiabilities: number; totalEquity
 type Integrity = { status: 'PASS' | 'WARN' | 'FAIL'; blockers: number; warnings: number; trialBalance: { difference: number; balanced: boolean }; balanceSheet: { difference: number; balanced: boolean }; pendingFinanceTransactions: number; unresolvedEvents: number };
 type Valuation = { summary?: { inventoryValue?: number }; items?: Array<{ productName?: string; warehouseName?: string; quantity?: number; value?: number }> } | Array<{ productId?: string; warehouseId?: string }> | Record<string, unknown>;
 
+function inventoryValueOf(value: Valuation): number {
+  if (Array.isArray(value) || !value || typeof value !== 'object' || !('summary' in value)) return 0;
+  const summary = value.summary;
+  if (!summary || typeof summary !== 'object' || !('inventoryValue' in summary)) return 0;
+  const amount = Number((summary as { inventoryValue?: unknown }).inventoryValue ?? 0);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
 function rupiah(v: number) {
   if (v >= 1_000_000_000) return `Rp ${(v / 1_000_000_000).toFixed(2)} M`;
   if (v >= 1_000_000) return `Rp ${(v / 1_000_000).toFixed(1)} jt`;
@@ -66,10 +74,8 @@ export default function OwnerView({ token }: { token: string }) {
         setPl(plData);
         setBalanceSheet(balanceData);
         setIntegrity(integrityData);
-        const total = !Array.isArray(valData) && valData?.summary
-          ? Number(valData.summary.inventoryValue ?? 0)
-          : 0;
-        setValuation(Number.isFinite(total) ? total : null);
+        const total = inventoryValueOf(valData);
+        setValuation(total);
         setPeriodLabel(`${fromText} → ${toText}`);
       })
       .catch((err: Error) => {

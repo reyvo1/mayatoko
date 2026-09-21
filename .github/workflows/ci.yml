@@ -27,6 +27,11 @@ jobs:
       - run: npm ci
       - run: npm run workflow:validate
       - run: npm run validate:repo
+      - name: Generate PostgreSQL Prisma Client for repository tests
+        run: npm run db:postgres:generate
+        env:
+          DATABASE_PROFILE: postgresql
+          DATABASE_URL: postgresql://toko360:toko360@127.0.0.1:5432/toko360_typecheck?schema=public
       - run: npm test
       - run: npm run prisma:validate:sqlite -w @toko360/api
       - name: Validate CI-only Docker Compose
@@ -47,6 +52,11 @@ jobs:
       - run: npm run workflow:validate
       - run: npm run db:local:prepare
       - run: npm run test:db:smoke
+      - name: Restore PostgreSQL Prisma Client for production build typing
+        run: npm run db:postgres:generate
+        env:
+          DATABASE_PROFILE: postgresql
+          DATABASE_URL: postgresql://toko360:toko360@127.0.0.1:5432/toko360_typecheck?schema=public
       - run: npm run build
 
   postgresql-integration:

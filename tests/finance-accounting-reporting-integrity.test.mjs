@@ -85,8 +85,10 @@ test('inventory valuation returns a whole-branch live summary independent of pag
   assert.match(reports, /new Prisma\.Decimal\(row\.product\.costPrice\)\.mul\(row\.quantity\)/);
   assert.match(reports, /inventoryValue: Number\(inventoryValue\)/);
   assert.match(reports, /source: 'LIVE_INVENTORY'/);
-  assert.match(owner, /valData\?\.summary/);
-  assert.match(owner, /valData\.summary\.inventoryValue/);
+  assert.match(owner, /function inventoryValueOf\(value: Valuation\)/);
+  assert.match(owner, /'summary' in value/);
+  assert.match(owner, /'inventoryValue' in summary/);
+  assert.match(owner, /const total = inventoryValueOf\(valData\)/);
 });
 
 test('tax calculation and tax posting honor company and effective business date', () => {

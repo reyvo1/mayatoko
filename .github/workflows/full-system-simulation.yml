@@ -108,9 +108,11 @@ jobs:
 
       - name: Deterministic install + all regression + lint + Prisma validate/generate + six-app build
         id: build_gate
+        continue-on-error: true
         run: npm run build:gate
 
       - name: Record exact source and build artifact identities
+        if: steps.build_gate.outcome == 'success'
         shell: bash
         run: |
           node <<'NODE' >> "$GITHUB_ENV"
@@ -124,17 +126,29 @@ jobs:
           NODE
 
       - name: Audit production dependencies for high/critical vulnerabilities
+        if: always()
         id: dependency_audit
         continue-on-error: true
         run: npm run ci:audit:production
 
       - name: Verify 12 critical UAT scenarios have automated regression coverage
+        if: always()
         id: critical_coverage
         continue-on-error: true
         run: npm run ci:uat:coverage
 
       - name: Validate CI-only container composition
+        if: always()
+        id: compose_validation
+        continue-on-error: true
         run: docker compose -f .github/ci/docker-compose.ci.yml config
+
+      - name: Stop artifact-dependent simulation after collecting independent diagnostics when build fails
+        if: steps.build_gate.outcome != 'success'
+        shell: bash
+        run: |
+          echo "Build gate failed. Independent dependency/UAT-coverage/container diagnostics were still collected; artifact-dependent stages are intentionally skipped." >&2
+          exit 1
 
       - name: Prepare PostgreSQL staging schema and bootstrap seed without regenerating exact artifact client
         run: |
