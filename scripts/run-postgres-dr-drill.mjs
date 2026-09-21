@@ -89,4 +89,10 @@ try {
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, JSON.stringify(evidence, null, 2) + '\n');
   console.log(`PostgreSQL DR drill ${evidence.status} — evidence: ${output}`);
+  if (evidence.status !== 'PASS' && evidence.error) {
+    const redacted = String(evidence.error)
+      .replaceAll(process.env.T360_DR_SOURCE_DATABASE_URL || '__NO_SOURCE_URL__', '[REDACTED_SOURCE_DATABASE_URL]')
+      .replaceAll(process.env.T360_DR_RESTORE_DATABASE_URL || '__NO_RESTORE_URL__', '[REDACTED_RESTORE_DATABASE_URL]');
+    console.error(`POSTGRES_DR_ERROR: ${redacted}`);
+  }
 }

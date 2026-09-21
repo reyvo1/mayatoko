@@ -198,6 +198,8 @@ async function waitForHealth(baseUrl, child, timeoutMs) {
 
 async function main() {
   const root = process.cwd();
+  const logDir = path.join(root, 'logs', 'stage20-release-readiness');
+  fs.mkdirSync(logDir, { recursive: true });
   const currentSourceIdentity = sourceFingerprint(root);
   fs.writeFileSync(path.join(logDir, 'latest.json'), `${JSON.stringify({
     workItem: WORK_ITEM, stage: STAGE, generatedAt: new Date().toISOString(), sourceIdentity: currentSourceIdentity,

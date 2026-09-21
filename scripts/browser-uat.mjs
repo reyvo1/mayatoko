@@ -32,6 +32,36 @@ async function http(url, init) {
   finally { clearTimeout(timeout); }
 }
 
+async function stopBrowserProcess(browser) {
+  if (!browser || browser.exitCode !== null) return;
+  browser.kill('SIGTERM');
+  await Promise.race([
+    new Promise((resolve) => browser.once('exit', resolve)),
+    sleep(3000),
+  ]);
+  if (browser.exitCode === null) {
+    browser.kill('SIGKILL');
+    await Promise.race([
+      new Promise((resolve) => browser.once('exit', resolve)),
+      sleep(2000),
+    ]);
+  }
+}
+
+async function removeBrowserProfile(tempDir) {
+  if (!tempDir) return;
+  let lastError;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try { fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 2, retryDelay: 100 }); return; }
+    catch (error) {
+      lastError = error;
+      if (!['ENOTEMPTY', 'EBUSY', 'EPERM'].includes(error?.code)) throw error;
+      await sleep(250 * (attempt + 1));
+    }
+  }
+  throw lastError ?? new Error('Browser profile cleanup gagal.');
+}
+
 async function waitHttp(url, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   let last = '';
@@ -251,8 +281,8 @@ async function main() {
     fs.mkdirSync(path.dirname(output), { recursive: true });
     fs.writeFileSync(output, JSON.stringify(evidence, null, 2) + '\n');
     cdp?.close();
-    if (browser && browser.exitCode === null) browser.kill('SIGTERM');
-    if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
+    await stopBrowserProcess(browser);
+    await removeBrowserProfile(tempDir);
   }
 }
 

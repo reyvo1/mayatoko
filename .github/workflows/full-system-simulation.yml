@@ -120,6 +120,7 @@ jobs:
           const build = JSON.parse(fs.readFileSync('handoff/quality/build-gate-latest.json','utf8'));
           const artifact = JSON.parse(fs.readFileSync('handoff/quality/build-artifact-manifest-latest.json','utf8'));
           if (build.status !== 'PASS' || artifact.status !== 'PASS' || !artifact.artifact?.id) process.exit(1);
+          console.log(`T360_SOURCE_FINGERPRINT=${build.sourceIdentityAfter.value}`);
           console.log(`T360_EXPECTED_SOURCE_FINGERPRINT=${build.sourceIdentityAfter.value}`);
           console.log(`T360_BUILD_ARTIFACT_ID=${artifact.artifact.id}`);
           console.log(`T360_EXPECTED_BUILD_ARTIFACT_ID=${artifact.artifact.id}`);

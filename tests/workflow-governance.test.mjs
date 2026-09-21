@@ -26,3 +26,11 @@ test('workflow manifests pass machine validation', () => {
   const result = spawnSync(process.execPath, ['scripts/workflow.mjs', 'validate'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
+
+test('workflow governance installs deterministic validator dependencies before TypeScript-backed repository validation', () => {
+  const source = readFileSync('.github/workflows/workflow-governance.yml', 'utf8');
+  const install = source.indexOf('npm ci --ignore-scripts --no-audit --no-fund');
+  const validate = source.indexOf('node scripts/validate-repo.mjs');
+  assert.ok(install >= 0 && validate > install);
+  assert.match(source, /cache-dependency-path: package-lock\.json/);
+});

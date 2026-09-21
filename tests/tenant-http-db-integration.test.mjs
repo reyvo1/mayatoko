@@ -57,3 +57,12 @@ test('stage19 evidence is bound to source fingerprint and refreshes official evi
   assert.match(pkg.scripts['test:tenant:staging'], /prepare-stage19-postgres\.mjs/);
   assert.match(pkg.scripts['test:tenant:staging'], /run-tenant-http-db-integration\.mjs/);
 });
+
+test('Stage-19 public-order fixture provisions real tenant-local courier fulfillment and reports HTTP error bodies', () => {
+  const source = fs.readFileSync(new URL('../scripts/run-tenant-http-db-integration.mjs', import.meta.url), 'utf8');
+  assert.match(source, /type: 'COURIER'/);
+  assert.match(source, /fulfillmentType: 'DELIVERY'/);
+  assert.match(source, /masterReferenceIds/);
+  assert.match(source, /prisma\.masterReference\.deleteMany/);
+  assert.match(source, /response=\$\{String\(detail\)\.slice/);
+});

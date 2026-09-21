@@ -18,7 +18,7 @@ test('security dependency proposal evaluates multiple isolated candidates withou
   assert.ok(currentPrisma);
   assert.ok(auditCompat);
   assert.equal(currentPrisma.direct.next, '16.3.5');
-  assert.equal(currentPrisma.direct['@nestjs/core'], '12.0.4');
+  assert.equal(currentPrisma.direct['@nestjs/core'], '12.0.3');
   assert.equal(currentPrisma.direct['@nestjs/platform-express'], '12.0.3');
   assert.equal(currentPrisma.direct['@nestjs/config'], '12.0.0');
   assert.equal(currentPrisma.direct['@nestjs/jwt'], '12.0.2');
@@ -50,4 +50,11 @@ test('primary audit remains blocking while proposal is diagnostic-only and uploa
   assert.match(workflow, /continue-on-error: true[\s\S]*?npm run ci:security:proposal/);
   assert.match(workflow, /handoff\/quality\/security-dependency-proposal\/\*\*/);
   assert.equal(pkg.scripts['ci:security:proposal'], 'node scripts/ci-propose-security-dependency-refresh.mjs');
+});
+
+
+test('security proposal preserves npm install failure diagnostics without mutating the committed lock', () => {
+  assert.match(script, /npm=\$\{tail\}/);
+  assert.match(script, /slice\(-24\)/);
+  assert.doesNotMatch(script, /--legacy-peer-deps|--force/);
 });

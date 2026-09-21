@@ -118,7 +118,10 @@ async function waitForHealth(baseUrl, child, timeoutMs) {
 }
 
 function assertStatus(result, expected, label) {
-  if (result.status !== expected) throw new Error(`${label}: status ${result.status}, diharapkan ${expected}.`);
+  if (result.status !== expected) {
+    const detail = typeof result.body === 'string' ? result.body : JSON.stringify(result.body ?? null);
+    throw new Error(`${label}: status ${result.status}, diharapkan ${expected}; response=${String(detail).slice(0, 1200)}.`);
+  }
 }
 function assertContains(items, id, expected, label) {
   const found = items.some((item) => item?.id === id || item?.productId === id || item?.userId === id);
@@ -163,7 +166,7 @@ async function main() {
   const suffix = runId.replace(/[^a-z0-9]/gi, '').slice(-14).toUpperCase();
   const password = `T360-${crypto.randomBytes(12).toString('base64url')}!`;
   const passwordHash = await hash(password, 6);
-  const state = { companyIds: [], branchIds: [], warehouseIds: [], userIds: [], productIds: [], taxCodeIds: [], accountingEventIds: [], payrollRunIds: [], payrollPeriodIds: [], financeIds: [], deviceIds: [], offlineIds: [], orderIds: [], paymentIds: [], outboxIds: [] };
+  const state = { companyIds: [], branchIds: [], warehouseIds: [], userIds: [], productIds: [], taxCodeIds: [], masterReferenceIds: [], accountingEventIds: [], payrollRunIds: [], payrollPeriodIds: [], financeIds: [], deviceIds: [], offlineIds: [], orderIds: [], paymentIds: [], outboxIds: [] };
   const tests = [];
   let child;
   let apiLog = '';
@@ -195,6 +198,7 @@ async function main() {
     await prisma.payrollPeriod.deleteMany({ where: { id: { in: state.payrollPeriodIds } } });
     await prisma.accountingEvent.deleteMany({ where: { id: { in: state.accountingEventIds } } });
     await prisma.taxCode.deleteMany({ where: { id: { in: state.taxCodeIds } } });
+    await prisma.masterReference.deleteMany({ where: { id: { in: state.masterReferenceIds } } });
     await prisma.inventory.deleteMany({ where: { warehouseId: { in: state.warehouseIds } } });
     await prisma.product.deleteMany({ where: { id: { in: state.productIds } } });
     await prisma.userRole.deleteMany({ where: { userId: { in: state.userIds } } });
@@ -237,6 +241,12 @@ async function main() {
     const taxA = await prisma.taxCode.create({ data: { companyId: companyA.id, code: `S19-TA-${suffix}`, name: 'Stage19 Tax A', scope: 'SALE', rate: 0.11, status: 'ACTIVE' } });
     const taxB = await prisma.taxCode.create({ data: { companyId: companyB.id, code: `S19-TB-${suffix}`, name: 'Stage19 Tax B', scope: 'SALE', rate: 0.11, status: 'ACTIVE' } });
     state.taxCodeIds.push(taxA.id, taxB.id);
+
+    // Public order creation requires an active fulfillment reference. Keep the fixture tenant-local
+    // so Stage-19 exercises the real storefront contract rather than bypassing fulfillment rules.
+    const courierA = await prisma.masterReference.create({ data: { companyId: companyA.id, branchId: branchA.id, type: 'COURIER', code: `S19-LOCAL-${suffix}`, name: 'Stage19 Local Delivery', metadata: { fulfillmentType: 'DELIVERY', price: 0, requiresAddress: true } } });
+    const courierB = await prisma.masterReference.create({ data: { companyId: companyB.id, branchId: branchB.id, type: 'COURIER', code: `S19-LOCAL-${suffix}`, name: 'Stage19 Local Delivery', metadata: { fulfillmentType: 'DELIVERY', price: 0, requiresAddress: true } } });
+    state.masterReferenceIds.push(courierA.id, courierB.id);
 
     const eventA = await prisma.accountingEvent.create({ data: { companyId: companyA.id, branchId: branchA.id, eventType: 'STAGE19_A', sourceType: 'Stage19', sourceId: runId, idempotencyKey: `${runId}:event:a` } });
     const eventB = await prisma.accountingEvent.create({ data: { companyId: companyB.id, branchId: branchB.id, eventType: 'STAGE19_B', sourceType: 'Stage19', sourceId: runId, idempotencyKey: `${runId}:event:b` } });

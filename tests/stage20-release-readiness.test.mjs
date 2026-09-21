@@ -131,3 +131,11 @@ test('Stage-20 requires current-source Stage-19 and build-gate evidence on the s
   assert.match(source, /build-gate-latest\.json/);
   assert.match(source, /buildGate\.status !== 'PASS'/);
 });
+
+test('Stage-20 creates its evidence directory before fail-closed attempt invalidation', () => {
+  const source = fs.readFileSync('scripts/run-stage20-release-readiness.mjs','utf8');
+  const logDir = source.indexOf("const logDir = path.join(root, 'logs', 'stage20-release-readiness')");
+  const mkdir = source.indexOf('fs.mkdirSync(logDir, { recursive: true })');
+  const invalidation = source.indexOf("fs.writeFileSync(path.join(logDir, 'latest.json')");
+  assert.ok(logDir >= 0 && mkdir > logDir && invalidation > mkdir);
+});

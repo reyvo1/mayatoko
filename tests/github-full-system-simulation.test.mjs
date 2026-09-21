@@ -153,3 +153,8 @@ test('GitHub automated Stage-20 is explicitly not allowed to replace human UAT c
   assert.match(githubSummary, /UNEXPECTED_PASS/);
   assert.match(githubSummary, /Human Stage-20 UAT remains mandatory/);
 });
+
+test('GitHub exact runtime exports authored source fingerprint to all persistent services', () => {
+  assert.match(workflow, /T360_SOURCE_FINGERPRINT=\$\{build\.sourceIdentityAfter\.value\}/);
+  assert.match(workflow, /T360_EXPECTED_SOURCE_FINGERPRINT=\$\{build\.sourceIdentityAfter\.value\}/);
+});

@@ -4,34 +4,37 @@ Updated: 2026-09-21 Asia/Makassar
 
 ## Progress completed
 
-- Analyzed GitHub full-system log bundle `logs_96419266866.zip`.
-- GitHub dependency-free regression **663/663 PASS**.
-- GitHub SQLite prepare/seed/smoke PASS and PostgreSQL Prisma generation PASS.
-- GitHub production build completed successfully for all six apps: API, worker, Storefront, Admin, POS, Employee Portal.
-- Identified the post-build gate failure as a source-identity bug: generated TypeScript incremental metadata (`*.tsbuildinfo`) was being fingerprinted as authored source.
-- Fixed source fingerprint to exclude generated incremental metadata only; added regression proving real `.ts` source changes still change the fingerprint.
-- Production build step now forces standard `NODE_ENV=production`, removing the non-standard Next build environment warning source.
-- Kept production dependency audit mandatory. Current committed lock still has 12 high/critical findings.
-- Expanded isolated dependency remediation diagnostics to test two candidates in the same GitHub run, including a framework-patched/current-Prisma candidate and a separately marked audit-compat Prisma exploration. Neither can mutate committed source/lock.
+- Analyzed both GitHub log bundles from the latest push:
+  - `logs_96427604570.zip` — full-system simulation.
+  - `logs_96427604678.zip` — workflow governance.
+- Full-system simulation advanced past compile/build and produced/uploaded the exact tested runtime artifact.
+- Identified and patched the next real blockers in one batch:
+  - Stage-19 lacked tenant-local COURIER master data required by storefront order creation.
+  - Browser UAT raced Chromium shutdown and profile deletion (`ENOTEMPTY`).
+  - Persistent runtime was missing `T360_SOURCE_FINGERPRINT`, cascading into worker/staging/load identity failures.
+  - Stage-20 referenced `logDir` before definition.
+  - Governance called the TypeScript-backed repository validator without installing lockfile dependencies.
+  - DR/security proposal logs were too generic to safely fix the next failure without guessing.
+- Security audit remains mandatory and blocking. The dependency proposal remains isolated and cannot alter committed package manifests/lock automatically.
 
 ## Local validation
 
-- Focused tests: **10/10 PASS**.
-- Full dependency-free regression: **664/664 PASS**.
+- Focused changed-path tests: **44/44 PASS**.
+- Full dependency-free coverage: **670/670 PASS** using segmented/filewise runs to avoid command wall-time limits.
 - Workflow validator: **21/21 PASS**.
-- Repository validator: PASS — **779 files / 173 Prisma models**.
+- Repository validator: **780 files / 173 Prisma models PASS**.
 - GitHub YAML parse: **5/5 PASS**.
-- Changed Node scripts syntax: PASS.
-- Source fingerprint: `efb2b60d00e7d559d6c8b49dba2311c7b889d3b6147606079563f63884e7630b` before final handoff regeneration.
+- Changed script syntax checks: PASS.
+- Source fingerprint before final context regeneration: `dc5a5e300f25eeab750e1fd917d16c740593d3f3f51e49d39f763f3f59dfd8fb`.
 
 ## Status
 
-Ready for the next GitHub full-system run. Build itself is now proven to compile all six apps in GitHub, but build-artifact evidence was invalidated by generated metadata in the prior run. Dependency audit remains intentionally blocking. Not a UAT candidate and not production-ready.
+Ready for another GitHub run. No gate was weakened and no red result was converted to green. The committed dependency lock still intentionally fails the high/critical production audit, so this is not a UAT candidate and not production-ready.
 
 ## Next steps
 
-1. Overlay/push this patch.
-2. Run `Toko360 Full System Simulation` again.
-3. Share full Actions logs/evidence.
-4. Share `security-dependency-proposal` artifact/directory if available.
-5. Use runtime failures and candidate audit results for the next large remediation batch; do not weaken gates.
+1. Overlay/push the run #5 patch.
+2. Run both full-system simulation and workflow governance.
+3. Share both log ZIPs again.
+4. Use the new DR/security diagnostics if those gates remain red.
+5. Continue fixing concrete GitHub failures in large batches without weakening required gates.

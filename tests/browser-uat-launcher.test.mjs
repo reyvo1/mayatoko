@@ -50,3 +50,12 @@ test('browser UAT renders Storefront, POS, and Employee Portal in real browser',
   assert.match(script, /Portal Karyawan/);
   assert.match(script, /Page\.navigate/);
 });
+
+test('browser UAT waits for Chromium termination before retrying profile cleanup', () => {
+  assert.match(script, /async function stopBrowserProcess/);
+  assert.match(script, /browser\.once\('exit'/);
+  assert.match(script, /SIGKILL/);
+  assert.match(script, /async function removeBrowserProfile/);
+  assert.match(script, /ENOTEMPTY/);
+  assert.match(script, /await removeBrowserProfile\(tempDir\)/);
+});

@@ -134,7 +134,10 @@ function evaluateCandidate({ root, outputDir, sourceIdentity, committedLockSha25
 
     const install = run(tempRoot, ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund']);
     fs.writeFileSync(path.join(candidateOutput, 'npm-install-package-lock-only.log'), `${install.stdout}${install.stderr}`);
-    if (install.error || install.exitCode !== 0) throw new Error(`security proposal lock refresh failed with exit ${install.exitCode}${install.error ? `: ${install.error}` : ''}`);
+    if (install.error || install.exitCode !== 0) {
+      const tail = `${install.stderr || install.stdout || ''}`.trim().split(/\r?\n/).slice(-24).join(' | ').slice(-4000);
+      throw new Error(`security proposal lock refresh failed with exit ${install.exitCode}${install.error ? `: ${install.error}` : ''}${tail ? `; npm=${tail}` : ''}`);
+    }
 
     const auditRun = run(tempRoot, ['audit', '--omit=dev', '--audit-level=high', '--json']);
     fs.writeFileSync(path.join(candidateOutput, 'npm-audit.json'), auditRun.stdout || '{}');
