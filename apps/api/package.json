@@ -1,0 +1,55 @@
+{
+  "name": "@toko360/api",
+  "version": "0.5.3",
+  "private": true,
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- nest start --watch",
+    "build": "nest build",
+    "start": "dotenv -e ../../.env -- node dist/main.js",
+    "lint": "tsc --noEmit",
+    "test": "jest --passWithNoTests",
+    "prisma:generate:sqlite": "dotenv -e ../../.env -- prisma generate --schema prisma/schema.sqlite.prisma",
+    "prisma:push:sqlite": "dotenv -e ../../.env -- prisma db push --schema prisma/schema.sqlite.prisma",
+    "prisma:migrate:sqlite": "dotenv -e ../../.env -- prisma migrate dev --schema prisma/schema.sqlite.prisma",
+    "prisma:seed:sqlite": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "prisma:studio:sqlite": "dotenv -e ../../.env -- prisma studio --schema prisma/schema.sqlite.prisma",
+    "prisma:validate:sqlite": "dotenv -e ../../.env -- prisma validate --schema prisma/schema.sqlite.prisma",
+    "prisma:generate:postgres": "dotenv -e ../../.env -- prisma generate --schema prisma/schema.postgresql.prisma",
+    "prisma:push:postgres": "dotenv -e ../../.env -- prisma db push --schema prisma/schema.postgresql.prisma",
+    "prisma:migrate:postgres": "dotenv -e ../../.env -- prisma migrate dev --schema prisma/schema.postgresql.prisma",
+    "prisma:seed:postgres": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "prisma:studio:postgres": "dotenv -e ../../.env -- prisma studio --schema prisma/schema.postgresql.prisma",
+    "prisma:validate:postgres": "dotenv -e ../../.env -- prisma validate --schema prisma/schema.postgresql.prisma",
+    "prisma:push:postgres:no-generate": "dotenv -e ../../.env -- prisma db push --skip-generate --schema prisma/schema.postgresql.prisma"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.0.0",
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.0.0",
+    "jest": "^30.0.0",
+    "prisma": "^6.19.3",
+    "ts-jest": "^29.4.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

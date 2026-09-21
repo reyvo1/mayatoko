@@ -1,0 +1,22 @@
+{
+  "name": "@toko360/employee-portal",
+  "version": "0.5.3",
+  "private": true,
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- next dev -p 3003",
+    "build": "dotenv -e ../../.env -- next build",
+    "start": "dotenv -e ../../.env -- next start -p 3003",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "16.2.11",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,345 @@
+'use client';
+import { authFetch } from '../auth-fetch';
+// Loyalty/devices/notifications dan storefront fulfillment.
+import { useEffect, useState } from 'react';
+import { Panel, Table, StatusChip, TableSkeleton, tanggal } from '../ui';
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+
+type LoyaltyProgram = { id: string; name: string; isActive?: boolean; pointsPerAmount?: number | string };
+type Device = { id: string; code: string; name: string; platform?: string; appVersion?: string | null; lastSeenAt?: string | null; isActive?: boolean };
+type NotificationTemplate = { id: string; code: string; channel: string; subject?: string | null; body: string; isActive?: boolean };
+type DeviceCredentialResult = { deviceId: string; keyId: string; secret: string; expiresAt?: string | null; note?: string };
+type Notification = { id: string; channel: string; templateCode?: string; recipient: string; status: string; createdAt: string };
+type Shipment = { id: string; number: string; orderId?: string | null; status?: string; createdAt: string };
+type StoreOrder = { id: string; number: string; status: string; customerName: string; total: string | number; fulfillmentType?: 'DELIVERY'|'PICKUP'|string; shippingMethodCode?: string|null; shippingMethodName?: string|null; payments: Array<{ method: string; status: string }> };
+type PromoRule = { id:string; code:string; name:string; type:string; value:string|number; channel:string; memberTier?:string|null; minQuantity?:number|null; buyQuantity?:number|null; getQuantity?:number|null; usageLimit?:number|null; perCustomerLimit?:number|null; isActive:boolean; startsAt:string; endsAt?:string|null };
+type Product = { id:string; sku:string; name:string };
+type ProductPage = { items: Product[] };
+type CursorResponse<T> = T[] | { items?: T[] };
+type DialogState = { kind: 'confirm-payment' | 'cancel'; order: StoreOrder } | null;
+
+async function readJson<T>(url: string, token: string): Promise<T> {
+  const response = await authFetch(url, token);
+  const data = await response.json();
+  if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Gagal memuat data.');
+  return data as T;
+}
+
+async function writeJson<T>(url: string, token: string, method: 'POST' | 'PATCH', body: Record<string, unknown>): Promise<T> {
+  const response = await authFetch(url, token, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await response.json();
+  if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Operasi gagal.');
+  return data as T;
+}
+
+function rows<T>(value: CursorResponse<T>): T[] { return Array.isArray(value) ? value : value.items ?? []; }
+
+export default function ExtensionsView({ token, mode = 'extensions' }: { token: string; mode?: 'extensions' | 'commerce' }) {
+  const [programs, setPrograms] = useState<LoyaltyProgram[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
+  const [deviceForm, setDeviceForm] = useState({ code: '', name: '', platform: 'POS_WEB', appVersion: '' });
+  const [credential, setCredential] = useState<DeviceCredentialResult | null>(null);
+  const [templateForm, setTemplateForm] = useState({ code: '', channel: 'EMAIL', subject: '', body: '' });
+  const [notificationForm, setNotificationForm] = useState({ channel: 'EMAIL', recipient: '', templateCode: '', subject: '', body: '' });
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
+  const [promos, setPromos] = useState<PromoRule[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [promoForm, setPromoForm] = useState({ name:'', code:'', type:'PERCENT', value:10, channel:'ALL', productIds:[] as string[], minSubtotal:0, maxDiscount:'', memberTier:'', minQuantity:1, buyQuantity:1, getQuantity:1, usageLimit:'', perCustomerLimit:'', startsAt:new Date().toISOString().slice(0,10), endsAt:'' });
+  const [carrier, setCarrier] = useState('MANUAL');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState<DialogState>(null);
+  const [dialogValue, setDialogValue] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function refreshCommerce() {
+    const [od, sh, pm, pr] = await Promise.all([
+      readJson<CursorResponse<StoreOrder>>(`${API}/orders?limit=20`, token),
+      readJson<CursorResponse<Shipment>>(`${API}/shipments?limit=15`, token),
+      readJson<PromoRule[]>(`${API}/promotions?limit=100`, token),
+      readJson<ProductPage>(`${API}/products?limit=200`, token),
+    ]);
+    setOrders(rows(od));
+    setShipments(rows(sh));
+    setPromos(pm ?? []);
+    setProducts(pr.items ?? []);
+  }
+
+  async function refreshExtensions() {
+    const [lp, dv, nt, tp] = await Promise.all([
+      readJson<CursorResponse<LoyaltyProgram>>(`${API}/loyalty/programs?limit=15`, token),
+      readJson<CursorResponse<Device>>(`${API}/devices?limit=50`, token),
+      readJson<CursorResponse<Notification>>(`${API}/notifications?limit=50`, token),
+      readJson<NotificationTemplate[]>(`${API}/notifications/templates`, token),
+    ]);
+    setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []);
+  }
+
+  async function registerDevice() {
+    setBusy(true); setMessage('');
+    try {
+      if (!deviceForm.code.trim() || !deviceForm.name.trim() || !deviceForm.platform.trim()) throw new Error('Kode, nama, dan platform device wajib diisi.');
+      await writeJson(`${API}/devices`, token, 'POST', { ...deviceForm, code: deviceForm.code.trim(), name: deviceForm.name.trim(), platform: deviceForm.platform.trim(), appVersion: deviceForm.appVersion.trim() || undefined });
+      setDeviceForm({ code: '', name: '', platform: 'POS_WEB', appVersion: '' });
+      setMessage('Device berhasil didaftarkan. Rotasi credential sebelum node toko mulai sync.');
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Device gagal didaftarkan.'); } finally { setBusy(false); }
+  }
+
+  async function rotateCredential(device: Device) {
+    setBusy(true); setMessage(''); setCredential(null);
+    try {
+      const result = await writeJson<DeviceCredentialResult>(`${API}/devices/${device.id}/credentials/rotate`, token, 'POST', {});
+      setCredential(result);
+      setMessage(`Credential ${device.code} berhasil dirotasi. Secret hanya ditampilkan sekali.`);
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Credential device gagal dirotasi.'); } finally { setBusy(false); }
+  }
+
+  async function setDeviceActive(device: Device, isActive: boolean) {
+    setBusy(true); setMessage('');
+    try {
+      await writeJson(`${API}/devices/${device.id}/status`, token, 'PATCH', { isActive });
+      setMessage(isActive ? `Device ${device.code} diaktifkan. Rotasi credential baru sebelum sync.` : `Device ${device.code} dinonaktifkan dan credential aktif dicabut.`);
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Status device gagal diubah.'); } finally { setBusy(false); }
+  }
+
+  async function saveTemplate() {
+    setBusy(true); setMessage('');
+    try {
+      if (!templateForm.code.trim() || !templateForm.body.trim()) throw new Error('Kode dan body template wajib diisi.');
+      await writeJson(`${API}/notifications/templates`, token, 'POST', { code: templateForm.code.trim(), channel: templateForm.channel, subject: templateForm.subject.trim() || undefined, body: templateForm.body, isActive: true });
+      setTemplateForm({ code: '', channel: 'EMAIL', subject: '', body: '' });
+      setMessage('Template notifikasi tersimpan.');
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Template gagal disimpan.'); } finally { setBusy(false); }
+  }
+
+  async function queueNotification() {
+    setBusy(true); setMessage('');
+    try {
+      if (!notificationForm.recipient.trim()) throw new Error('Penerima notifikasi wajib diisi.');
+      if (!notificationForm.templateCode.trim() && !notificationForm.body.trim()) throw new Error('Pilih template atau isi body notifikasi.');
+      await writeJson(`${API}/notifications`, token, 'POST', { channel: notificationForm.channel, recipient: notificationForm.recipient.trim(), templateCode: notificationForm.templateCode.trim() || undefined, subject: notificationForm.subject.trim() || undefined, body: notificationForm.body.trim() || undefined, data: {} });
+      setNotificationForm((current) => ({ ...current, recipient: '', subject: '', body: '' }));
+      setMessage('Notifikasi masuk antrean worker.');
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Notifikasi gagal diantrikan.'); } finally { setBusy(false); }
+  }
+
+  async function savePromo() {
+    setBusy(true); setMessage('');
+    try {
+      if (!promoForm.name.trim() || !promoForm.code.trim()) throw new Error('Nama dan kode promo wajib diisi.');
+      const body: Record<string, unknown> = {
+        name: promoForm.name.trim(), code: promoForm.code.trim().toUpperCase(), type: promoForm.type, value: Number(promoForm.value), channel: promoForm.channel,
+        productIds: promoForm.productIds, minSubtotal: Number(promoForm.minSubtotal || 0), memberTier: promoForm.memberTier.trim() || undefined,
+        startsAt: promoForm.startsAt, endsAt: promoForm.endsAt || undefined,
+        maxDiscount: promoForm.maxDiscount === '' ? undefined : Number(promoForm.maxDiscount),
+        usageLimit: promoForm.usageLimit === '' ? undefined : Number(promoForm.usageLimit),
+        perCustomerLimit: promoForm.perCustomerLimit === '' ? undefined : Number(promoForm.perCustomerLimit),
+      };
+      if (['QUANTITY_BREAK','BUNDLE'].includes(promoForm.type)) body.minQuantity = Number(promoForm.minQuantity);
+      if (promoForm.type === 'BOGO') { body.buyQuantity = Number(promoForm.buyQuantity); body.getQuantity = Number(promoForm.getQuantity); }
+      await writeJson(`${API}/promotions`, token, 'POST', body);
+      setPromoForm((current) => ({ ...current, name:'', code:'', productIds:[], memberTier:'', maxDiscount:'', usageLimit:'', perCustomerLimit:'' }));
+      setMessage('Promo/voucher tersimpan. Rule akan divalidasi server saat POS atau Storefront checkout.');
+      await refreshCommerce();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Promo gagal disimpan.'); } finally { setBusy(false); }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setMessage('');
+    const task = mode === 'commerce'
+      ? Promise.all([
+          readJson<CursorResponse<StoreOrder>>(`${API}/orders?limit=20`, token),
+          readJson<CursorResponse<Shipment>>(`${API}/shipments?limit=15`, token),
+          readJson<PromoRule[]>(`${API}/promotions?limit=100`, token),
+          readJson<ProductPage>(`${API}/products?limit=200`, token),
+        ]).then(([od, sh, pm, pr]) => { if (!cancelled) { setOrders(rows(od)); setShipments(rows(sh)); setPromos(pm ?? []); setProducts(pr.items ?? []); } })
+      : Promise.all([
+          readJson<CursorResponse<LoyaltyProgram>>(`${API}/loyalty/programs?limit=15`, token),
+          readJson<CursorResponse<Device>>(`${API}/devices?limit=50`, token),
+          readJson<CursorResponse<Notification>>(`${API}/notifications?limit=50`, token),
+          readJson<NotificationTemplate[]>(`${API}/notifications/templates`, token),
+        ]).then(([lp, dv, nt, tp]) => { if (!cancelled) { setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []); } });
+    task.catch((error) => { if (!cancelled) setMessage(error instanceof Error ? error.message : 'Data gagal dimuat.'); }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [token, mode]);
+
+  async function orderAction(order: StoreOrder, action: 'confirm-payment' | 'authorize-invoice' | 'pack' | 'ship' | 'deliver' | 'cancel', operatorInput?: string) {
+    setMessage('');
+    setBusy(true);
+    try {
+      let body: Record<string, unknown> | undefined;
+      if (action === 'confirm-payment') {
+        const method = order.payments[0]?.method;
+        if (!['QRIS', 'TRANSFER', 'CARD'].includes(method)) throw new Error('Order bukan pembayaran elektronik yang menunggu konfirmasi.');
+        const externalRef = operatorInput?.trim();
+        if (!externalRef) throw new Error('Referensi provider/bank wajib diisi.');
+        body = { paymentMethod: method, provider: 'backoffice', externalRef };
+      } else if (action === 'ship') {
+        if (order.fulfillmentType === 'PICKUP') {
+          body = {};
+        } else {
+          if (!carrier.trim() || !trackingNumber.trim()) throw new Error('Isi carrier dan nomor resi sebelum mengirim delivery.');
+          body = { carrier: carrier.trim(), trackingNumber: trackingNumber.trim(), ownFleet: false };
+        }
+      } else if (action === 'cancel') {
+        const reason = operatorInput?.trim();
+        if (!reason) throw new Error('Alasan pembatalan wajib diisi.');
+        body = { reason };
+      }
+      const response = await fetch(`${API}/orders/${order.id}/${action}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Aksi fulfillment gagal.');
+      setMessage(`Order ${order.number}: ${action} berhasil.`);
+      setDialog(null); setDialogValue('');
+      await refreshCommerce();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Aksi fulfillment gagal.'); }
+    finally { setBusy(false); }
+  }
+
+  if (loading) return <TableSkeleton rows={4} />;
+
+  return (
+    <>
+      {mode === 'extensions' && <>
+        <section className="grid2">
+          <Panel eyebrow="LOYALTY" title="Program Loyalitas" badge={`${programs.length} program`}>
+            <Table head={['Nama', 'Poin', 'Status']} rows={programs.map((p) => [<strong>{p.name}</strong>, p.pointsPerAmount != null ? `${p.pointsPerAmount} / Rp` : '-', <StatusChip status={p.isActive === false ? 'NONAKTIF' : 'AKTIF'} />])} empty="Belum ada program loyalitas." />
+          </Panel>
+          <Panel eyebrow="DEVICE REGISTRATION" title="Daftarkan node toko" badge="signed sync">
+            <div className="formStack">
+              <label>Kode<input value={deviceForm.code} onChange={(e) => setDeviceForm({ ...deviceForm, code: e.target.value })} placeholder="POS-PUSAT-01" /></label>
+              <label>Nama<input value={deviceForm.name} onChange={(e) => setDeviceForm({ ...deviceForm, name: e.target.value })} placeholder="POS Kasir 1" /></label>
+              <label>Platform<input value={deviceForm.platform} onChange={(e) => setDeviceForm({ ...deviceForm, platform: e.target.value })} placeholder="POS_WEB / EDGE_NODE" /></label>
+              <label>Versi aplikasi<input value={deviceForm.appVersion} onChange={(e) => setDeviceForm({ ...deviceForm, appVersion: e.target.value })} placeholder="0.5.3" /></label>
+              <button type="button" disabled={busy} onClick={() => void registerDevice()}>Daftarkan device</button>
+            </div>
+          </Panel>
+        </section>
+        <Panel eyebrow="PERANGKAT" title="Device & credential sync" badge={`${devices.length} device`}>
+          <Table head={['Kode', 'Nama', 'Platform', 'Last seen', 'Status', 'Aksi']} rows={devices.map((d) => [
+            <strong>{d.code}</strong>, d.name, `${d.platform ?? '-'}${d.appVersion ? ` · ${d.appVersion}` : ''}`, d.lastSeenAt ? tanggal(d.lastSeenAt) : '-',
+            <StatusChip status={d.isActive === false ? 'OFF' : 'ON'} />,
+            <div className="rowActions"><button type="button" className="secondary" disabled={busy || d.isActive === false} onClick={() => void rotateCredential(d)}>Rotasi secret</button><button type="button" className="secondary" disabled={busy} onClick={() => void setDeviceActive(d, d.isActive === false)}>{d.isActive === false ? 'Aktifkan' : 'Nonaktifkan'}</button></div>,
+          ])} empty="Belum ada device." />
+          {credential && <div className="notice success"><strong>SECRET SEKALI TAMPIL</strong><br/>Key ID: <code>{credential.keyId}</code><br/>Secret: <code>{credential.secret}</code><br/><small>Simpan pada secure store node toko. Setelah panel ini ditutup, server tidak akan menampilkan secret lagi.</small></div>}
+        </Panel>
+        <section className="grid2">
+          <Panel eyebrow="NOTIFICATION TEMPLATE" title="Template provider-neutral" badge={`${templates.length} template`}>
+            <div className="formStack">
+              <label>Kode<input value={templateForm.code} onChange={(e) => setTemplateForm({ ...templateForm, code: e.target.value })} placeholder="ORDER_STATUS" /></label>
+              <label>Channel<select value={templateForm.channel} onChange={(e) => setTemplateForm({ ...templateForm, channel: e.target.value })}>{['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+              <label>Subject<input value={templateForm.subject} onChange={(e) => setTemplateForm({ ...templateForm, subject: e.target.value })} placeholder="Opsional" /></label>
+              <label>Body<textarea value={templateForm.body} onChange={(e) => setTemplateForm({ ...templateForm, body: e.target.value })} placeholder="Pesanan {{order.number}} sudah dikirim" /></label>
+              <button type="button" disabled={busy} onClick={() => void saveTemplate()}>Simpan template</button>
+            </div>
+            <Table head={['Kode', 'Channel', 'Status']} rows={templates.slice(0, 12).map((t) => [<strong>{t.code}</strong>, t.channel, <StatusChip status={t.isActive === false ? 'NONAKTIF' : 'AKTIF'} />])} empty="Belum ada template." />
+          </Panel>
+          <Panel eyebrow="NOTIFICATION QUEUE" title="Kirim notifikasi" badge="worker delivery">
+            <div className="formStack">
+              <label>Channel<select value={notificationForm.channel} onChange={(e) => setNotificationForm({ ...notificationForm, channel: e.target.value, templateCode: '' })}>{['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+              <label>Template<select value={notificationForm.templateCode} onChange={(e) => setNotificationForm({ ...notificationForm, templateCode: e.target.value })}><option value="">Body manual</option>{templates.filter((t) => t.channel === notificationForm.channel && t.isActive !== false).map((t) => <option key={t.id} value={t.code}>{t.code}</option>)}</select></label>
+              <label>Penerima<input value={notificationForm.recipient} onChange={(e) => setNotificationForm({ ...notificationForm, recipient: e.target.value })} placeholder="email / telepon / device token" /></label>
+              <label>Subject<input value={notificationForm.subject} onChange={(e) => setNotificationForm({ ...notificationForm, subject: e.target.value })} placeholder="Opsional" /></label>
+              <label>Body manual<textarea value={notificationForm.body} onChange={(e) => setNotificationForm({ ...notificationForm, body: e.target.value })} placeholder="Kosongkan bila memakai template tanpa variable." /></label>
+              <button type="button" disabled={busy} onClick={() => void queueNotification()}>Masukkan antrean</button>
+            </div>
+          </Panel>
+        </section>
+        <Panel eyebrow="NOTIFIKASI" title="Antrian Notifikasi" badge={`${notifications.length} item`}>
+          <Table head={['Channel', 'Template', 'Penerima', 'Status']} rows={notifications.map((n) => [<strong>{n.channel}</strong>, n.templateCode ?? '-', n.recipient, <StatusChip status={n.status} />])} empty="Belum ada notifikasi." />
+        </Panel>
+      </>}
+
+      {mode === 'commerce' && <>
+        <section className="grid2">
+          <Panel eyebrow="PROMOTION ENGINE" title="Promo / Voucher" badge={`${promos.length} rule`}>
+            <div className="formStack">
+              <label>Nama<input value={promoForm.name} onChange={(e)=>setPromoForm({...promoForm,name:e.target.value})}/></label>
+              <label>Kode<input value={promoForm.code} onChange={(e)=>setPromoForm({...promoForm,code:e.target.value.toUpperCase()})}/></label>
+              <label>Tipe<select value={promoForm.type} onChange={(e)=>setPromoForm({...promoForm,type:e.target.value})}>{['PERCENT','AMOUNT','QUANTITY_BREAK','BOGO','BUNDLE'].map((x)=><option key={x}>{x}</option>)}</select></label>
+              <label>Nilai<input type="number" min="0" value={promoForm.value} onChange={(e)=>setPromoForm({...promoForm,value:Number(e.target.value)})}/></label>
+              <label>Channel<select value={promoForm.channel} onChange={(e)=>setPromoForm({...promoForm,channel:e.target.value})}>{['ALL','POS','STOREFRONT'].map((x)=><option key={x}>{x}</option>)}</select></label>
+              <label>Produk eligible <small>(Ctrl/⌘ untuk multi-select; kosong=semua)</small><select multiple value={promoForm.productIds} onChange={(e)=>setPromoForm({...promoForm,productIds:Array.from(e.target.selectedOptions).map((o)=>o.value)})}>{products.map((p)=><option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select></label>
+              <label>Min subtotal<input type="number" min="0" value={promoForm.minSubtotal} onChange={(e)=>setPromoForm({...promoForm,minSubtotal:Number(e.target.value)})}/></label>
+              <label>Max discount<input type="number" min="0" value={promoForm.maxDiscount} onChange={(e)=>setPromoForm({...promoForm,maxDiscount:e.target.value})} placeholder="opsional"/></label>
+              <label>Tier member<input value={promoForm.memberTier} onChange={(e)=>setPromoForm({...promoForm,memberTier:e.target.value.toUpperCase()})} placeholder="opsional"/></label>
+              {['QUANTITY_BREAK','BUNDLE'].includes(promoForm.type)&&<label>Minimum quantity<input type="number" min="1" step="1" value={promoForm.minQuantity} onChange={(e)=>setPromoForm({...promoForm,minQuantity:Math.max(1,Number(e.target.value)||1)})}/></label>}
+              {promoForm.type==='BOGO'&&<><label>Buy quantity<input type="number" min="1" step="1" value={promoForm.buyQuantity} onChange={(e)=>setPromoForm({...promoForm,buyQuantity:Math.max(1,Number(e.target.value)||1)})}/></label><label>Get free<input type="number" min="1" step="1" value={promoForm.getQuantity} onChange={(e)=>setPromoForm({...promoForm,getQuantity:Math.max(1,Number(e.target.value)||1)})}/></label></>}
+              <label>Quota global<input type="number" min="1" step="1" value={promoForm.usageLimit} onChange={(e)=>setPromoForm({...promoForm,usageLimit:e.target.value})} placeholder="opsional"/></label>
+              <label>Quota / customer<input type="number" min="1" step="1" value={promoForm.perCustomerLimit} onChange={(e)=>setPromoForm({...promoForm,perCustomerLimit:e.target.value})} placeholder="opsional"/></label>
+              <label>Mulai<input type="date" value={promoForm.startsAt} onChange={(e)=>setPromoForm({...promoForm,startsAt:e.target.value})}/></label>
+              <label>Selesai<input type="date" value={promoForm.endsAt} onChange={(e)=>setPromoForm({...promoForm,endsAt:e.target.value})}/></label>
+              <button type="button" disabled={busy} onClick={()=>void savePromo()}>Simpan promo</button>
+            </div>
+          </Panel>
+          <Panel eyebrow="PROMOTION RULES" title="Promo Aktif" badge="server authoritative">
+            <Table head={['Kode','Tipe','Channel','Quota','Status']} rows={promos.slice(0,30).map((p)=>[<strong>{p.code}</strong>,p.type,p.channel,`${p.perCustomerLimit??'-'} / ${p.usageLimit??'-'}`,<StatusChip status={p.isActive?'ACTIVE':'INACTIVE'}/>])} empty="Belum ada promo." />
+            <p className="sectionHelp">BOGO menggunakan unit eligible termurah sebagai free item. Quantity break memakai persen; bundle memakai nominal per grup. Quota dicatat saat Sale/Order benar-benar dibuat.</p>
+          </Panel>
+        </section>
+        <section className="grid2">
+          <Panel eyebrow="PENGIRIMAN" title="Shipments" badge={`${shipments.length} shipment`}>
+            <Table head={['Nomor', 'Dibuat', 'Status']} rows={shipments.map((s) => [<strong>{s.number}</strong>, tanggal(s.createdAt), <StatusChip status={s.status ?? 'PENDING'} />])} empty="Belum ada shipment." />
+          </Panel>
+          <Panel eyebrow="KONTROL PENGIRIMAN" title="Carrier eksternal" badge="dipakai saat Ship">
+            <div className="formStack">
+              <label>Carrier<input value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="JNE / J&T / Manual" /></label>
+              <label>Nomor resi<input value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)} placeholder="Nomor resi sebelum Ship" /></label>
+            </div>
+            <p className="sectionHelp">Nomor resi hanya dikirim ke server saat aksi Ship. Own-fleet memakai workflow armada dan gate pass tersendiri.</p>
+          </Panel>
+        </section>
+
+        <Panel eyebrow="COMMERCE" title="Fulfillment Storefront" badge={`${orders.length} order`}>
+          <Table
+            head={['Order', 'Pelanggan', 'Fulfillment', 'Metode', 'Status', 'Aksi']}
+            rows={orders.map((o) => {
+              const payment = o.payments[0];
+              const actions: React.ReactNode[] = [];
+              if (o.status === 'PENDING_PAYMENT' && Boolean(payment && ['QRIS', 'TRANSFER', 'CARD'].includes(payment.method))) actions.push(<button key="confirm" type="button" className="secondary" disabled={busy} onClick={() => { setDialog({ kind: 'confirm-payment', order: o }); setDialogValue(''); }}>Konfirmasi bayar</button>);
+              if (o.status === 'PENDING_PAYMENT' && payment?.method === 'INVOICE') actions.push(<button key="credit" type="button" className="secondary" disabled={busy} onClick={() => void orderAction(o, 'authorize-invoice')}>Otorisasi termin</button>);
+              if (['PAID', 'PROCESSING'].includes(o.status)) actions.push(<button key="pack" type="button" className="secondary" disabled={busy} onClick={() => void orderAction(o, 'pack')}>Pack</button>);
+              if (o.status === 'PACKED') actions.push(<button key="ship" type="button" className="secondary" disabled={busy} onClick={() => void orderAction(o, 'ship')}>Ship</button>);
+              if (o.status === 'SHIPPED') actions.push(<button key="deliver" type="button" className="secondary" disabled={busy} onClick={() => void orderAction(o, 'deliver')}>Deliver</button>);
+              if (payment?.status !== 'PAID' && ['PENDING_PAYMENT', 'PROCESSING', 'PACKED'].includes(o.status)) actions.push(<button key="cancel" type="button" className="secondary dangerButton" disabled={busy} onClick={() => { setDialog({ kind: 'cancel', order: o }); setDialogValue(''); }}>Batalkan</button>);
+              return [<strong>{o.number}</strong>, o.customerName, <small>{o.fulfillmentType ?? 'DELIVERY'} · {o.shippingMethodName ?? o.shippingMethodCode ?? '-'}</small>, <small>{payment?.method ?? 'UNSELECTED'} / {payment?.status ?? '-'}</small>, <StatusChip status={o.status} />, <div className="rowActions">{actions.length ? actions : <span>-</span>}</div>];
+            })}
+            empty="Belum ada order storefront."
+          />
+          <p className="sectionHelp">Packing hanya lolos setelah inspeksi outbound memenuhi syarat server. Pembayaran elektronik harus memiliki referensi provider yang sudah diverifikasi.</p>
+        </Panel>
+      </>}
+
+      {message && <div className="notice">{message}</div>}
+
+      {dialog && <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="commerce-dialog-title">
+        <div className="modalCard">
+          <span className="eyebrow">{dialog.kind === 'confirm-payment' ? 'PAYMENT CONFIRMATION' : 'ORDER CANCELLATION'}</span>
+          <h2 id="commerce-dialog-title">{dialog.kind === 'confirm-payment' ? `Konfirmasi pembayaran ${dialog.order.number}` : `Batalkan ${dialog.order.number}`}</h2>
+          <p className="sectionHelp">{dialog.kind === 'confirm-payment' ? 'Masukkan referensi provider/bank yang sudah benar-benar diverifikasi.' : 'Tuliskan alasan pembatalan untuk audit trail.'}</p>
+          <label>{dialog.kind === 'confirm-payment' ? 'Referensi eksternal' : 'Alasan pembatalan'}
+            <input autoFocus value={dialogValue} onChange={(e) => setDialogValue(e.target.value)} placeholder={dialog.kind === 'confirm-payment' ? 'Contoh: BANK-TRX-...' : 'Alasan pembatalan'} />
+          </label>
+          <div className="modalActions">
+            <button type="button" className="secondary" disabled={busy} onClick={() => { setDialog(null); setDialogValue(''); }}>Kembali</button>
+            <button type="button" className={dialog.kind === 'cancel' ? 'dangerButton' : ''} disabled={busy || !dialogValue.trim()} onClick={() => void orderAction(dialog.order, dialog.kind, dialogValue)}>{busy ? 'Memproses…' : dialog.kind === 'confirm-payment' ? 'Konfirmasi pembayaran' : 'Batalkan order'}</button>
+          </div>
+        </div>
+      </div>}
+    </>
+  );
+}

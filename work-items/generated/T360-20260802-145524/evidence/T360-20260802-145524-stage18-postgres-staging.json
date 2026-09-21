@@ -1,0 +1,75 @@
+{
+  "workItem": "T360-20260802-145524",
+  "stage": 18,
+  "generatedAt": "2026-08-02T16:11:06.346Z",
+  "targetMode": "STAGING",
+  "target": {
+    "hostHash": "49960de5880e8c68",
+    "databaseHash": "d52c6f099d1f3613",
+    "serverVersion": "16.14"
+  },
+  "restoreTarget": {
+    "hostHash": "49960de5880e8c68",
+    "databaseHash": "829f5cecaaa8cccd",
+    "serverVersion": "16.14"
+  },
+  "backup": {
+    "sha256": "a0fe13e6a8c0228ccf8f9a6d52c731e604a73ed00de823d7533306c4baa65a5a",
+    "archiveListVerified": true
+  },
+  "restoreTest": {
+    "passed": true,
+    "productTotal": 3,
+    "supplierTotal": 1
+  },
+  "decisions": {
+    "fileHash": "20481428a458ee2472efcc5dcb3b0dc34e25b6bc6090ddcf3e2f5d2d670f148b",
+    "productAssignments": 0,
+    "supplierAssignments": 1
+  },
+  "before": {
+    "productTotal": 3,
+    "supplierTotal": 1,
+    "productCompanyColumn": true,
+    "supplierCompanyColumn": true,
+    "productUnresolved": 0,
+    "supplierUnresolved": 0,
+    "productOwnershipChecksum": "-5613022502400606242",
+    "supplierOwnershipChecksum": "802227709288756223",
+    "ownershipIndexCount": 4
+  },
+  "after": {
+    "productTotal": 3,
+    "supplierTotal": 1,
+    "productCompanyColumn": true,
+    "supplierCompanyColumn": true,
+    "productUnresolved": 0,
+    "supplierUnresolved": 0,
+    "productOwnershipChecksum": "-5613022502400606242",
+    "supplierOwnershipChecksum": "802227709288756223",
+    "ownershipIndexCount": 4
+  },
+  "idempotent": true,
+  "queryPlans": {
+    "product": [
+      "Limit  (cost=0.45..8.47 rows=1 width=64)",
+      "  InitPlan 1 (returns $0)",
+      "    ->  Limit  (cost=0.15..0.30 rows=1 width=32)",
+      "          ->  Index Only Scan using \"Company_pkey\" on \"Company\"  (cost=0.15..53.25 rows=340 width=32)",
+      "  ->  Index Only Scan using \"Product_companyId_isActive_name_id_idx\" on \"Product\"  (cost=0.14..8.16 rows=1 width=64)",
+      "        Index Cond: ((\"companyId\" = $0) AND (\"isActive\" = true))"
+    ],
+    "supplier": [
+      "Limit  (cost=0.45..8.47 rows=1 width=64)",
+      "  InitPlan 1 (returns $0)",
+      "    ->  Limit  (cost=0.15..0.30 rows=1 width=32)",
+      "          ->  Index Only Scan using \"Company_pkey\" on \"Company\"  (cost=0.15..53.25 rows=340 width=32)",
+      "  ->  Index Only Scan using \"Supplier_companyId_name_id_idx\" on \"Supplier\"  (cost=0.14..8.16 rows=1 width=64)",
+      "        Index Cond: (\"companyId\" = $0)"
+    ]
+  },
+  "gate": {
+    "passed": true,
+    "blockingReasons": []
+  }
+}

@@ -1,0 +1,16 @@
+import { Module } from '@nestjs/common';
+import { AccountingCoreModule } from '../accounting-core/accounting-core.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { PromotionsModule } from '../promotions/promotions.module';
+import { SalesController } from './sales.controller';
+import { SalesService } from './sales.service';
+import { CashierTargetController } from './cashier-target.controller';
+import { CashierTargetService } from './cashier-target.service';
+import { StockAlertService } from './stock-alert.service';
+import { ReceiptController } from './receipt.controller';
+@Module({
+  imports: [PrismaModule, AccountingCoreModule, PromotionsModule],
+  controllers: [SalesController, CashierTargetController, ReceiptController],
+  providers: [SalesService, CashierTargetService, StockAlertService],
+})
+export class SalesModule {}

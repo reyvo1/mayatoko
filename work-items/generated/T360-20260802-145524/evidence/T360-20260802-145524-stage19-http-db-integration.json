@@ -1,0 +1,86 @@
+{
+  "workItem": "T360-20260802-145524",
+  "stage": 19,
+  "generatedAt": "2026-08-02T16:38:26.538Z",
+  "targetMode": "STAGING",
+  "target": {
+    "hostHash": "49960de5880e8c68",
+    "databaseHash": "d52c6f099d1f3613"
+  },
+  "fixtureRunId": "s19-1785688699747-355205",
+  "apiPort": 41919,
+  "tests": [
+    {
+      "name": "health endpoint aktif pada API staging terisolasi",
+      "status": "PASSED",
+      "durationMs": 3
+    },
+    {
+      "name": "produk tenant A tidak membaca produk tenant B",
+      "status": "PASSED",
+      "durationMs": 75
+    },
+    {
+      "name": "stok dan warehouse tenant A tidak membaca tenant B",
+      "status": "PASSED",
+      "durationMs": 42
+    },
+    {
+      "name": "jurnal/accounting event dibatasi company dan branch token",
+      "status": "PASSED",
+      "durationMs": 44
+    },
+    {
+      "name": "tax code dibatasi company token",
+      "status": "PASSED",
+      "durationMs": 31
+    },
+    {
+      "name": "payroll run dibatasi company dan branch token",
+      "status": "PASSED",
+      "durationMs": 46
+    },
+    {
+      "name": "finance/payment operations dibatasi tenant token",
+      "status": "PASSED",
+      "durationMs": 159
+    },
+    {
+      "name": "user list tidak membocorkan user branch lain",
+      "status": "PASSED",
+      "durationMs": 11
+    },
+    {
+      "name": "token tanpa branch assignment ditolak",
+      "status": "PASSED",
+      "durationMs": 17
+    },
+    {
+      "name": "offline sync mempertahankan tenant envelope dan retry idempoten",
+      "status": "PASSED",
+      "durationMs": 115
+    },
+    {
+      "name": "denial lintas tenant tercatat pada audit database",
+      "status": "PASSED",
+      "durationMs": 7
+    }
+  ],
+  "summary": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0
+  },
+  "auditDenials": 7,
+  "cleanup": {
+    "passed": true
+  },
+  "gate": {
+    "passed": true
+  },
+  "note": "Credential, password, token, raw database URL, dan response sensitif tidak disimpan.",
+  "qualityFull": {
+    "passed": true
+  },
+  "productionTouched": false
+}
