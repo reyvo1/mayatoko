@@ -35,7 +35,7 @@ export function PosShell({
         <div className="posBrand">
           <span>TOKO360 POS</span>
           <div>
-            <h1>Terminal kasir</h1>
+            <h1>Kasir · Terminal penjualan</h1>
             <small className={`connection ${apiOnline ? 'online' : 'offline'}`}>
               {apiOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
               {apiOnline ? 'Server online' : 'Mode offline'}
