@@ -1,46 +1,35 @@
 # TOKO360 Chat Session
 
-Updated: 2026-09-21 Asia/Makassar
+Updated: 2026-09-22 Asia/Makassar
 
-## Progress completed
+## Current baseline
+- GitHub green baseline before UI-P1: `52673d1beda86082d67231b6cb0ec2ef5307fab7`.
+- Automated full-system simulation on that baseline: PASS.
+- UI-P1 was opened from the user's explicit request after the 18/18 original backlog had closed.
 
-- Analyzed latest GitHub full-system evidence, Actions logs, and exact tested-runtime artifact.
-- Heavy automated simulation now passes every functional/runtime gate except the committed production dependency audit:
-  - build + exact artifact PASS;
-  - Stage-18 PASS;
-  - payroll PostgreSQL migration PASS;
-  - Stage-19 11/11 PASS;
-  - browser Admin/Storefront/POS/Employee PASS, including authenticated POS bootstrap;
-  - worker queued-report probe PASS;
-  - staging certification PASS;
-  - load smoke PASS (600/600, 0 errors, p95 30.59 ms);
-  - index profile PASS;
-  - PostgreSQL DR backup/checksum/isolated restore/smoke PASS;
-  - automated Stage-20 PASS.
-- Human Stage-20 UAT remains intentionally PENDING.
-- Aggregate GitHub simulation remains FAIL only because the committed dependency audit reports 12 high/critical findings.
-- Diagnosed isolated security proposal: it inherited stale transitive resolutions from the committed package lock even when candidate manifests/overrides requested patched versions.
-- Patched proposal generation to build a fresh package lock from patched manifests with no committed-lock seed.
-- Added exact override-resolution verification so a proposal cannot be called valid if requested transitive pins are not actually present in the candidate lock.
-- Primary committed audit remains blocking and no audit threshold was weakened.
+## UI-P1 completed
+- Added reusable `AdminAppShell`.
+- Added canonical Admin workspace routes through `app/[section]/page.tsx`.
+- Added runtime navigation resolver using ModuleDefinition, effective feature flags, JWT role/permission visibility, and Admin UiSchemaDefinition navigation overrides.
+- Added collapsible/searchable desktop sidebar, mobile workspace selector, breadcrumbs, company/branch context, route-aware page headers, and related-workspace rail.
+- Added restrained UI-P1 dark tokens aligned with `UI-DESIGN-SYSTEM.md`.
+- Existing domain views and backend business logic are preserved.
+- No Prisma schema, migration, accounting, tax, inventory, payment, payroll, or sync behavior changed.
 
-## Local validation
+## Workflow state
+- Machine-readable backlog: 19 total / 18 completed.
+- Active work items: 1 (`T360-20260922-133500`, phase VERIFICATION).
+- Blocked work items: 0.
+- UI-P1 is not CLOSED until GitHub Full System Simulation passes and release evidence is recorded.
 
-- Full dependency-free regression: **673/673 PASS**.
-- Focused security proposal tests: **4/4 PASS**.
-- Workflow validator: **21/21 PASS**.
-- Repository validator: **783 files / 173 Prisma models PASS**.
-- Script syntax: PASS.
-- Patched source fingerprint: `cc90588955a6d1508e2fc3bc8abe65b9659560250a0d00b4075b54824fc2c17f`.
+## Validation
+- UI-P1 + UI cleanup focused regression: 15/15 PASS.
+- Existing Admin/procurement focused regression before final shell extraction: PASS.
+- Changed TS/TSX transpile syntax: 4/4 PASS.
+- Workflow validator: PASS, 22 work items / 8 delivery waves.
+- Work selector: 19 total, 18 completed, 1 active, 0 blocked.
+- Full dependency-free regression on GitHub/Linux-equivalent LF checkout: **679/679 PASS**, 0 fail, 0 skipped/todo.
+- One full-suite run on the reconstructed Windows/CRLF snapshot surfaced the known literal-line-ending-sensitive payroll test; no payroll source was changed. The Linux/GitHub-equivalent checkout passes all 679 tests.
 
-## Status
-
-Ready for one more GitHub diagnostic run to generate a genuine fresh security candidate lock. The application/runtime gates are already green; dependency security is the remaining automated blocker. Human UAT remains mandatory after security adoption and full rerun.
-
-## Next steps
-
-1. Overlay/push the run #7 patch.
-2. Run `Toko360 Full System Simulation`.
-3. Share the next full-system log/evidence and `security-dependency-proposal` artifact.
-4. Adopt a candidate only if high/critical = 0 and override-resolution checks pass.
-5. After adoption, rerun the complete heavy pipeline before human Stage-20 UAT.
+## Next step
+Apply the exact UI-P1 patch to local repo at baseline `52673d1`, commit, push to `main`, then use GitHub Full System Simulation as the authoritative heavy Next/build/browser/runtime validator. If GitHub is red, fix only the newest evidence-backed failure and push again.

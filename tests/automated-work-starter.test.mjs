@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const backlog = JSON.parse(readFileSync('config/implementation-backlog.json', 'utf8'));
@@ -54,11 +54,20 @@ test('external coding agent is safe-by-default', () => {
   assert.equal(typeof automation.openEditor, 'boolean');
 });
 
-test('automation status command runs without changing work items', () => {
+test('automation status command reports the real active/completed backlog state without changing work items', () => {
+  const beforeActive = readdirSync('work-items/active').filter((name) => name.endsWith('.json')).sort();
+  const beforeCompleted = readdirSync('work-items/completed').filter((name) => name.endsWith('.json')).sort();
+  const activeBacklogKeys = new Set(beforeActive.map((name) => JSON.parse(readFileSync(`work-items/active/${name}`, 'utf8')).backlogKey).filter(Boolean));
+  const completedBacklogKeys = new Set(beforeCompleted.map((name) => JSON.parse(readFileSync(`work-items/completed/${name}`, 'utf8')).backlogKey).filter(Boolean));
+
   const result = spawnSync(process.execPath, ['scripts/start-work.mjs', 'status'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /Toko360 automated work status/);
-  // 18/18 backlog selesai: status harus menunjukkan nol aktif/blocked (bukan "ready task")
-  assert.match(result.stdout, /Work item aktif\s+:\s*0/);
+  assert.match(result.stdout, new RegExp(`Backlog total\\s+:\\s*${backlog.items.length}`));
+  assert.match(result.stdout, new RegExp(`Backlog completed\\s+:\\s*${completedBacklogKeys.size}`));
+  assert.match(result.stdout, new RegExp(`Work item aktif\\s+:\\s*${activeBacklogKeys.size}`));
   assert.match(result.stdout, /Semua backlog otomatis sudah selesai atau sedang aktif\./);
+
+  assert.deepEqual(readdirSync('work-items/active').filter((name) => name.endsWith('.json')).sort(), beforeActive);
+  assert.deepEqual(readdirSync('work-items/completed').filter((name) => name.endsWith('.json')).sort(), beforeCompleted);
 });

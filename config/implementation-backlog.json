@@ -802,6 +802,53 @@
         "docs/PERFORMANCE-CHECKLIST.md",
         "docs/PROJECT-CHECKPOINTS.md"
       ]
+    },
+    {
+      "key": "ui-p1-admin-application-shell",
+      "priority": 190,
+      "title": "UI-P1 Admin Application Shell dan information architecture",
+      "type": "feature",
+      "module": "admin-ui",
+      "wave": "W7",
+      "risk": "MEDIUM",
+      "dependencies": [
+        "w7-production-readiness"
+      ],
+      "featureFlag": "",
+      "impacts": {
+        "database": "NONE",
+        "inventory": "NONE",
+        "accounting": "NONE",
+        "tax": "NONE",
+        "payment": "NONE",
+        "payroll": "NONE",
+        "sync": "NONE",
+        "security": "LOW",
+        "performance": "LOW"
+      },
+      "businessRules": [
+        "Navigasi Admin hanya menampilkan workspace yang memiliki view nyata dan module runtime aktif.",
+        "Role/permission pada token hanya digunakan untuk visibility UI; backend tetap menjadi otoritas akses fail-closed.",
+        "UiSchemaDefinition surface admin dapat menyembunyikan, mengurutkan, atau mengganti label workspace tanpa mengubah business logic."
+      ],
+      "acceptanceCriteria": [
+        "Admin memiliki canonical route per workspace dan direct reload route tetap membuka shell yang sama.",
+        "Sidebar dapat collapse, dicari, responsive, dan dibangun dari module catalog, feature flag, role/permission, serta UI schema runtime.",
+        "Setiap workspace mempunyai breadcrumb, page header, company/branch context, dan related-workspace rail yang konsisten.",
+        "Business workflow dan endpoint yang sudah hijau tetap tidak berubah."
+      ],
+      "testPlan": [
+        "Static regression canonical route dan dynamic navigation resolver.",
+        "UI cleanup regression memastikan tidak ada fake controls atau menu tanpa view nyata.",
+        "Full dependency-free regression sebelum push.",
+        "GitHub Full System Simulation untuk Next build dan browser runtime sesudah push."
+      ],
+      "documentation": [
+        "docs/ADMIN-APPLICATION-SHELL.md",
+        "docs/DEVELOPMENT-KIT.md",
+        "UI-DESIGN-SYSTEM.md",
+        "handoff/CURRENT-WORK.md"
+      ]
     }
   ]
 }

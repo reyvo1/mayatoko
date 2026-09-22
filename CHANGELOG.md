@@ -1,3 +1,10 @@
+
+## 2026-09-22 — UI-P1 Admin Application Shell
+
+- Added canonical Admin workspace routes and route-aware navigation.
+- Admin navigation now consumes runtime module catalog, feature flags, JWT role/permission visibility, and Admin UiSchemaDefinition overrides.
+- Added collapsible/searchable sidebar, breadcrumbs, company/branch context, and related-workspace rail.
+- No database or business-logic changes.
 # Changelog
 
 ## 2026-09-11 — Local API compile recovery

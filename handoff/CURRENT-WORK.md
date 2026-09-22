@@ -1,5 +1,28 @@
 # CURRENT WORK — TOKO360
 
+Updated: 2026-09-22 (Asia/Makassar)
+Checkpoint type: **UI-P1 ADMIN APPLICATION SHELL — VERIFICATION / AWAITING GITHUB FULL-SYSTEM**
+Version remains: `0.5.3`.
+
+## UI-P1 implementation completed in source
+
+- Admin canonical workspace routes for dashboard, owner, master data, procurement, commerce, inventory control, operations control, finance, people, assets/fleet, extensions, and platform.
+- Runtime navigation resolves ModuleDefinition + effective feature flags + JWT role/permission visibility + Admin UiSchemaDefinition overrides.
+- Sidebar is collapsible/searchable; mobile selector, breadcrumb, company/branch context, route-aware page header, and related workspace rail are present.
+- Existing Admin domain views and backend authorization are preserved; no schema/business transaction change.
+- Focused UI-P1 + existing Admin regression must remain PASS; GitHub Full System Simulation is the heavy build/browser authority after push.
+
+## Next work
+
+1. Push UI-P1 against the green baseline while work item remains in VERIFICATION.
+2. Run Toko360 Full System Simulation.
+3. If GitHub is red, fix only the evidence-backed UI-P1 regression and rerun.
+4. If green, record GitHub evidence, advance UI-P1 through STAGING/RELEASE_READY/RELEASED/CLOSED, then continue UI productization with the next explicit work item.
+
+---
+
+# CURRENT WORK — TOKO360
+
 Updated: 2026-09-21 (Asia/Makassar)
 Checkpoint type: **GITHUB RUN #7 PREP — FRESH SECURITY LOCK RESOLUTION**
 Version remains: `0.5.3`.

@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const admin = readFileSync(new URL('../apps/admin/app/page.tsx', import.meta.url), 'utf8');
+const adminPage = readFileSync(new URL('../apps/admin/app/page.tsx', import.meta.url), 'utf8');
+const adminShell = readFileSync(new URL('../apps/admin/app/app-shell.tsx', import.meta.url), 'utf8');
+const adminNavigation = readFileSync(new URL('../apps/admin/app/navigation.ts', import.meta.url), 'utf8');
+const admin = [adminPage, adminShell, adminNavigation].join('\n');
 const adminCss = readFileSync(new URL('../apps/admin/app/globals.css', import.meta.url), 'utf8');
 const extensions = readFileSync(new URL('../apps/admin/app/modules/extensions.tsx', import.meta.url), 'utf8');
 const payroll = readFileSync(new URL('../apps/admin/app/modules/hr-payroll.tsx', import.meta.url), 'utf8');

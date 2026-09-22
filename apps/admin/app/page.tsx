@@ -1,10 +1,9 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import {
-  Crown, LayoutDashboard, ShoppingCart, Package, BookOpen, ReceiptText,
-  Undo2, Container, ShieldCheck, Users, Repeat2, Settings, Gem,
-  RefreshCw, TrendingUp, Landmark, CircleDollarSign, CheckCircle2, XCircle,
+  ReceiptText, TrendingUp, Landmark, Package, CircleDollarSign, CheckCircle2, XCircle,
 } from 'lucide-react';
 import AnalyticsWidgets from './analytics';
 import OwnerView from './owner';
@@ -18,7 +17,11 @@ import MasterDataView from './modules/master-data';
 import ApiKeysView from './modules/api-keys';
 import SecurityView from './modules/security';
 import { CountUp } from './ui';
+import AdminAppShell from './app-shell';
 import { authFetch, clearLoginTokens, storeLoginTokens } from './auth-fetch';
+import {
+  ADMIN_WORKSPACES, type AdminRuntimeManifest, identityFromAccessToken, resolveAdminNavigation, workspaceFromPath,
+} from './navigation';
 
 type ToastItem = { id: number; text: string; tone: 'success' | 'error' };
 function useToasts() {
@@ -54,7 +57,7 @@ type Receipt = { id: string; number: string; receivedAt: string; operationalStat
 type Inventory = { id: string; quantity: number; reserved: number; available: number; product: Product & { minStock: number }; warehouse: Warehouse };
 type Role = { id: string; name: string };
 type User = { id: string; name: string; email: string; isActive: boolean; roles: Array<{ role: Role }> };
-type RuntimeManifest = { company?: { id: string; name: string }; features: Record<string, { enabled: boolean; config?: unknown }>; modules: Array<{ code: string; name: string; category: string; featureKey?: string | null; isCore: boolean }> };
+type RuntimeManifest = AdminRuntimeManifest;
 type CursorPage<T> = { items: T[]; pageInfo: { limit: number; nextCursor: string | null; hasMore: boolean } };
 type Dashboard = { today: { revenue: number; transactions: number; grossProfitBeforeOnlineCops?: number; grossProfitBeforeOnlineCogs: number }, inventory: { items: number; lowStock: number; value: number }; pendingOrders: number } & Record<string, unknown>;
 type AnalyticsData = {
@@ -68,46 +71,9 @@ type AnalyticsData = {
 function money(value: string | number) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value)); }
 function requestKey(prefix: string) { return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2)}`; }
 
-type NavIcon = React.ComponentType<{ size?: number | string }>;
-const NAV: Array<{ group: string; items: Array<{ Icon: NavIcon; label: string }> }> = [
-  { group: '', items: [
-    { Icon: LayoutDashboard, label: 'Dashboard' },
-    { Icon: Crown, label: 'Owner Suite' },
-  ] },
-  { group: 'Operasional', items: [
-    { Icon: Package, label: 'Master Data' },
-    { Icon: Package, label: 'Pembelian & Stok' },
-    { Icon: ShoppingCart, label: 'Storefront & Fulfillment' },
-    { Icon: Repeat2, label: 'Retur & Transfer' },
-    { Icon: ShieldCheck, label: 'Kontrol Operasional' },
-  ] },
-  { group: 'Keuangan & SDM', items: [
-    { Icon: BookOpen, label: 'Akuntansi & Kas' },
-    { Icon: Users, label: 'HRIS & Payroll' },
-    { Icon: Container, label: 'Aset & Fleet' },
-  ] },
-  { group: 'Platform', items: [
-    { Icon: Gem, label: 'Loyalty & Devices' },
-    { Icon: Settings, label: 'Sistem & Akses' },
-  ] },
-];
-
-const PAGE_META: Record<string, { eyebrow: string; title: string; description: string }> = {
-  Dashboard: { eyebrow: 'OVERVIEW', title: 'Ringkasan operasional hari ini', description: 'Pantau transaksi, persediaan, pesanan, dan tren utama dari sumber data server.' },
-  'Owner Suite': { eyebrow: 'OWNER', title: 'Ringkasan pemilik', description: 'Lihat laba-rugi, posisi keuangan, dan integritas accounting dari jurnal yang sudah diposting.' },
-  'Master Data': { eyebrow: 'FOUNDATION', title: 'Master data operasional', description: 'Kelola kategori, pelanggan, cabang, gudang, reference master, barcode multipel, dan pricing per cabang/segmen.' },
-  'Pembelian & Stok': { eyebrow: 'PROCUREMENT', title: 'Pembelian dan persediaan', description: 'Kelola supplier, purchase order, penerimaan barang, dan saldo stok gudang.' },
-  'Storefront & Fulfillment': { eyebrow: 'COMMERCE', title: 'Storefront dan fulfillment', description: 'Kelola order website, pembayaran, packing, shipment, dan delivery berdasarkan lifecycle server.' },
-  'Retur & Transfer': { eyebrow: 'INVENTORY CONTROL', title: 'Retur dan transfer stok', description: 'Pantau retur penjualan, perpindahan antar-gudang, dan stock opname.' },
-  'Kontrol Operasional': { eyebrow: 'OPERATIONS CONTROL', title: 'Inspeksi dan gate control', description: 'Kelola evidence, barcode, inspeksi, approval operasional, dan gate pass.' },
-  'Akuntansi & Kas': { eyebrow: 'FINANCE', title: 'Akuntansi, kas, dan settlement', description: 'Pantau jurnal, pajak, utang supplier, piutang pelanggan, refund, serta transaksi kas dan bank.' },
-  'HRIS & Payroll': { eyebrow: 'PEOPLE', title: 'HRIS dan payroll', description: 'Kelola periode payroll, kalkulasi, pembayaran gaji, kewajiban, dan riwayat run.' },
-  'Aset & Fleet': { eyebrow: 'ASSET & FLEET', title: 'Aset dan armada', description: 'Pantau nilai aset, maintenance, kendaraan, trip, BBM, dan biaya operasional.' },
-  'Loyalty & Devices': { eyebrow: 'EXTENSIONS', title: 'Loyalty, devices, dan notifikasi', description: 'Pantau program loyalitas, perangkat terdaftar, dan antrean notifikasi.' },
-  'Sistem & Akses': { eyebrow: 'PLATFORM', title: 'Sistem dan akses pengguna', description: 'Kelola feature flag runtime dan akun pengguna tanpa menu atau kontrol dekoratif.' },
-};
-
 export default function AdminPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [token, setToken] = useState<string | null>(null);
   const [login, setLogin] = useState({ email: '', password: '', twoFactorCode: '' });
   const [showTwoFactor, setShowTwoFactor] = useState(false);
@@ -118,7 +84,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState('');
   const { toasts, push } = useToasts();
   function notify(text: string, tone: 'success' | 'error' = 'success') { setMessage(text); push(text, tone); }
-  const [activeNav, setActiveNav] = useState('Dashboard');
+  const [activeNav, setActiveNav] = useState(() => workspaceFromPath(pathname).label);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [manifest, setManifest] = useState<RuntimeManifest | null>(null);
@@ -144,6 +110,28 @@ export default function AdminPage() {
   useEffect(() => { const value = new URLSearchParams(window.location.search).get('resetToken'); if (value) { setResetToken(value); setResetMode(true); } }, []);
   useEffect(() => { const refreshed = (event: Event) => setToken((event as CustomEvent<{ accessToken: string }>).detail.accessToken); const expired = () => setToken(null); window.addEventListener('toko360:auth-refreshed', refreshed); window.addEventListener('toko360:auth-expired', expired); return () => { window.removeEventListener('toko360:auth-refreshed', refreshed); window.removeEventListener('toko360:auth-expired', expired); }; }, []);
   useEffect(() => { if (token) void loadAll(token); }, [token]);
+  useEffect(() => { setActiveNav(workspaceFromPath(pathname).label); }, [pathname]);
+  useEffect(() => {
+    if (!token) return;
+    if (pathname === '/') router.replace('/dashboard');
+    else if (!ADMIN_WORKSPACES.some((item) => item.route === pathname)) router.replace('/dashboard');
+  }, [token, pathname, router]);
+
+  const identity = useMemo(() => identityFromAccessToken(token), [token]);
+  const navigation = useMemo(() => resolveAdminNavigation(manifest, identity), [manifest, identity]);
+  const navItems = useMemo(() => navigation.flatMap((group) => group.items), [navigation]);
+  const activeWorkspace = useMemo(() => ADMIN_WORKSPACES.find((item) => item.label === activeNav) ?? workspaceFromPath(pathname), [activeNav, pathname]);
+
+  function navigateTo(route: string) {
+    const target = ADMIN_WORKSPACES.find((item) => item.route === route) ?? ADMIN_WORKSPACES[0];
+    setActiveNav(target.label);
+    if (pathname !== target.route) router.push(target.route);
+  }
+
+  useEffect(() => {
+    if (!token || !manifest || !navItems.length) return;
+    if (!navItems.some((item) => item.label === activeNav)) navigateTo(navItems[0].route);
+  }, [token, manifest, navItems, activeNav]);
 
   async function request<T>(path: string, init?: RequestInit, overrideToken?: string): Promise<T> {
     const response = await authFetch(`${API}${path}`, overrideToken ?? token, { ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) } });
@@ -333,53 +321,20 @@ export default function AdminPage() {
     </main>
   );
 
-  const pageMeta = PAGE_META[activeNav] ?? PAGE_META.Dashboard;
+  const pageMeta = activeWorkspace;
   const apiConnected = Boolean(manifest && dashboard);
-  const navItems = NAV.flatMap((group) => group.items);
 
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="logo"><span className="logoMark">T3</span><span><strong>Toko360</strong><small>Enterprise Workflow</small></span></div>
-        {NAV.map((group) => (
-          <div key={group.group || 'overview'}>
-            {group.group && <div className="navGroup">{group.group}</div>}
-            {group.items.map((item) => (
-              <button key={item.label} type="button" className={`navItem ${activeNav === item.label ? 'active' : ''}`} onClick={() => setActiveNav(item.label)}>
-                <span className="navIcon"><item.Icon size={17} /></span>{item.label}
-              </button>
-            ))}
-          </div>
-        ))}
-        <div className="sidebarFoot">Toko360 Enterprise<br /><span>v0.5.3</span></div>
-      </aside>
-
-      <div className="main">
-        <header className="topbar">
-          <select className="mobileNav" aria-label="Pilih menu" value={activeNav} onChange={(e) => setActiveNav(e.target.value)}>
-            {navItems.map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
-          </select>
-          <div className="topContext">
-            <span className="contextLabel">Perusahaan</span>
-            <strong>{manifest?.company?.name ?? 'Memuat runtime…'}</strong>
-          </div>
-          <div className="topRight">
-            <span className={`connectionPill ${apiConnected ? 'ok' : 'warn'}`}><span className="statusDot" />{apiConnected ? 'API terhubung' : 'Memuat data'}</span>
-            <button type="button" className="secondary compactButton" onClick={() => void loadAll(token)}><RefreshCw size={15} /> Muat ulang</button>
-            <button type="button" className="secondary compactButton" onClick={() => void logout()}>Keluar</button>
-          </div>
-        </header>
-
-        <main className="content">
-          <div className="pageHeader fadeSlideIn">
-            <div>
-              <span className="eyebrow">{pageMeta.eyebrow}</span>
-              <h1>{pageMeta.title}</h1>
-              <div className="pageDesc">{pageMeta.description}</div>
-            </div>
-            {activeNav === 'Dashboard' && <button type="button" className="btnGhost" onClick={() => window.print()}>Cetak ringkasan</button>}
-          </div>
-
+    <AdminAppShell
+      manifest={manifest}
+      navigation={navigation}
+      activeWorkspace={activeWorkspace}
+      apiConnected={apiConnected}
+      onNavigate={navigateTo}
+      onReload={() => void loadAll(token)}
+      onLogout={() => void logout()}
+      headerAction={activeNav === 'Dashboard' ? <button type="button" className="btnGhost" onClick={() => window.print()}>Cetak ringkasan</button> : undefined}
+    >
           {activeNav === 'Dashboard' && <>
             {!dashboard ? (
               <section className="stats">{Array.from({ length: 5 }).map((_, i) => <article className="statCard" key={i}><div className="skeletonRow" style={{ width: '40%' }} /><div className="skeletonBar" style={{ width: '80%', height: 20, margin: '10px 0' }} /><div className="skeletonBar" style={{ width: '55%' }} /></article>)}</section>
@@ -457,7 +412,6 @@ export default function AdminPage() {
             <SecurityView token={token} />
             <ApiKeysView token={token} />
           </>}
-        </main>
 
         {featureChange && <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="feature-change-title">
           <div className="modalCard">
@@ -468,13 +422,6 @@ export default function AdminPage() {
           </div>
         </div>}
         {token && <ToastStack toasts={toasts} />}
-        <footer className="statusbar">
-          <span><span className={`dot ${apiConnected ? '' : 'warn'}`} />{apiConnected ? 'API terhubung' : 'Data belum lengkap'}</span>
-          <span>{manifest?.company?.name ?? 'Runtime belum dimuat'}</span>
-          <span className="footerNote">Status queue, storage, dan worker ditinjau dari Operations Control / staging evidence.</span>
-          <span className="footerVersion">v0.5.3</span>
-        </footer>
-      </div>
-    </div>
+    </AdminAppShell>
   );
 }

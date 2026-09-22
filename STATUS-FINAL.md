@@ -1,3 +1,7 @@
+
+## UI productization checkpoint — UI-P1 (2026-09-22)
+
+Admin information architecture now has canonical routes, runtime-aware navigation, collapsible/searchable shell, breadcrumbs, and company/branch context. Backend/domain foundations remain unchanged. UI-P2+ remains future productization work and must be opened as explicit work items after UI-P1 passes GitHub full-system simulation.
 # Toko360 — Status Proyek (2026-08-29)
 
 > **Current continuation update — 2026-09-12:** source-functional closure remains preserved. Release evidence chain is hardened and full dependency-free regression is **565/565 PASS**. Current runtime gates remain fail-closed because this container cannot resolve `registry.npmjs.org`; therefore this tree is **not yet a UAT candidate and not production-ready**. The authoritative status is `handoff/CURRENT-WORK.md`.

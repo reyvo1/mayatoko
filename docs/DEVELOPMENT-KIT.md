@@ -148,6 +148,8 @@ Penjualan, produk, kasir, kanal, pelanggan, diskon, retur, stok, mutasi, batch, 
 
 Dashboard owner, kasir, gudang, purchasing, finance, dan customer service. Layout dapat dikontrol lewat `UiSchemaDefinition`, sehingga widget dan navigasi dapat berbeda per perusahaan/cabang.
 
+**UI-P1 Admin shell (2026-09-22):** Admin sekarang mempunyai canonical workspace routes, sidebar collapsible/searchable, breadcrumb, company/branch context, serta navigation resolver yang menggabungkan ModuleDefinition, effective feature flags, JWT role/permission visibility, dan `UiSchemaDefinition` surface `admin`. Business authorization tetap fail-closed di API.
+
 ## 18. Notifikasi
 
 `NotificationTemplate` dan `Notification` mendukung email, WhatsApp, SMS, push, dan in-app. Pengiriman melalui adapter dan worker, dengan retry, status, dan error log.

@@ -1,3 +1,7 @@
+
+## Working UI productization update — UI-P1 Admin Application Shell (2026-09-22)
+
+Admin now has a canonical workspace information architecture instead of a hard-coded single-page menu shell. Runtime navigation is module/feature/permission/UI-schema aware while API authorization remains authoritative. This batch is UI-only and does not change business transaction semantics or database schema.
 ## Working hardening update — UAT evidence chain integrity (2026-09-12)
 
 - UAT candidate verification now requires deterministic Build PASS, built six-process browser wrapper PASS, inner browser PASS, and exact 12-scenario Stage-20 PASS on one source fingerprint.
