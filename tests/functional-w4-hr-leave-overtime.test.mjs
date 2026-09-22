@@ -6,7 +6,10 @@ const read = (path) => fs.readFileSync(path, 'utf8');
 const hr = read('apps/api/src/hr/hr.service.ts');
 const hrController = read('apps/api/src/hr/hr.controller.ts');
 const ess = read('apps/api/src/employee-self-service/employee-self-service.controller.ts');
-const portal = read('apps/employee-portal/app/page.tsx');
+const portal = [
+  read('apps/employee-portal/app/page.tsx'),
+  read('apps/employee-portal/app/employee-portal-app.tsx'),
+].join('\n');
 const payroll = read('apps/api/src/payroll/payroll.service.ts');
 const seed = read('apps/api/prisma/seed.ts');
 const sqlite = read('apps/api/prisma/schema.sqlite.prisma');

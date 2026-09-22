@@ -14,7 +14,10 @@ const assetsFleet = readFileSync(new URL('../apps/admin/app/modules/assets-fleet
 const owner = readFileSync(new URL('../apps/admin/app/owner.tsx', import.meta.url), 'utf8');
 const pos = readFileSync(new URL('../apps/pos/app/page.tsx', import.meta.url), 'utf8');
 const storefront = readFileSync(new URL('../apps/storefront/app/page.tsx', import.meta.url), 'utf8');
-const employee = readFileSync(new URL('../apps/employee-portal/app/page.tsx', import.meta.url), 'utf8');
+const employee = [
+  readFileSync(new URL('../apps/employee-portal/app/page.tsx', import.meta.url), 'utf8'),
+  readFileSync(new URL('../apps/employee-portal/app/employee-portal-app.tsx', import.meta.url), 'utf8'),
+].join('\n');
 const layouts = [
   '../apps/admin/app/layout.tsx', '../apps/pos/app/layout.tsx', '../apps/storefront/app/layout.tsx', '../apps/employee-portal/app/layout.tsx',
 ].map((path) => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
