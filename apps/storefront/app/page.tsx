@@ -330,8 +330,9 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
       {activeView === 'home' && <>
       <section className="homeDeck">
         <div className="homeIntro">
-          <span className="eyebrow">BELANJA TERHUBUNG OPERASIONAL</span>
-          <h2>Satu storefront untuk katalog, checkout, fulfillment, dan layanan purna jual.</h2>
+          <span className="eyebrow">TOKO360 OFFICIAL STORE</span>
+          <h2>Belanja langsung dari toko</h2>
+          <p className="homeSubtitle">Satu storefront untuk katalog, checkout, fulfillment, dan layanan purna jual.</p>
           <p>Harga, promo, stok, reservasi, pembayaran, pengiriman, retur, dan loyalitas tetap divalidasi oleh backend Toko360.</p>
           <div className="homeActions">
             <button className="primary compact" type="button" onClick={() => navigate('catalog')}>Jelajahi katalog <ArrowRight size={16} /></button>
