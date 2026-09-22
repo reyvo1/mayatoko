@@ -21,7 +21,7 @@ test('source fingerprint is deterministic and covers executable source roots', (
   assert.ok(a.fileCount > 100);
 });
 
-test('source fingerprint ignores TypeScript incremental build metadata but still tracks authored source', () => {
+test('source fingerprint ignores generated TypeScript and Next metadata but still tracks authored source', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 't360-fingerprint-'));
   try {
     fs.mkdirSync(path.join(root, 'apps', 'demo'), { recursive: true });
@@ -29,15 +29,35 @@ test('source fingerprint ignores TypeScript incremental build metadata but still
     fs.writeFileSync(path.join(root, 'package.json'), '{\"name\":\"fingerprint-test\"}\n');
     fs.writeFileSync(path.join(root, 'package-lock.json'), '{\"lockfileVersion\":3}\n');
     const before = sourceFingerprint(root);
+
     fs.writeFileSync(path.join(root, 'apps', 'demo', 'tsconfig.tsbuildinfo'), 'generated incremental metadata');
     const withBuildInfo = sourceFingerprint(root);
     assert.equal(withBuildInfo.value, before.value);
     assert.equal(withBuildInfo.fileCount, before.fileCount);
+
+    fs.writeFileSync(path.join(root, 'apps', 'demo', 'next-env.d.ts'), 'generated Next.js type metadata');
+    const withNextEnv = sourceFingerprint(root);
+    assert.equal(withNextEnv.value, before.value);
+    assert.equal(withNextEnv.fileCount, before.fileCount);
+
+    fs.writeFileSync(path.join(root, 'apps', 'demo', 'authored-types.d.ts'), 'declare const authored: unique symbol;\n');
+    const authoredDeclaration = sourceFingerprint(root);
+    assert.notEqual(authoredDeclaration.value, before.value);
+
     fs.writeFileSync(path.join(root, 'apps', 'demo', 'index.ts'), 'export const value = 2;\n');
     const authoredChange = sourceFingerprint(root);
-    assert.notEqual(authoredChange.value, before.value);
+    assert.notEqual(authoredChange.value, authoredDeclaration.value);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Next workspaces generate framework types before standalone TypeScript lint', () => {
+  const gitignore = fs.readFileSync('.gitignore', 'utf8');
+  assert.match(gitignore, /(?:^|\n)next-env\.d\.ts(?:\r?\n|$)/);
+  for (const workspace of ['admin', 'storefront', 'pos', 'employee-portal']) {
+    const workspacePkg = JSON.parse(fs.readFileSync(path.join('apps', workspace, 'package.json'), 'utf8'));
+    assert.equal(workspacePkg.scripts.lint, 'next typegen && tsc --noEmit');
   }
 });
 

@@ -6,7 +6,7 @@
     "dev": "dotenv -e ../../.env -- next dev -p 3000",
     "build": "dotenv -e ../../.env -- next build",
     "start": "dotenv -e ../../.env -- next start -p 3000",
-    "lint": "tsc --noEmit"
+    "lint": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "lucide-react": "^1.34.0",

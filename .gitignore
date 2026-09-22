@@ -36,6 +36,7 @@ stage20-release-readiness.env
 stage20-uat-results.json
 
 # Build info & transfer packages
+next-env.d.ts
 tsimples*
 *.tsbuildinfo
 logs/stage17-*/

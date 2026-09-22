@@ -6,7 +6,7 @@
     "dev": "dotenv -e ../../.env -- next dev -p 3003",
     "build": "dotenv -e ../../.env -- next build",
     "start": "dotenv -e ../../.env -- next start -p 3003",
-    "lint": "tsc --noEmit"
+    "lint": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "next": "16.3.5",
