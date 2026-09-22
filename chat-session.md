@@ -21,3 +21,15 @@ Human Stage-20 UAT remains PENDING 12/12 and must not be auto-passed. After push
 - UI-P3 ditutup setelah built-browser/full-system GitHub PASS.
 - UI-P4: StorefrontShell, `/[view]`, home/catalog/product/cart/account, catalog sort, product detail, responsive navigation.
 - Tidak ada schema/backend business logic change; Human UAT tetap fail-closed.
+
+## 2026-09-22 UI-P5 Employee Portal Productization
+- Baseline exact dari snapshot lokal: `4c336296fde105b425f94cdf4a5ab4968c0d4fb9`.
+- UI-P4 tidak ditutup tanpa evidence current-main hijau.
+- UI-P5 menambahkan EmployeePortalShell dan deep-link workspace home/attendance/leave/overtime/payslips/history/profile.
+- Auth refresh, employee self-scope, attendance evidence, leave/overtime approval, payslip access, dan Human Stage-20 UAT tetap fail-closed.
+
+## UI-P5 verification note
+- Focused UI-P5 static regression: **5/5 PASS**.
+- Changed TS/TSX transpile: **4/4 PASS**.
+- Existing browser-uat tests were not claimed locally because the user-provided subset snapshot does not contain `scripts/browser-uat.mjs` / workflow files that those tests read.
+- GitHub Full System Simulation remains authoritative for authenticated Employee Portal browser/runtime.

@@ -50,3 +50,6 @@ POS menggunakan flat workspace navigation: Penjualan, Shift & Kas, Retur, dan Si
 ## UI-P4 Storefront
 
 Storefront memakai sticky global header, desktop/mobile primary navigation, view context, customer-focused progressive disclosure, catalog controls, product-detail surface, dan pemisahan cart/checkout dari account/order tracking. Mobile memakai bottom navigation dan seluruh action tetap mempunyai focus/disabled semantics native.
+
+## Employee Portal productization
+Employee self-service memakai desktop sidebar + mobile horizontal navigation, page heading per workspace, progressive disclosure, status pills, responsive forms/tables, dan flat dark surfaces. Browser contract `TOKO360 HR` / `Portal Karyawan` tetap dipertahankan.

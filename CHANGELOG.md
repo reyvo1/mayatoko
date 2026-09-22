@@ -221,3 +221,8 @@
 ## UI-P4 Storefront productization
 - Memecah storefront single-surface menjadi reusable shell + home/catalog/product/cart/account customer journeys.
 - Menambahkan deep-link storefront route, catalog sort/search, product detail, dan responsive desktop/mobile navigation tanpa mengubah commerce API.
+
+## 2026-09-22 — UI-P5 Employee Portal productization
+- Memecah Employee Portal single-surface menjadi reusable shell dan self-service workspace home, attendance, leave, overtime, payslips, history, dan profile.
+- Mempertahankan kontrak browser/login existing serta seluruh backend authorization/evidence/approval behavior.
+- Human Stage-20 UAT tetap manual dan tidak diubah.

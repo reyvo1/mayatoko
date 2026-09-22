@@ -87,3 +87,12 @@ UI-P1 application shell is CLOSED after GitHub full-system PASS. UI-P2 Admin Dom
 
 ## UI-P4 status
 UI-P3 CLOSED berdasarkan GitHub PASS `be8007b`. UI-P4 Storefront productization berada di VERIFICATION. Human Stage-20 UAT tetap PENDING 12/12 dan tidak diubah.
+
+## UI-P5 status
+UI-P5 Employee Portal productization berada di VERIFICATION pada baseline `4c336296fde105b425f94cdf4a5ab4968c0d4fb9`. UI-P4 tetap VERIFICATION sampai evidence current-main hijau yang tepat tersedia. Human Stage-20 UAT tetap PENDING 12/12.
+
+## UI-P5 verification note
+- Focused UI-P5 static regression: **5/5 PASS**.
+- Changed TS/TSX transpile: **4/4 PASS**.
+- Existing browser-uat tests were not claimed locally because the user-provided subset snapshot does not contain `scripts/browser-uat.mjs` / workflow files that those tests read.
+- GitHub Full System Simulation remains authoritative for authenticated Employee Portal browser/runtime.

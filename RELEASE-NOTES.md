@@ -97,3 +97,6 @@ POS sekarang mempunyai operator workspace terpisah untuk penjualan, shift/kas, r
 
 ## UI-P4 candidate
 Storefront kini mempunyai customer journey terpisah untuk discovery, product detail, checkout, dan account/order tracking. Pricing, stock reservation, fulfillment, payment, return, dan loyalty tetap authoritative di backend.
+
+## UI-P5 candidate
+Employee Portal sekarang mempunyai self-service workspace terpisah untuk dashboard, presensi, cuti, lembur, slip gaji, riwayat, dan profil. Perubahan bersifat presentation/information-architecture; employee scope, attendance evidence, approval, payslip access, dan Human UAT tetap authoritative/fail-closed.

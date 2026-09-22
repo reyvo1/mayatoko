@@ -37,3 +37,17 @@ Push UI-P3 dari baseline source nyata `b1c561d97813f5e0916d194e0146cbec147a741e`
 - UI-P4 Storefront productization aktif di phase VERIFICATION.
 - Scope: reusable storefront shell, deep-link home/catalog/product/cart/account, catalog sort/search, detail product, checkout/account separation.
 - Backend/schema/business rules tidak diubah. GitHub menjadi validator heavy build/browser/runtime/exact-artifact.
+
+## UI-P5 current work — 2026-09-22
+- Baseline source lokal exact: `4c336296fde105b425f94cdf4a5ab4968c0d4fb9`, working tree clean.
+- UI-P4 masih VERIFICATION sampai current-main Full System Simulation yang sesuai commit productization/fix tersedia; tidak ditutup secara asumsi.
+- UI-P5 Employee Portal productization aktif di VERIFICATION sebagai work item terpisah.
+- Scope UI-P5: reusable EmployeePortalShell + home/attendance/leave/overtime/payslips/history/profile.
+- Backend/schema tidak diubah; auth refresh, employee self-scope, attendance GPS/selfie/geofence, leave/overtime approval, dan payslip access tetap authoritative.
+- Human Stage-20 UAT tetap PENDING/fail-closed.
+
+## UI-P5 verification note
+- Focused UI-P5 static regression: **5/5 PASS**.
+- Changed TS/TSX transpile: **4/4 PASS**.
+- Existing browser-uat tests were not claimed locally because the user-provided subset snapshot does not contain `scripts/browser-uat.mjs` / workflow files that those tests read.
+- GitHub Full System Simulation remains authoritative for authenticated Employee Portal browser/runtime.

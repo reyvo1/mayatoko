@@ -579,3 +579,6 @@ POS presentation dibagi ke workspace Penjualan, Shift & Kas, Retur, dan Sinkroni
 ## UI-P4 Storefront Productization
 
 Storefront menggunakan reusable shell dan customer journey terpisah untuk home, catalog, product detail, cart/checkout, dan account/order tracking. Route UI bukan security boundary; seluruh pricing, promo, stock reservation, fulfillment, payment, return, review, favorite, loyalty, dan customer-session validation tetap authoritative di API.
+
+## UI-P5 Employee Portal productization — 2026-09-22
+Employee Portal memakai reusable shell dan route self-service terpisah untuk home, attendance, leave, overtime, payslips, history, dan profile. UI hanya mengatur presentation/progressive disclosure; employee self-scope, attendance evidence, approval, dan payslip authorization tetap authoritative di backend.

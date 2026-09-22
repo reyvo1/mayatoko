@@ -172,7 +172,8 @@
         "performance",
         "admin-ui",
         "pos-ui",
-        "storefront-ui"
+        "storefront-ui",
+        "employee-portal-ui"
       ],
       "dependsOn": [
         "W1",

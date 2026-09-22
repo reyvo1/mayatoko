@@ -990,6 +990,52 @@
         "UI-DESIGN-SYSTEM.md",
         "handoff/CURRENT-WORK.md"
       ]
+    },
+    {
+      "key": "ui-p5-employee-portal-productization",
+      "priority": 230,
+      "title": "UI-P5 Employee Portal productization dan employee self-service workspaces",
+      "type": "feature",
+      "module": "employee-portal-ui",
+      "wave": "W7",
+      "risk": "MEDIUM",
+      "dependencies": [
+        "ui-p3-pos-modernization"
+      ],
+      "featureFlag": "",
+      "impacts": {
+        "database": "NONE",
+        "inventory": "NONE",
+        "accounting": "NONE",
+        "tax": "NONE",
+        "payment": "NONE",
+        "payroll": "NONE",
+        "sync": "NONE",
+        "security": "LOW",
+        "performance": "LOW"
+      },
+      "businessRules": [
+        "Employee Portal UI hanya mengubah information architecture dan self-service journey; employee scope, attendance evidence, leave/overtime approval, dan payslip visibility tetap authoritative di backend.",
+        "Presensi tetap mengirim GPS/selfie/geofence evidence ke endpoint existing dan tidak boleh dianggap valid hanya karena UI menampilkan status siap.",
+        "Human Stage-20 UAT tetap PENDING sampai ada human evidence sah dan candidate verifier tidak boleh diubah atau dipaksa PASS."
+      ],
+      "acceptanceCriteria": [
+        "Employee Portal mempunyai shell reusable dan deep-link workspace untuk home, attendance, leave, overtime, payslips, history, dan profile.",
+        "Login dan authenticated browser contract existing tetap terlihat sehingga browser UAT tidak putus karena productization.",
+        "Attendance, leave, overtime, payslip, dan history tetap memakai endpoint existing tanpa memindahkan authorization ke UI.",
+        "Desktop sidebar dan mobile navigation menyediakan operator journey yang jelas tanpa menumpuk semua workflow pada satu halaman."
+      ],
+      "testPlan": [
+        "node --test tests/ui-p5-employee-portal-productization.test.mjs",
+        "node --test tests/browser-uat-employee-runtime.test.mjs tests/browser-uat-launcher.test.mjs",
+        "GitHub Full System Simulation untuk Next build, authenticated Employee Portal browser runtime, exact artifact, dan Stage-20 automated."
+      ],
+      "documentation": [
+        "docs/EMPLOYEE-PORTAL-PRODUCTIZATION.md",
+        "docs/DEVELOPMENT-KIT.md",
+        "UI-DESIGN-SYSTEM.md",
+        "handoff/CURRENT-WORK.md"
+      ]
     }
   ]
 }
