@@ -33,10 +33,35 @@ function lockedTarget(raw, expectedHost, expectedDatabase, label, targetMode, { 
   return connection;
 }
 function sameDatabase(a, b) { return a.hostname.toLowerCase() === b.hostname.toLowerCase() && a.port === b.port && a.database === b.database; }
-function commandName(name) { return process.platform === 'win32' && name === 'npm' ? 'npm.cmd' : name; }
+function commandSpec(command, args, env = process.env) {
+  if (process.platform === 'win32' && command === 'npm') {
+    const npmCli = env.npm_execpath
+      || process.env.npm_execpath
+      || path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+
+    if (!fs.existsSync(npmCli)) {
+      throw new Error(`npm CLI tidak ditemukan untuk child process Windows: ${npmCli}`);
+    }
+
+    return {
+      command: process.execPath,
+      args: [npmCli, ...args],
+    };
+  }
+
+  return { command, args };
+}
 function run(command, args, env = process.env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(commandName(command), args, { cwd: root, env, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+        let spec;
+    try {
+      spec = commandSpec(command, args, env);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    const child = spawn(spec.command, spec.args, { cwd: root, env, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = ''; let stderr = '';
     child.stdout.on('data', (chunk) => { stdout += chunk; });
     child.stderr.on('data', (chunk) => { stderr += chunk; });
