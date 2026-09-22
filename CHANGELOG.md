@@ -205,3 +205,9 @@
 - PostgreSQL restore isolation now collapses common loopback aliases and trailing-dot localhost before active-target comparison.
 - Retention cleanup now resolves repository config from the script path and validates retention-day bounds before purge queries.
 - Dependency-free regression: 342/342 PASS.
+
+## 2026-09-22 — UI-P2 Admin Domain Workspaces
+- Closed UI-P1 after authoritative GitHub Full System Simulation PASS on `f8f79fda8aa10f98c0df332cb56951a89a98ebf0`.
+- Added stable nested Admin operator routes for procurement, finance, people, assets/fleet, platform, inventory control, operations control, commerce, extensions, and master data.
+- Added sticky secondary domain navigation, overview deck, contextual sub-workspace header, and third-level breadcrumbs.
+- Invalid nested routes fail-safe to their canonical domain root; backend authorization and business APIs remain unchanged.

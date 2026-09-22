@@ -849,6 +849,53 @@
         "UI-DESIGN-SYSTEM.md",
         "handoff/CURRENT-WORK.md"
       ]
+    },
+    {
+      "key": "ui-p2-admin-domain-workspaces",
+      "priority": 200,
+      "title": "UI-P2 Admin domain workspaces dan nested operator navigation",
+      "type": "feature",
+      "module": "admin-ui",
+      "wave": "W7",
+      "risk": "MEDIUM",
+      "dependencies": [
+        "ui-p1-admin-application-shell"
+      ],
+      "featureFlag": "",
+      "impacts": {
+        "database": "NONE",
+        "inventory": "NONE",
+        "accounting": "NONE",
+        "tax": "NONE",
+        "payment": "NONE",
+        "payroll": "NONE",
+        "sync": "NONE",
+        "security": "LOW",
+        "performance": "LOW"
+      },
+      "businessRules": [
+        "Nested Admin workspace route hanya mengubah information architecture; endpoint dan business transaction tetap authoritative di backend.",
+        "Setiap sub-workspace harus mempunyai deep link yang stabil, breadcrumb, label, dan deskripsi operator yang konsisten.",
+        "UI tidak boleh mengarang status atau capability yang tidak tersedia dari runtime/domain implementation."
+      ],
+      "acceptanceCriteria": [
+        "Domain Admin utama mempunyai nested route operator seperti procurement/orders, finance/receivables, people/payroll, assets-fleet/trips, dan platform/security.",
+        "Admin shell mempunyai sticky secondary navigation, overview deck, dan breadcrumb tingkat sub-workspace.",
+        "Direct reload nested route tetap membuka shell/authentication yang sama dan route invalid fail-safe kembali ke domain root.",
+        "Business views, API authorization, tenant scope, dan fail-closed backend behavior tetap tidak berubah."
+      ],
+      "testPlan": [
+        "Static regression domain workspace catalog, nested route, breadcrumb, secondary navigation, dan invalid-path fallback.",
+        "UI-P1 regression dan UI cleanup regression tetap PASS.",
+        "Full dependency-free regression sebelum push.",
+        "GitHub Full System Simulation untuk Next build dan browser runtime sesudah push."
+      ],
+      "documentation": [
+        "docs/ADMIN-DOMAIN-WORKSPACES.md",
+        "docs/DEVELOPMENT-KIT.md",
+        "UI-DESIGN-SYSTEM.md",
+        "handoff/CURRENT-WORK.md"
+      ]
     }
   ]
 }

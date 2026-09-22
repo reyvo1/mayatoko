@@ -74,3 +74,6 @@ Staging sekarang fail-closed untuk JWT/CORS/master encryption key seperti produc
 - PostgreSQL restore isolation normalizes obvious loopback aliases (`localhost`, `127.0.0.1`, IPv6 loopback, trailing-dot localhost) before comparing the active target.
 - Retention cleanup resolves repository configuration from the script location and rejects retention windows outside integer 1-3650 days (0/absent remains disabled).
 - Dependency-free regression: **342/342 PASS**.
+
+## UI productization checkpoint — 2026-09-22
+UI-P1 application shell is CLOSED after GitHub full-system PASS. UI-P2 Admin Domain Workspaces is active in VERIFICATION. Dependency-free regression for the UI-P2 source is **683/683 PASS** on GitHub/Linux-equivalent line endings. No database/schema/business-logic changes are part of UI-P2; heavy Next/browser/runtime validation remains GitHub-authoritative after push.

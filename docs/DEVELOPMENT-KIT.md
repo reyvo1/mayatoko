@@ -567,3 +567,7 @@ Generator dilarang memasukkan credential, URL database, token, password, secret,
 Paket konteks diperbarui setelah setup, pembuatan/resume/status pekerjaan, dan quality gate melalui launcher Windows. Platform chat eksternal tidak dapat dideteksi otomatis, sehingga perpindahan dipicu oleh satu tombol `.cmd`; setelah itu pembentukan file dan clipboard berjalan otomatis.
 
 Rincian: `docs/CHAT-HANDOFF-AUTOMATION.md`.
+
+## UI-P2 — Admin Domain Workspaces (2026-09-22)
+
+Admin information architecture memakai dua tingkat: workspace domain dan nested operator workspace. Nested route hanya mengatur navigasi/context; backend domain service, permission guard, tenant scope, idempotency, accounting, inventory, tax, payroll, dan audit tetap authoritative. Canonical route dan invariant tercatat di `docs/ADMIN-DOMAIN-WORKSPACES.md`.

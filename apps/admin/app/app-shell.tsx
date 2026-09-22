@@ -3,11 +3,13 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronRight, PanelLeftClose, PanelLeftOpen, RefreshCw, Search } from 'lucide-react';
 import type { AdminRuntimeManifest, AdminWorkspace, ResolvedAdminNavigation } from './navigation';
+import { domainRoute, domainViewsForWorkspace, type AdminDomainView } from './domain-workspaces';
 
 type AdminAppShellProps = {
   manifest: AdminRuntimeManifest | null;
   navigation: ResolvedAdminNavigation;
   activeWorkspace: AdminWorkspace;
+  activeDomainView: AdminDomainView | null;
   apiConnected: boolean;
   onNavigate: (route: string) => void;
   onReload: () => void;
@@ -20,6 +22,7 @@ export default function AdminAppShell({
   manifest,
   navigation,
   activeWorkspace,
+  activeDomainView,
   apiConnected,
   onNavigate,
   onReload,
@@ -30,6 +33,7 @@ export default function AdminAppShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [navQuery, setNavQuery] = useState('');
   const navItems = useMemo(() => navigation.flatMap((group) => group.items), [navigation]);
+  const domainViews = useMemo(() => domainViewsForWorkspace(activeWorkspace), [activeWorkspace]);
   const filteredNavigation = useMemo(() => {
     const query = navQuery.trim().toLocaleLowerCase('id-ID');
     if (!query) return navigation;
@@ -102,13 +106,14 @@ export default function AdminAppShell({
             <span>{activeWorkspace.group}</span>
             <ChevronRight size={13} />
             <strong>{activeWorkspace.label}</strong>
+            {activeDomainView && <><ChevronRight size={13} /><strong>{activeDomainView.label}</strong></>}
           </div>
 
           <div className="pageHeader fadeSlideIn">
             <div className="pageHeaderCopy">
               <div className="pageHeaderKicker"><span className="eyebrow">{activeWorkspace.eyebrow}</span><span className="routeBadge">{activeWorkspace.route}</span></div>
-              <h1>{activeWorkspace.title}</h1>
-              <div className="pageDesc">{activeWorkspace.description}</div>
+              <h1>{activeDomainView?.title ?? activeWorkspace.title}</h1>
+              <div className="pageDesc">{activeDomainView?.description ?? activeWorkspace.description}</div>
             </div>
             {headerAction}
           </div>
@@ -120,6 +125,31 @@ export default function AdminAppShell({
               </button>
             ))}
           </section>
+
+          {domainViews.length > 0 && (
+            <section className="domainWorkspace" aria-label={`${activeWorkspace.label} workspaces`}>
+              <div className="domainTabs">
+                <button type="button" className={!activeDomainView ? 'active' : ''} onClick={() => onNavigate(activeWorkspace.route)}>Overview</button>
+                {domainViews.map((view) => (
+                  <button key={view.key} type="button" className={activeDomainView?.key === view.key ? 'active' : ''} onClick={() => onNavigate(domainRoute(activeWorkspace, view))}>
+                    <view.Icon size={15} /><span>{view.label}</span>
+                  </button>
+                ))}
+              </div>
+              {!activeDomainView && (
+                <div className="domainDeck">
+                  {domainViews.map((view) => (
+                    <button key={view.key} type="button" className="domainCard" onClick={() => onNavigate(domainRoute(activeWorkspace, view))}>
+                      <span className="domainCardIcon"><view.Icon size={18} /></span>
+                      <span><strong>{view.title}</strong><small>{view.description}</small></span>
+                      <ChevronRight size={16} />
+                    </button>
+                  ))}
+                </div>
+              )}
+              {activeDomainView && <div className="domainContext"><activeDomainView.Icon size={16} /><span>Mode kerja: <strong>{activeDomainView.label}</strong></span><small>Data dan action tetap berasal dari API domain authoritative yang sama.</small></div>}
+            </section>
+          )}
 
           {children}
         </main>

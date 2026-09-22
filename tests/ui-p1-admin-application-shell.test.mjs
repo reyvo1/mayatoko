@@ -17,7 +17,7 @@ test('UI-P1 gives every implemented Admin workspace a canonical route', () => {
   for (const route of expectedRoutes) assert.match(navigation, new RegExp(`route: '${route.replaceAll('/', '\\/')}'`));
   assert.match(dynamicRoute, /export \{ default \} from '\.\.\/page'/);
   assert.match(page, /usePathname\(\)/);
-  assert.match(page, /router\.push\(target\.route\)/);
+  assert.match(page, /router\.push\(route\)/);
 });
 
 test('UI-P1 navigation is resolved from runtime modules, features, permissions and UI schema', () => {

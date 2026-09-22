@@ -36,3 +36,9 @@
 Sebelum bikin UI baru: cek dulu apakah projek punya design system sendiri → ikuti itu.
 Kalau tidak ada → terapkan standar file ini. Ragu referensi? cari contoh dashboard
 SaaS terkini di internet sebelum coding.
+
+## UI-P2 — Domain workspace navigation
+- Domain besar memakai secondary navigation yang sticky dan deep-linkable.
+- Overview domain memakai deck/card yang menjelaskan operator area sebelum masuk ke transaksi.
+- Breadcrumb boleh tiga tingkat: product / domain / operator workspace.
+- Nested route tidak boleh mengubah security boundary atau menggandakan business logic di client.

@@ -22,6 +22,7 @@ import { authFetch, clearLoginTokens, storeLoginTokens } from './auth-fetch';
 import {
   ADMIN_WORKSPACES, type AdminRuntimeManifest, identityFromAccessToken, resolveAdminNavigation, workspaceFromPath,
 } from './navigation';
+import { domainViewFromPath, isValidAdminPath } from './domain-workspaces';
 
 type ToastItem = { id: number; text: string; tone: 'success' | 'error' };
 function useToasts() {
@@ -114,18 +115,22 @@ export default function AdminPage() {
   useEffect(() => {
     if (!token) return;
     if (pathname === '/') router.replace('/dashboard');
-    else if (!ADMIN_WORKSPACES.some((item) => item.route === pathname)) router.replace('/dashboard');
+    else {
+      const workspace = workspaceFromPath(pathname);
+      if (!isValidAdminPath(pathname, workspace)) router.replace(workspace.route);
+    }
   }, [token, pathname, router]);
 
   const identity = useMemo(() => identityFromAccessToken(token), [token]);
   const navigation = useMemo(() => resolveAdminNavigation(manifest, identity), [manifest, identity]);
   const navItems = useMemo(() => navigation.flatMap((group) => group.items), [navigation]);
   const activeWorkspace = useMemo(() => ADMIN_WORKSPACES.find((item) => item.label === activeNav) ?? workspaceFromPath(pathname), [activeNav, pathname]);
+  const activeDomainView = useMemo(() => domainViewFromPath(pathname, activeWorkspace), [pathname, activeWorkspace]);
 
   function navigateTo(route: string) {
-    const target = ADMIN_WORKSPACES.find((item) => item.route === route) ?? ADMIN_WORKSPACES[0];
+    const target = workspaceFromPath(route);
     setActiveNav(target.label);
-    if (pathname !== target.route) router.push(target.route);
+    if (pathname !== route) router.push(route);
   }
 
   useEffect(() => {
@@ -329,6 +334,7 @@ export default function AdminPage() {
       manifest={manifest}
       navigation={navigation}
       activeWorkspace={activeWorkspace}
+      activeDomainView={activeDomainView}
       apiConnected={apiConnected}
       onNavigate={navigateTo}
       onReload={() => void loadAll(token)}

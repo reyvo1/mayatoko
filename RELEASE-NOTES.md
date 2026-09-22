@@ -86,3 +86,8 @@ Installer dependency sekarang deterministic (`npm ci`) dan fail-fast sebelum ins
 ## Local runtime seed correction — 2026-09-11
 
 A real Windows setup completed `npm ci`, Prisma SQLite generation, and schema push, then exposed an internal demo-seed UUID mismatch. The deterministic demo company ID is now standards-valid and covered by regression. Existing local checkouts with dependencies already installed can resume from `npm run db:local:seed` without reinstalling packages.
+
+## Working productization update — UI-P2 Admin Domain Workspaces (2026-09-22)
+- Admin now supports deep-linkable nested operator workspaces instead of a single flat domain surface.
+- Domain tabs and overview decks expose the existing backend foundation through clearer operator information architecture without duplicating business logic.
+- UI-P1 was closed only after the GitHub full-system run passed; UI-P2 remains in VERIFICATION until its own GitHub simulation passes.
