@@ -94,3 +94,6 @@ A real Windows setup completed `npm ci`, Prisma SQLite generation, and schema pu
 
 ## UI-P3 POS modernization candidate
 POS sekarang mempunyai operator workspace terpisah untuk penjualan, shift/kas, retur, dan sinkronisasi. Perubahan ini presentation-only; transaksi tetap memakai guard server-authoritative dan fail-closed behavior yang sama. Human UAT tidak diubah.
+
+## UI-P4 candidate
+Storefront kini mempunyai customer journey terpisah untuk discovery, product detail, checkout, dan account/order tracking. Pricing, stock reservation, fulfillment, payment, return, dan loyalty tetap authoritative di backend.

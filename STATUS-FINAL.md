@@ -84,3 +84,6 @@ UI-P1 application shell is CLOSED after GitHub full-system PASS. UI-P2 Admin Dom
 - Focused POS/UAT regression: 43/43 PASS pada kandidat UI-P3
 - Full dependency-free GitHub-equivalent: 688/688 PASS pada kandidat UI-P3
 - Human Stage-20 UAT: PENDING 12/12, unchanged
+
+## UI-P4 status
+UI-P3 CLOSED berdasarkan GitHub PASS `be8007b`. UI-P4 Storefront productization berada di VERIFICATION. Human Stage-20 UAT tetap PENDING 12/12 dan tidak diubah.

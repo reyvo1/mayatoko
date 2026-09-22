@@ -45,3 +45,8 @@ SaaS terkini di internet sebelum coding.
 
 ## UI-P3 POS operator workspaces
 POS menggunakan flat workspace navigation: Penjualan, Shift & Kas, Retur, dan Sinkronisasi. Desktop mempertahankan cart sticky dan katalog luas; mobile menurunkan workspace menjadi grid dua kolom dan single-column transaction flow. Presentation shell tidak boleh mengubah payment/offline/security gate.
+
+
+## UI-P4 Storefront
+
+Storefront memakai sticky global header, desktop/mobile primary navigation, view context, customer-focused progressive disclosure, catalog controls, product-detail surface, dan pemisahan cart/checkout dari account/order tracking. Mobile memakai bottom navigation dan seluruh action tetap mempunyai focus/disabled semantics native.

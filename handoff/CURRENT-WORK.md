@@ -28,3 +28,12 @@ Human Stage-20 UAT tetap PENDING 12/12 sampai ada human evidence yang sah. Autom
 
 ## Next gate
 Push UI-P3 dari baseline source nyata `b1c561d97813f5e0916d194e0146cbec147a741e`, lalu gunakan GitHub Full System Simulation sebagai heavy validator. UI-P3 tetap VERIFICATION sampai run tersebut hijau.
+
+
+## UI-P4 current work — 2026-09-22
+
+- Baseline source: `be8007ba2f7ba7f8d98a09a3acb6a2c783599988` (UI-P3 browser fix green).
+- UI-P3 CLOSED berdasarkan GitHub Full System Simulation PASS; Human Stage-20 UAT tetap PENDING 12/12.
+- UI-P4 Storefront productization aktif di phase VERIFICATION.
+- Scope: reusable storefront shell, deep-link home/catalog/product/cart/account, catalog sort/search, detail product, checkout/account separation.
+- Backend/schema/business rules tidak diubah. GitHub menjadi validator heavy build/browser/runtime/exact-artifact.

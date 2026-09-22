@@ -1,6 +1,8 @@
 'use client';
 
-import { Search, ShoppingCart, Minus, Plus, PackageSearch, ShoppingBag } from 'lucide-react';
+import { Search, Minus, Plus, PackageSearch, ShoppingBag, ArrowRight, Heart } from 'lucide-react';
+import { StorefrontShell, type StorefrontView } from './storefront-shell';
+export type { StorefrontView } from './storefront-shell';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -32,7 +34,7 @@ function rupiah(value: string | number) {
 }
 function stockOf(product: Product) { return product.inventories.reduce((sum, item) => sum + Number(item.available || 0), 0); }
 
-export default function StorefrontPage() {
+export function StorefrontApp({ initialView = 'home' }: { initialView?: StorefrontView }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [manifest, setManifest] = useState<RuntimeManifest | null>(null);
@@ -44,6 +46,9 @@ export default function StorefrontPage() {
   const [promoCode, setPromoCode] = useState('');
   const [customer, setCustomer] = useState({ customerName: '', customerEmail: '', customerPhone: '', address: '' });
   const [search, setSearch] = useState('');
+  const [activeView, setActiveView] = useState<StorefrontView>(initialView);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [sortMode, setSortMode] = useState<'relevance' | 'name' | 'price-asc' | 'price-desc' | 'stock'>('relevance');
   const [submitting, setSubmitting] = useState(false);
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [accountToken, setAccountToken] = useState('');
@@ -66,6 +71,15 @@ export default function StorefrontPage() {
   const [addressForm, setAddressForm] = useState({ label: 'Rumah', recipientName: '', phone: '', addressLine: '', district: '', city: '', province: '', postalCode: '' });
 
   function notify(text: string, tone: Tone = 'info') { setMessage(text); setMessageTone(tone); }
+
+  useEffect(() => {
+    const onPopState = () => {
+      const candidate = window.location.pathname.replace(/^\//, '') || 'home';
+      if (['home', 'catalog', 'product', 'cart', 'account'].includes(candidate)) setActiveView(candidate as StorefrontView);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   function customerHeaders(token: string) { return { 'x-branch-code': BRANCH_CODE, 'x-customer-session': token }; }
 
@@ -172,9 +186,29 @@ export default function StorefrontPage() {
   const total = useMemo(() => cart.reduce((sum, item) => sum + productPrice(item.product) * item.quantity, 0), [cart]);
   const visibleProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((product) => product.name.toLowerCase().includes(q) || product.sku.toLowerCase().includes(q) || product.description?.toLowerCase().includes(q));
-  }, [products, search]);
+    const filtered = q
+      ? products.filter((product) => product.name.toLowerCase().includes(q) || product.sku.toLowerCase().includes(q) || product.description?.toLowerCase().includes(q))
+      : [...products];
+    if (sortMode === 'name') return filtered.sort((a, b) => a.name.localeCompare(b.name, 'id'));
+    if (sortMode === 'price-asc') return filtered.sort((a, b) => productPrice(a) - productPrice(b));
+    if (sortMode === 'price-desc') return filtered.sort((a, b) => productPrice(b) - productPrice(a));
+    if (sortMode === 'stock') return filtered.sort((a, b) => stockOf(b) - stockOf(a));
+    return filtered;
+  }, [products, search, sortMode]);
+  const selectedProduct = useMemo(
+    () => products.find((product) => product.id === selectedProductId) ?? null,
+    [products, selectedProductId],
+  );
+
+  function navigate(view: StorefrontView) {
+    setActiveView(view);
+    if (typeof window !== 'undefined') window.history.pushState({}, '', view === 'home' ? '/' : `/${view}`);
+  }
+
+  function openProduct(product: Product) {
+    setSelectedProductId(product.id);
+    navigate('product');
+  }
 
   async function toggleFavorite(productId: string) {
     if (!accountToken) { notify('Masuk ke akun pelanggan untuk menyimpan favorit.', 'error'); return; }
@@ -284,20 +318,114 @@ export default function StorefrontPage() {
   }
 
   return (
-    <main>
-      <nav className="nav">
-        <span className="brandMark">T3</span>
-        <span className="brandText"><strong>{manifest?.company?.name ?? 'Toko360'}</strong><small>Official Store</small></span>
-        <span className="cartBadge"><ShoppingCart size={15} />{cart.reduce((s, i) => s + i.quantity, 0)} item</span>
-      </nav>
-
-      <header className="hero">
-        <div><span className="eyebrow">TOKO360 OFFICIAL STORE</span><h1>Belanja langsung dari toko.</h1><p>Katalog dan stok tersambung dengan gudang. Pesanan mengikuti reservasi, pembayaran, fulfillment, dan pengiriman yang sama dengan sistem operasional.</p></div>
-        <div className="heroCard"><strong>{loading ? '—' : products.length}</strong><span>produk tersedia di katalog</span><strong>{cart.reduce((sum, item) => sum + item.quantity, 0)}</strong><span>barang di keranjang</span></div>
-      </header>
-
+    <StorefrontShell
+      companyName={manifest?.company?.name ?? 'Toko360'}
+      activeView={activeView}
+      cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+      signedIn={Boolean(account)}
+      onNavigate={navigate}
+    >
       {message && <div className={`notice ${messageTone}`}>{message}</div>}
 
+      {activeView === 'home' && <>
+      <section className="homeDeck">
+        <div className="homeIntro">
+          <span className="eyebrow">BELANJA TERHUBUNG OPERASIONAL</span>
+          <h2>Satu storefront untuk katalog, checkout, fulfillment, dan layanan purna jual.</h2>
+          <p>Harga, promo, stok, reservasi, pembayaran, pengiriman, retur, dan loyalitas tetap divalidasi oleh backend Toko360.</p>
+          <div className="homeActions">
+            <button className="primary compact" type="button" onClick={() => navigate('catalog')}>Jelajahi katalog <ArrowRight size={16} /></button>
+            <button className="secondary compact" type="button" onClick={() => navigate(account ? 'account' : 'cart')}>{account ? 'Buka akun saya' : 'Lihat keranjang'}</button>
+          </div>
+        </div>
+        <div className="metricDeck">
+          <article><strong>{loading ? '—' : products.length}</strong><span>produk tersedia</span></article>
+          <article><strong>{cart.reduce((sum, item) => sum + item.quantity, 0)}</strong><span>item di keranjang</span></article>
+          <article><strong>{account ? account.points : '—'}</strong><span>poin loyalitas</span></article>
+        </div>
+      </section>
+
+      <section>
+        <div className="sectionTitle"><div><span className="eyebrow">PILIHAN TOKO</span><h2>Produk untuk mulai belanja</h2></div><button type="button" className="textAction" onClick={() => navigate('catalog')}>Lihat semua <ArrowRight size={15} /></button></div>
+        <div className="productGrid compactGrid">
+          {products.slice(0, 3).map((product) => { const stock = stockOf(product); return <article className="productCard" key={product.id}><div className="productImage" aria-hidden="true">{product.name.slice(0,1).toUpperCase()}</div><div className="body"><small>{product.sku}</small><h3>{product.name}</h3><div className="priceRow"><strong>{rupiah(productPrice(product))}</strong><span>Stok {stock}</span></div><button type="button" onClick={() => openProduct(product)}>Lihat produk</button></div></article>; })}
+          {!loading && !products.length && <div className="emptyState"><h4>Katalog belum tersedia</h4><p>Produk akan tampil setelah cabang mengaktifkan katalog.</p></div>}
+        </div>
+      </section>
+      </>}
+
+      {activeView === 'catalog' && <>
+      <section>
+        <div className="sectionTitle"><div><span className="eyebrow">KATALOG</span><h2>Produk tersedia</h2></div><span>{loading ? 'Memuat…' : `${visibleProducts.length} produk`}</span></div>
+        <div className="catalogControls">
+          <div className="catalogToolbar"><Search size={17}/><input aria-label="Cari produk" placeholder="Cari nama atau SKU…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+          <label className="sortControl">Urutkan<select value={sortMode} onChange={(e) => setSortMode(e.target.value as typeof sortMode)}><option value="relevance">Relevansi</option><option value="name">Nama A-Z</option><option value="price-asc">Harga termurah</option><option value="price-desc">Harga tertinggi</option><option value="stock">Stok terbanyak</option></select></label>
+        </div>
+        <div className="productGrid">
+          {loading && Array.from({ length: 6 }).map((_, i) => <article className="productCard" key={`sk${i}`} aria-busy="true"><div className="skeletonBlock tall" /><div className="body"><div className="skeletonBlock" style={{width:'35%'}} /><div className="skeletonBlock" style={{width:'70%',height:16}} /><div className="skeletonBlock" style={{width:'90%'}} /><div className="skeletonBlock" style={{width:'50%'}} /></div></article>)}
+          {!loading && !visibleProducts.length && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>{products.length ? 'Produk tidak ditemukan' : 'Katalog belum tersedia'}</h4><p>{products.length ? 'Coba kata kunci lain.' : 'Produk akan tampil setelah toko mengaktifkan katalog untuk cabang ini.'}</p></div>}
+          {visibleProducts.map((product) => {
+            const stock = stockOf(product);
+            return <article className="productCard" key={product.id}>
+              <div className="productImage" aria-hidden="true">{product.name.slice(0, 1).toUpperCase()}</div>
+              <div className="body"><small>{product.sku}</small><h3>{product.name}</h3><p>{product.description?.trim() || 'Detail produk belum tersedia.'}</p><div className="priceRow"><strong>{rupiah(productPrice(product))}</strong><span>Stok {stock}</span></div><div className="cardActions"><button type="button" className="secondary" onClick={() => openProduct(product)}>Lihat detail</button><button disabled={stock <= 0} onClick={() => add(product)}>{stock > 0 ? 'Tambah' : 'Stok habis'}</button></div><button type="button" className="favoriteAction secondary" onClick={() => void toggleFavorite(product.id)}><Heart size={15} fill={favoriteIds.includes(product.id) ? 'currentColor' : 'none'} />{favoriteIds.includes(product.id) ? 'Favorit' : 'Simpan favorit'}</button></div>
+            </article>;
+          })}
+        </div>
+      </section>
+      </>}
+
+      {activeView === 'product' && <>
+      <section>
+        <div className="sectionTitle"><div><span className="eyebrow">DETAIL PRODUK</span><h2>{selectedProduct?.name ?? 'Pilih produk dari katalog'}</h2></div><button type="button" className="secondary compact" onClick={() => navigate('catalog')}>Kembali ke katalog</button></div>
+        {selectedProduct ? <div className="productDetail">
+          <div className="productDetailVisual" aria-hidden="true">{selectedProduct.name.slice(0,1).toUpperCase()}</div>
+          <div className="productDetailBody">
+            <span className="productSku">{selectedProduct.sku}</span>
+            <h3>{selectedProduct.name}</h3>
+            <p>{selectedProduct.description?.trim() || 'Detail produk belum tersedia.'}</p>
+            <div className="detailPrice">{rupiah(productPrice(selectedProduct))}</div>
+            <div className="inventoryList">{selectedProduct.inventories.map((item, index) => <span key={`${item.warehouse.name}-${index}`}>{item.warehouse.name}: <strong>{item.available}</strong></span>)}</div>
+            <div className="homeActions">
+              <button className="primary compact" type="button" disabled={stockOf(selectedProduct) <= 0} onClick={() => add(selectedProduct)}>{stockOf(selectedProduct) > 0 ? 'Tambah ke keranjang' : 'Stok habis'}</button>
+              <button className="secondary compact" type="button" onClick={() => void toggleFavorite(selectedProduct.id)}><Heart size={16} fill={favoriteIds.includes(selectedProduct.id) ? 'currentColor' : 'none'} />{favoriteIds.includes(selectedProduct.id) ? 'Tersimpan' : 'Simpan favorit'}</button>
+            </div>
+          </div>
+        </div> : <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} /></div><h4>Belum ada produk dipilih</h4><p>Buka katalog lalu pilih “Lihat detail”.</p><button type="button" className="primary compact" onClick={() => navigate('catalog')}>Buka katalog</button></div>}
+      </section>
+      </>}
+
+      {activeView === 'cart' && <>
+      <section className="checkoutGrid">
+        <div className="panel">
+          <div className="sectionTitle"><div><span className="eyebrow">KERANJANG</span><h2>Ringkasan belanja</h2></div></div>
+          {!cart.length && <div className="emptyState"><div className="emptyIcon"><ShoppingBag size={24} strokeWidth={1.6} /></div><h4>Keranjang masih kosong</h4><p>Tambahkan produk dari katalog untuk mulai belanja.</p></div>}
+          {cart.map((item) => <div className="cartRow" key={item.product.id}><div><strong>{item.product.name}</strong><small>{rupiah(productPrice(item.product))}</small></div><div className="qty"><button aria-label={`Kurangi ${item.product.name}`} onClick={() => update(item.product.id, item.quantity - 1)}><Minus size={14}/></button><span>{item.quantity}</span><button aria-label={`Tambah ${item.product.name}`} disabled={item.quantity >= stockOf(item.product)} onClick={() => update(item.product.id, item.quantity + 1)}><Plus size={14}/></button></div></div>)}
+          <div className="total"><span>Total sementara</span><strong>{rupiah(total)}</strong></div>
+        </div>
+
+        <form className="panel" onSubmit={checkout}>
+          <div className="sectionTitle"><div><span className="eyebrow">CHECKOUT</span><h2>Data pelanggan</h2></div></div>
+          <label>Nama<input required readOnly={Boolean(account)} autoComplete="name" value={customer.customerName} onChange={(event) => setCustomer({ ...customer, customerName: event.target.value })} /></label>
+          <label>Email<input type="email" readOnly={Boolean(account)} autoComplete="email" value={customer.customerEmail} onChange={(event) => setCustomer({ ...customer, customerEmail: event.target.value })} /></label>
+          <label>Nomor telepon<input autoComplete="tel" value={customer.customerPhone} onChange={(event) => setCustomer({ ...customer, customerPhone: event.target.value })} /></label>
+          <label>Fulfillment<select value={fulfillmentType} onChange={(event) => { const type = event.target.value as 'DELIVERY' | 'PICKUP'; setFulfillmentType(type); const method = fulfillmentMethods.find((item) => item.fulfillmentType === type); setShippingMethodCode(method?.code ?? ''); }}><option value="DELIVERY">Dikirim</option><option value="PICKUP">Ambil di toko</option></select></label>
+          <label>Metode<select required value={shippingMethodCode} onChange={(event) => setShippingMethodCode(event.target.value)}>{fulfillmentMethods.filter((item) => item.fulfillmentType === fulfillmentType).map((item) => <option key={item.code} value={item.code}>{item.name} · {item.price ? rupiah(item.price) : 'Gratis'}</option>)}</select></label>
+          {fulfillmentType === 'DELIVERY' && account && addresses.length > 0 && <label>Alamat tersimpan<select value={selectedAddressId} onChange={(event) => setSelectedAddressId(event.target.value)}><option value="">Gunakan alamat manual</option>{addresses.map((row) => <option key={row.id} value={row.id}>{row.label} · {row.addressLine}{row.city ? `, ${row.city}` : ''}</option>)}</select></label>}
+          {fulfillmentType === 'DELIVERY' && !selectedAddressId && <label>Alamat<textarea required autoComplete="street-address" value={customer.address} onChange={(event) => setCustomer({ ...customer, address: event.target.value })} /></label>}
+          {fulfillmentType === 'PICKUP' && <small>Alamat pickup ditentukan server dari cabang/gudang yang memproses pesanan.</small>}
+          <label>Voucher / kode promo<input maxLength={40} value={promoCode} onChange={(event) => setPromoCode(event.target.value.toUpperCase())} placeholder="Opsional" /></label>
+          <small>Promo divalidasi server terhadap channel, produk, tier, quota, dan isi keranjang saat order dibuat.</small>
+          <button className="primary" disabled={!cart.length || submitting}>{submitting ? 'Membuat pesanan…' : 'Buat pesanan'}</button>
+        </form>
+      </section>
+      {order && <section className="orderPanel"><span className="eyebrow">PESANAN</span><h2>{order.number}</h2><p>Status: <strong>{order.status}</strong> · {order.fulfillmentType ?? fulfillmentType} / {order.shippingMethodName ?? shippingMethodCode} · Ongkir {rupiah(order.shippingCost ?? 0)} · Total server {rupiah(order.total)}</p>
+        {order.status === 'PENDING_PAYMENT' && <div className="paymentChooser"><label>Metode pembayaran<select value={paymentMethod} disabled={paymentBusy} onChange={(event) => setPaymentMethod(event.target.value)}><option value="QRIS">QRIS</option><option value="TRANSFER">Transfer</option><option value="CARD">Kartu</option><option value="COD">COD</option><option value="INVOICE">Invoice / termin</option></select></label><button disabled={paymentBusy} onClick={() => void selectPayment()}>{paymentBusy ? 'Memproses…' : 'Pilih metode'}</button></div>}
+        <small>Pembayaran elektronik tidak dianggap lunas sampai provider/backoffice mengonfirmasi. Stok fisik baru keluar ketika shipment dikirim.</small>
+      </section>}
+      </>}
+
+      {activeView === 'account' && <>
       <section className="checkoutGrid">
         <div className="panel">
           <div className="sectionTitle"><div><span className="eyebrow">AKUN PELANGGAN</span><h2>{account ? `Halo, ${account.name}` : 'Masuk / daftar'}</h2></div>{account && <button className="secondary" type="button" onClick={() => void logoutCustomer()}>Keluar</button>}</div>
@@ -335,51 +463,11 @@ export default function StorefrontPage() {
           {account && accountReturns.length > 0 && <div><h3>Riwayat retur</h3>{accountReturns.slice(0, 8).map((ret) => <div className="cartRow" key={ret.id}><div><strong>{ret.number}</strong><small>{ret.order.number} · {ret.items.map((line) => `${line.product.name} × ${line.quantity}`).join(', ')}</small>{ret.reason && <small>{ret.reason}</small>}</div><div><strong>{ret.status}</strong><small>{rupiah(ret.refundAmount)}</small></div></div>)}</div>}
         </div>
       </section>
-
-      <section>
-        <div className="sectionTitle"><div><span className="eyebrow">KATALOG</span><h2>Produk tersedia</h2></div><span>{loading ? 'Memuat…' : `${visibleProducts.length} produk`}</span></div>
-        <div className="catalogToolbar"><Search size={17}/><input aria-label="Cari produk" placeholder="Cari nama atau SKU…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-        <div className="productGrid">
-          {loading && Array.from({ length: 6 }).map((_, i) => <article className="productCard" key={`sk${i}`} aria-busy="true"><div className="skeletonBlock tall" /><div className="body"><div className="skeletonBlock" style={{width:'35%'}} /><div className="skeletonBlock" style={{width:'70%',height:16}} /><div className="skeletonBlock" style={{width:'90%'}} /><div className="skeletonBlock" style={{width:'50%'}} /></div></article>)}
-          {!loading && !visibleProducts.length && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>{products.length ? 'Produk tidak ditemukan' : 'Katalog belum tersedia'}</h4><p>{products.length ? 'Coba kata kunci lain.' : 'Produk akan tampil setelah toko mengaktifkan katalog untuk cabang ini.'}</p></div>}
-          {visibleProducts.map((product) => {
-            const stock = stockOf(product);
-            return <article className="productCard" key={product.id}>
-              <div className="productImage" aria-hidden="true">{product.name.slice(0, 1).toUpperCase()}</div>
-              <div className="body"><small>{product.sku}</small><h3>{product.name}</h3><p>{product.description?.trim() || 'Detail produk belum tersedia.'}</p><div className="priceRow"><strong>{rupiah(productPrice(product))}</strong><span>Stok {stock}</span></div><button disabled={stock <= 0} onClick={() => add(product)}>{stock > 0 ? 'Tambah ke keranjang' : 'Stok habis'}</button><button type="button" className="secondary" onClick={() => void toggleFavorite(product.id)}>{favoriteIds.includes(product.id) ? '★ Favorit' : '☆ Simpan favorit'}</button></div>
-            </article>;
-          })}
-        </div>
-      </section>
-
-      <section className="checkoutGrid">
-        <div className="panel">
-          <div className="sectionTitle"><div><span className="eyebrow">KERANJANG</span><h2>Ringkasan belanja</h2></div></div>
-          {!cart.length && <div className="emptyState"><div className="emptyIcon"><ShoppingBag size={24} strokeWidth={1.6} /></div><h4>Keranjang masih kosong</h4><p>Tambahkan produk dari katalog untuk mulai belanja.</p></div>}
-          {cart.map((item) => <div className="cartRow" key={item.product.id}><div><strong>{item.product.name}</strong><small>{rupiah(productPrice(item.product))}</small></div><div className="qty"><button aria-label={`Kurangi ${item.product.name}`} onClick={() => update(item.product.id, item.quantity - 1)}><Minus size={14}/></button><span>{item.quantity}</span><button aria-label={`Tambah ${item.product.name}`} disabled={item.quantity >= stockOf(item.product)} onClick={() => update(item.product.id, item.quantity + 1)}><Plus size={14}/></button></div></div>)}
-          <div className="total"><span>Total sementara</span><strong>{rupiah(total)}</strong></div>
-        </div>
-
-        <form className="panel" onSubmit={checkout}>
-          <div className="sectionTitle"><div><span className="eyebrow">CHECKOUT</span><h2>Data pelanggan</h2></div></div>
-          <label>Nama<input required readOnly={Boolean(account)} autoComplete="name" value={customer.customerName} onChange={(event) => setCustomer({ ...customer, customerName: event.target.value })} /></label>
-          <label>Email<input type="email" readOnly={Boolean(account)} autoComplete="email" value={customer.customerEmail} onChange={(event) => setCustomer({ ...customer, customerEmail: event.target.value })} /></label>
-          <label>Nomor telepon<input autoComplete="tel" value={customer.customerPhone} onChange={(event) => setCustomer({ ...customer, customerPhone: event.target.value })} /></label>
-          <label>Fulfillment<select value={fulfillmentType} onChange={(event) => { const type = event.target.value as 'DELIVERY' | 'PICKUP'; setFulfillmentType(type); const method = fulfillmentMethods.find((item) => item.fulfillmentType === type); setShippingMethodCode(method?.code ?? ''); }}><option value="DELIVERY">Dikirim</option><option value="PICKUP">Ambil di toko</option></select></label>
-          <label>Metode<select required value={shippingMethodCode} onChange={(event) => setShippingMethodCode(event.target.value)}>{fulfillmentMethods.filter((item) => item.fulfillmentType === fulfillmentType).map((item) => <option key={item.code} value={item.code}>{item.name} · {item.price ? rupiah(item.price) : 'Gratis'}</option>)}</select></label>
-          {fulfillmentType === 'DELIVERY' && account && addresses.length > 0 && <label>Alamat tersimpan<select value={selectedAddressId} onChange={(event) => setSelectedAddressId(event.target.value)}><option value="">Gunakan alamat manual</option>{addresses.map((row) => <option key={row.id} value={row.id}>{row.label} · {row.addressLine}{row.city ? `, ${row.city}` : ''}</option>)}</select></label>}
-          {fulfillmentType === 'DELIVERY' && !selectedAddressId && <label>Alamat<textarea required autoComplete="street-address" value={customer.address} onChange={(event) => setCustomer({ ...customer, address: event.target.value })} /></label>}
-          {fulfillmentType === 'PICKUP' && <small>Alamat pickup ditentukan server dari cabang/gudang yang memproses pesanan.</small>}
-          <label>Voucher / kode promo<input maxLength={40} value={promoCode} onChange={(event) => setPromoCode(event.target.value.toUpperCase())} placeholder="Opsional" /></label>
-          <small>Promo divalidasi server terhadap channel, produk, tier, quota, dan isi keranjang saat order dibuat.</small>
-          <button className="primary" disabled={!cart.length || submitting}>{submitting ? 'Membuat pesanan…' : 'Buat pesanan'}</button>
-        </form>
-      </section>
-
-      {order && <section className="orderPanel"><span className="eyebrow">PESANAN</span><h2>{order.number}</h2><p>Status: <strong>{order.status}</strong> · {order.fulfillmentType ?? fulfillmentType} / {order.shippingMethodName ?? shippingMethodCode} · Ongkir {rupiah(order.shippingCost ?? 0)} · Total server {rupiah(order.total)}</p>
-        {order.status === 'PENDING_PAYMENT' && <div className="paymentChooser"><label>Metode pembayaran<select value={paymentMethod} disabled={paymentBusy} onChange={(event) => setPaymentMethod(event.target.value)}><option value="QRIS">QRIS</option><option value="TRANSFER">Transfer</option><option value="CARD">Kartu</option><option value="COD">COD</option><option value="INVOICE">Invoice / termin</option></select></label><button disabled={paymentBusy} onClick={() => void selectPayment()}>{paymentBusy ? 'Memproses…' : 'Pilih metode'}</button></div>}
-        <small>Pembayaran elektronik tidak dianggap lunas sampai provider/backoffice mengonfirmasi. Stok fisik baru keluar ketika shipment dikirim.</small>
-      </section>}
-    </main>
+      </>}
+    </StorefrontShell>
   );
+}
+
+export default function StorefrontPage() {
+  return <StorefrontApp />;
 }

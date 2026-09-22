@@ -14,3 +14,10 @@ Validation completed for the UI-P3 candidate before rebundling:
 - full dependency-free Linux/GitHub-equivalent 688/688 PASS, 0 fail, 0 skipped/todo
 
 Human Stage-20 UAT remains PENDING 12/12 and must not be auto-passed. After push, GitHub Full System Simulation is authoritative.
+
+
+## 2026-09-22 UI-P4 Storefront Productization
+- Baseline exact: `be8007ba2f7ba7f8d98a09a3acb6a2c783599988`.
+- UI-P3 ditutup setelah built-browser/full-system GitHub PASS.
+- UI-P4: StorefrontShell, `/[view]`, home/catalog/product/cart/account, catalog sort, product detail, responsive navigation.
+- Tidak ada schema/backend business logic change; Human UAT tetap fail-closed.

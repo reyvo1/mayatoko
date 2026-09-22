@@ -943,6 +943,53 @@
       ],
       "key": "ui-p3-pos-modernization",
       "priority": 210
+    },
+    {
+      "key": "ui-p4-storefront-productization",
+      "priority": 220,
+      "title": "UI-P4 Storefront productization dan customer journeys",
+      "type": "feature",
+      "module": "storefront-ui",
+      "wave": "W7",
+      "risk": "MEDIUM",
+      "dependencies": [
+        "ui-p3-pos-modernization"
+      ],
+      "featureFlag": "",
+      "impacts": {
+        "database": "NONE",
+        "inventory": "LOW",
+        "accounting": "NONE",
+        "tax": "LOW",
+        "payment": "LOW",
+        "payroll": "NONE",
+        "sync": "NONE",
+        "security": "LOW",
+        "performance": "LOW"
+      },
+      "businessRules": [
+        "Storefront UI hanya mengubah information architecture dan customer journey; harga, promo, stok, reservasi, fulfillment, pembayaran, retur, review, favorit, dan loyalitas tetap authoritative pada API existing.",
+        "Route storefront tidak menjadi security boundary; customer session dan order access token tetap diverifikasi backend.",
+        "Human Stage-20 UAT tetap terpisah dan candidate verifier tidak boleh diubah atau dipaksa PASS."
+      ],
+      "acceptanceCriteria": [
+        "Storefront mempunyai shell reusable dan deep-link view untuk home, catalog, product, cart, dan account.",
+        "Catalog menyediakan pencarian, sorting, product detail, favorite, dan stock visibility tanpa mengubah pricing/stock calculation authoritative.",
+        "Cart/checkout terpisah dari catalog sementara fulfillment, promo, order creation, dan payment selection tetap memakai endpoint existing.",
+        "Account/orders menampung login/register, verification, addresses, order tracking, review, return, dan loyalty dalam customer workspace terpisah."
+      ],
+      "testPlan": [
+        "node --test tests/ui-p4-storefront-productization.test.mjs",
+        "node --test tests/functional-w2-storefront-contact-verification.test.mjs tests/functional-w2-storefront-customer-account.test.mjs tests/functional-w2-storefront-favorites-reviews.test.mjs tests/functional-w2-storefront-fulfillment-address.test.mjs tests/functional-w2-storefront-loyalty-tier.test.mjs tests/functional-w2-storefront-order-return.test.mjs tests/uat-candidate-gate.test.mjs",
+        "Invariant commerce: order creation tetap memakai server-authoritative total/promo, stock reservation tetap melalui backend, dan payment selection tidak dianggap lunas tanpa provider/backoffice confirmation.",
+        "GitHub Full System Simulation untuk Next build, browser/runtime, exact artifact, dan Stage-20 automated."
+      ],
+      "documentation": [
+        "docs/STOREFRONT-PRODUCTIZATION.md",
+        "docs/DEVELOPMENT-KIT.md",
+        "UI-DESIGN-SYSTEM.md",
+        "handoff/CURRENT-WORK.md"
+      ]
     }
   ]
 }

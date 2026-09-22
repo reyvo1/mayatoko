@@ -217,3 +217,7 @@
 - Mempertahankan quote/payment/stock/idempotency/offline replay/auth guard lama tanpa perubahan business contract.
 - UI-P2 ditutup berdasarkan baseline GitHub hijau `b1c561d97813f5e0916d194e0146cbec147a741e`.
 - Human Stage-20 UAT tetap PENDING 12/12 dan tidak dapat dipenuhi automated simulation.
+
+## UI-P4 Storefront productization
+- Memecah storefront single-surface menjadi reusable shell + home/catalog/product/cart/account customer journeys.
+- Menambahkan deep-link storefront route, catalog sort/search, product detail, dan responsive desktop/mobile navigation tanpa mengubah commerce API.
