@@ -1036,6 +1036,52 @@
         "UI-DESIGN-SYSTEM.md",
         "handoff/CURRENT-WORK.md"
       ]
+    },
+    {
+      "key": "ui-p6-server-driven-admin-ui",
+      "priority": 240,
+      "title": "UI-P6 Server-driven Admin UI integration",
+      "type": "feature",
+      "module": "admin-ui",
+      "wave": "W7",
+      "risk": "MEDIUM",
+      "dependencies": [
+        "ui-p5-employee-portal-productization"
+      ],
+      "featureFlag": "",
+      "impacts": {
+        "database": "NONE",
+        "inventory": "NONE",
+        "accounting": "NONE",
+        "tax": "NONE",
+        "payment": "NONE",
+        "payroll": "NONE",
+        "sync": "NONE",
+        "security": "LOW",
+        "performance": "LOW"
+      },
+      "businessRules": [
+        "Module catalog, feature flags, token role/permission, dan admin UiSchema hanya mengatur visibility/presentation canonical workspace dan domain view yang source-nya sudah ada.",
+        "UiSchema tidak boleh membuat route, action, permission, atau business capability baru; backend tetap authorization boundary authoritative.",
+        "Human Stage-20 UAT tetap PENDING sampai human evidence sah dan candidate verifier tidak boleh dipaksa PASS."
+      ],
+      "acceptanceCriteria": [
+        "Nested Admin domain view dapat hide/relabel/reorder dari admin UiSchema dengan fallback canonical yang deterministic.",
+        "Nested view hanya ditampilkan bila module aktif dan role/permission visibility requirement terpenuhi.",
+        "Direct deep-link ke domain view yang tidak visible di runtime kembali ke domain root tanpa mengubah backend authority.",
+        "Admin shell menampilkan runtime module/schema status dan UI-P1/UI-P2 contracts tetap kompatibel."
+      ],
+      "testPlan": [
+        "node --test tests/ui-p6-server-driven-admin-ui.test.mjs",
+        "node --test tests/ui-p1-admin-application-shell.test.mjs tests/ui-p2-admin-domain-workspaces.test.mjs tests/tenant-scope-platform.test.mjs",
+        "GitHub Full System Simulation untuk regression/build/browser/runtime/Stage-20 automated."
+      ],
+      "documentation": [
+        "docs/SERVER-DRIVEN-ADMIN-UI.md",
+        "docs/DEVELOPMENT-KIT.md",
+        "UI-DESIGN-SYSTEM.md",
+        "handoff/CURRENT-WORK.md"
+      ]
     }
   ]
 }

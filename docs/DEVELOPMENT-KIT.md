@@ -582,3 +582,6 @@ Storefront menggunakan reusable shell dan customer journey terpisah untuk home, 
 
 ## UI-P5 Employee Portal productization — 2026-09-22
 Employee Portal memakai reusable shell dan route self-service terpisah untuk home, attendance, leave, overtime, payslips, history, dan profile. UI hanya mengatur presentation/progressive disclosure; employee self-scope, attendance evidence, approval, dan payslip authorization tetap authoritative di backend.
+
+## UI-P6 Server-driven Admin UI
+Admin runtime manifest sekarang mengendalikan tidak hanya top-level workspace, tetapi juga nested domain visibility/presentation. Canonical route/action tetap source-owned; UiSchema hanya hide/relabel/reorder, sedangkan module/feature/role/permission hanya mengurangi visibility UI. Backend authorization tetap authoritative.

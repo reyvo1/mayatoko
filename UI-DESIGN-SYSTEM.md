@@ -53,3 +53,6 @@ Storefront memakai sticky global header, desktop/mobile primary navigation, view
 
 ## Employee Portal productization
 Employee self-service memakai desktop sidebar + mobile horizontal navigation, page heading per workspace, progressive disclosure, status pills, responsive forms/tables, dan flat dark surfaces. Browser contract `TOKO360 HR` / `Portal Karyawan` tetap dipertahankan.
+
+## UI-P6 — server-driven Admin surfaces
+Nested Admin tabs/cards mengikuti resolved runtime surface: module aktif, identity visibility, dan UiSchema admin. Runtime override tidak boleh menciptakan action atau route baru.

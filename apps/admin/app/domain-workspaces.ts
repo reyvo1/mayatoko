@@ -5,7 +5,7 @@ import {
   ReceiptText, RefreshCcw, Route, ScanLine, Settings2, ShieldCheck, ShoppingBag, Truck, UserCog,
   Users, Warehouse, Wrench,
 } from 'lucide-react';
-import type { AdminWorkspace } from './navigation';
+import type { AdminIdentity, AdminRuntimeManifest, AdminWorkspace } from './navigation';
 
 type DomainIcon = ComponentType<{ size?: number | string }>;
 
@@ -15,6 +15,9 @@ export type AdminDomainView = {
   title: string;
   description: string;
   Icon: DomainIcon;
+  moduleCodes?: string[];
+  permissionPrefixes?: string[];
+  roles?: string[];
 };
 
 export type AdminDomainWorkspace = {
@@ -30,10 +33,10 @@ export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
     { key: 'references', label: 'Reference', title: 'Reference master', description: 'Brand, unit, bank, courier, dan payment method.', Icon: Settings2 },
   ]},
   { workspaceKey: 'procurement', views: [
-    { key: 'requests', label: 'Requests', title: 'Purchase requests', description: 'Ajukan kebutuhan, separation of duties, dan approval sebelum PO.', Icon: ClipboardList },
-    { key: 'orders', label: 'Purchase orders', title: 'Purchase orders', description: 'Supplier, warehouse, product, quantity, dan authoritative unit cost.', Icon: PackageSearch },
-    { key: 'receipts', label: 'Goods receipt', title: 'Goods receipt', description: 'Inbound receiving, inspection, confirmation, stok, dan journal posting.', Icon: PackageCheck },
-    { key: 'inventory', label: 'Stock view', title: 'Procurement inventory view', description: 'Saldo gudang dan penerimaan terakhir untuk keputusan pembelian.', Icon: Boxes },
+    { key: 'requests', moduleCodes: ['suppliers'], permissionPrefixes: ['purchase'], label: 'Requests', title: 'Purchase requests', description: 'Ajukan kebutuhan, separation of duties, dan approval sebelum PO.', Icon: ClipboardList },
+    { key: 'orders', moduleCodes: ['suppliers'], permissionPrefixes: ['purchase'], label: 'Purchase orders', title: 'Purchase orders', description: 'Supplier, warehouse, product, quantity, dan authoritative unit cost.', Icon: PackageSearch },
+    { key: 'receipts', moduleCodes: ['goods-receipts'], permissionPrefixes: ['goods_receipt', 'inventory'], label: 'Goods receipt', title: 'Goods receipt', description: 'Inbound receiving, inspection, confirmation, stok, dan journal posting.', Icon: PackageCheck },
+    { key: 'inventory', moduleCodes: ['inventory'], permissionPrefixes: ['inventory'], label: 'Stock view', title: 'Procurement inventory view', description: 'Saldo gudang dan penerimaan terakhir untuk keputusan pembelian.', Icon: Boxes },
   ]},
   { workspaceKey: 'commerce', views: [
     { key: 'orders', label: 'Orders', title: 'Commerce orders', description: 'Order website, status fulfillment, dan pembayaran.', Icon: ShoppingBag },
@@ -54,17 +57,17 @@ export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
     { key: 'delivery', label: 'Delivery', title: 'Delivery lifecycle', description: 'Trip, manifest, loading, dispatch, POD/COD, return, dan close trip.', Icon: Truck },
   ]},
   { workspaceKey: 'finance', views: [
-    { key: 'ledger', label: 'Ledger', title: 'Accounting ledger', description: 'Accounting events, journals, fiscal period, dan tax code.', Icon: Landmark },
-    { key: 'payables', label: 'Payables', title: 'Supplier payables', description: 'Outstanding supplier document dan settlement lifecycle.', Icon: ReceiptText },
-    { key: 'receivables', label: 'Receivables', title: 'Customer receivables', description: 'COD/invoice receivable dan supplier refund balance.', Icon: BadgeDollarSign },
-    { key: 'banking', label: 'Banking', title: 'Cash & bank reconciliation', description: 'Finance operations, statement import, dan reconciliation.', Icon: Banknote },
-    { key: 'reports', label: 'Reports', title: 'Finance reports', description: 'Report worker dan export evidence dari authoritative ledger.', Icon: FileBarChart },
+    { key: 'ledger', moduleCodes: ['accounting', 'accounting-core'], permissionPrefixes: ['accounting', 'finance'], label: 'Ledger', title: 'Accounting ledger', description: 'Accounting events, journals, fiscal period, dan tax code.', Icon: Landmark },
+    { key: 'payables', moduleCodes: ['finance-operations', 'accounting'], permissionPrefixes: ['finance', 'accounting'], label: 'Payables', title: 'Supplier payables', description: 'Outstanding supplier document dan settlement lifecycle.', Icon: ReceiptText },
+    { key: 'receivables', moduleCodes: ['finance-operations', 'accounting'], permissionPrefixes: ['finance', 'accounting'], label: 'Receivables', title: 'Customer receivables', description: 'COD/invoice receivable dan supplier refund balance.', Icon: BadgeDollarSign },
+    { key: 'banking', moduleCodes: ['bank-reconciliation', 'finance-operations'], permissionPrefixes: ['finance', 'accounting'], label: 'Banking', title: 'Cash & bank reconciliation', description: 'Finance operations, statement import, dan reconciliation.', Icon: Banknote },
+    { key: 'reports', moduleCodes: ['accounting', 'finance-operations'], permissionPrefixes: ['finance', 'accounting'], label: 'Reports', title: 'Finance reports', description: 'Report worker dan export evidence dari authoritative ledger.', Icon: FileBarChart },
   ]},
   { workspaceKey: 'people', views: [
-    { key: 'employees', label: 'Employees', title: 'Employee master', description: 'Employee identity, organization, status, dan self-service linkage.', Icon: Users },
-    { key: 'attendance', label: 'Attendance', title: 'Attendance operations', description: 'Attendance evidence, approval, location policy, dan history.', Icon: ClipboardCheck },
-    { key: 'payroll', label: 'Payroll', title: 'Payroll runs', description: 'Payroll preparation, approval, posting, settlement, dan payslip.', Icon: CreditCard },
-    { key: 'compliance', label: 'Compliance', title: 'Payroll compliance', description: 'Tax profile, BPJS, adjustment/recovery, dan audit lineage.', Icon: ShieldCheck },
+    { key: 'employees', moduleCodes: ['hris'], permissionPrefixes: ['hr', 'employee'], label: 'Employees', title: 'Employee master', description: 'Employee identity, organization, status, dan self-service linkage.', Icon: Users },
+    { key: 'attendance', moduleCodes: ['attendance'], permissionPrefixes: ['attendance', 'hr'], label: 'Attendance', title: 'Attendance operations', description: 'Attendance evidence, approval, location policy, dan history.', Icon: ClipboardCheck },
+    { key: 'payroll', moduleCodes: ['payroll'], permissionPrefixes: ['payroll', 'hr'], label: 'Payroll', title: 'Payroll runs', description: 'Payroll preparation, approval, posting, settlement, dan payslip.', Icon: CreditCard },
+    { key: 'compliance', moduleCodes: ['tax-payroll', 'payroll'], permissionPrefixes: ['payroll', 'hr'], label: 'Compliance', title: 'Payroll compliance', description: 'Tax profile, BPJS, adjustment/recovery, dan audit lineage.', Icon: ShieldCheck },
   ]},
   { workspaceKey: 'assets-fleet', views: [
     { key: 'assets', label: 'Assets', title: 'Fixed assets', description: 'Asset category, acquisition, book value, depreciation, dan disposal.', Icon: Building2 },
@@ -79,10 +82,10 @@ export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
     { key: 'integrations', label: 'Integrations', title: 'Integration connections', description: 'Provider connection, external mapping, dan adapter status.', Icon: RefreshCcw },
   ]},
   { workspaceKey: 'platform', views: [
-    { key: 'features', label: 'Features', title: 'Runtime features', description: 'Module catalog dan feature flags untuk company aktif.', Icon: Settings2 },
-    { key: 'users', label: 'Users', title: 'Users & roles', description: 'User lifecycle, role assignment, dan branch access.', Icon: UserCog },
-    { key: 'security', label: 'Security', title: 'Account security', description: '2FA, recovery, session security, dan protected account controls.', Icon: ShieldCheck },
-    { key: 'api-keys', label: 'API keys', title: 'Integration API keys', description: 'Scoped API keys, one-time secret display, dan revoke.', Icon: KeyRound },
+    { key: 'features', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], label: 'Features', title: 'Runtime features', description: 'Module catalog dan feature flags untuk company aktif.', Icon: Settings2 },
+    { key: 'users', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['user', 'role'], label: 'Users', title: 'Users & roles', description: 'User lifecycle, role assignment, dan branch access.', Icon: UserCog },
+    { key: 'security', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['user', 'platform'], label: 'Security', title: 'Account security', description: '2FA, recovery, session security, dan protected account controls.', Icon: ShieldCheck },
+    { key: 'api-keys', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['api_key', 'integration'], label: 'API keys', title: 'Integration API keys', description: 'Scoped API keys, one-time secret display, dan revoke.', Icon: KeyRound },
   ]},
 ];
 
@@ -107,4 +110,103 @@ export function isValidAdminPath(pathname: string, workspace: AdminWorkspace): b
   if (parts.length === 1) return true;
   if (parts.length !== 2) return false;
   return domainViewsForWorkspace(workspace).some((view) => view.key === parts[1]);
+}
+
+
+type DomainViewOverride = {
+  workspace?: unknown;
+  key?: unknown;
+  hidden?: unknown;
+  order?: unknown;
+  label?: unknown;
+  title?: unknown;
+  description?: unknown;
+};
+
+function enabledModuleCodes(manifest: AdminRuntimeManifest | null): Set<string> | null {
+  if (!manifest?.modules?.length) return null;
+  return new Set(manifest.modules.filter((module) => {
+    if (module.isCore || !module.featureKey) return true;
+    return manifest.features?.[module.featureKey]?.enabled === true;
+  }).map((module) => module.code));
+}
+
+function identityCanSeeView(identity: AdminIdentity | null, view: AdminDomainView): boolean {
+  if (!identity) return true;
+  if (view.roles?.some((role) => identity.roles.includes(role))) return true;
+  if (!view.permissionPrefixes?.length) return true;
+  if (!identity.permissions.length) return false;
+  return identity.permissions.some((permission) =>
+    view.permissionPrefixes!.some((prefix) =>
+      permission === prefix || permission.startsWith(`${prefix}.`) || permission.startsWith(`${prefix}_`),
+    ),
+  );
+}
+
+function readDomainOverrides(manifest: AdminRuntimeManifest | null, workspace: AdminWorkspace): Map<string, DomainViewOverride> {
+  const overrides = new Map<string, DomainViewOverride>();
+  const candidates = (manifest?.uiSchemas ?? [])
+    .filter((item) => item.surface.toLowerCase() === 'admin')
+    .sort((a, b) => b.version - a.version);
+
+  for (const candidate of candidates) {
+    if (!candidate.schema || typeof candidate.schema !== 'object' || Array.isArray(candidate.schema)) continue;
+    const domainViews = (candidate.schema as Record<string, unknown>).domainViews;
+    if (!Array.isArray(domainViews)) continue;
+
+    for (const raw of domainViews) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+      const override = raw as DomainViewOverride;
+      if (override.workspace !== workspace.key || typeof override.key !== 'string') continue;
+      if (!overrides.has(override.key)) overrides.set(override.key, override);
+    }
+  }
+
+  return overrides;
+}
+
+export function resolveDomainViews(
+  workspace: AdminWorkspace,
+  manifest: AdminRuntimeManifest | null,
+  identity: AdminIdentity | null,
+): AdminDomainView[] {
+  const canonical = domainViewsForWorkspace(workspace);
+  const activeModules = enabledModuleCodes(manifest);
+  const overrides = readDomainOverrides(manifest, workspace);
+
+  return canonical
+    .filter((view) => {
+      const override = overrides.get(view.key);
+      if (override?.hidden === true) return false;
+      if (!identityCanSeeView(identity, view)) return false;
+      if (!activeModules || !view.moduleCodes?.length) return true;
+      return view.moduleCodes.some((code) => activeModules.has(code));
+    })
+    .map((view) => {
+      const override = overrides.get(view.key);
+      return {
+        ...view,
+        label: typeof override?.label === 'string' && override.label.trim() ? override.label.trim() : view.label,
+        title: typeof override?.title === 'string' && override.title.trim() ? override.title.trim() : view.title,
+        description: typeof override?.description === 'string' && override.description.trim() ? override.description.trim() : view.description,
+      };
+    })
+    .sort((left, right) => {
+      const leftOrder = overrides.get(left.key)?.order;
+      const rightOrder = overrides.get(right.key)?.order;
+      const a = typeof leftOrder === 'number' ? leftOrder : canonical.findIndex((view) => view.key === left.key);
+      const b = typeof rightOrder === 'number' ? rightOrder : canonical.findIndex((view) => view.key === right.key);
+      return a - b;
+    });
+}
+
+export function resolvedDomainViewFromPath(
+  pathname: string,
+  workspace: AdminWorkspace,
+  manifest: AdminRuntimeManifest | null,
+  identity: AdminIdentity | null,
+): AdminDomainView | null {
+  const key = pathname.split('/').filter(Boolean)[1];
+  if (!key) return null;
+  return resolveDomainViews(workspace, manifest, identity).find((view) => view.key === key) ?? null;
 }

@@ -2,11 +2,12 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronRight, PanelLeftClose, PanelLeftOpen, RefreshCw, Search } from 'lucide-react';
-import type { AdminRuntimeManifest, AdminWorkspace, ResolvedAdminNavigation } from './navigation';
-import { domainRoute, domainViewsForWorkspace, type AdminDomainView } from './domain-workspaces';
+import type { AdminIdentity, AdminRuntimeManifest, AdminWorkspace, ResolvedAdminNavigation } from './navigation';
+import { domainRoute, domainViewsForWorkspace, resolveDomainViews, type AdminDomainView } from './domain-workspaces';
 
 type AdminAppShellProps = {
   manifest: AdminRuntimeManifest | null;
+  identity: AdminIdentity | null;
   navigation: ResolvedAdminNavigation;
   activeWorkspace: AdminWorkspace;
   activeDomainView: AdminDomainView | null;
@@ -20,6 +21,7 @@ type AdminAppShellProps = {
 
 export default function AdminAppShell({
   manifest,
+  identity,
   navigation,
   activeWorkspace,
   activeDomainView,
@@ -33,7 +35,8 @@ export default function AdminAppShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [navQuery, setNavQuery] = useState('');
   const navItems = useMemo(() => navigation.flatMap((group) => group.items), [navigation]);
-  const domainViews = useMemo(() => domainViewsForWorkspace(activeWorkspace), [activeWorkspace]);
+  const canonicalDomainViews = useMemo(() => domainViewsForWorkspace(activeWorkspace), [activeWorkspace]);
+  const domainViews = useMemo(() => resolveDomainViews(activeWorkspace, manifest, identity), [activeWorkspace, manifest, identity]);
   const filteredNavigation = useMemo(() => {
     const query = navQuery.trim().toLocaleLowerCase('id-ID');
     if (!query) return navigation;
@@ -78,6 +81,9 @@ export default function AdminAppShell({
         <div className="sidebarFoot">
           <span className="sidebarFootTitle">Runtime navigation</span>
           <span>{manifest ? `${navItems.length} workspace tersedia` : 'Memuat module catalog...'}</span>
+          <span>{manifest ? `${manifest.modules.filter((module) => module.isCore || !module.featureKey || manifest.features?.[module.featureKey]?.enabled === true).length}/${manifest.modules.length} module aktif` : 'Feature flags belum dimuat'}</span>
+          <span>{manifest?.uiSchemas?.filter((item) => item.surface.toLowerCase() === 'admin').length ?? 0} Admin UI schema</span>
+          <span>{domainViews.length}/{canonicalDomainViews.length} domain view terlihat</span>
           <span>v{manifest?.version ?? '0.5.3'}</span>
         </div>
       </aside>

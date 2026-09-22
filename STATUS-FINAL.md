@@ -96,3 +96,6 @@ UI-P5 Employee Portal productization berada di VERIFICATION pada baseline `4c336
 - Changed TS/TSX transpile: **4/4 PASS**.
 - Existing browser-uat tests were not claimed locally because the user-provided subset snapshot does not contain `scripts/browser-uat.mjs` / workflow files that those tests read.
 - GitHub Full System Simulation remains authoritative for authenticated Employee Portal browser/runtime.
+
+## UI-P6 server-driven Admin UI
+Phase: VERIFICATION. UI-P4/UI-P5 have full-system PASS evidence at `e37f7feee08f44544c38fa508e69af6e6cb8468f`; Human Stage-20 remains PENDING 12/12 and candidate verification remains fail-closed.

@@ -100,3 +100,6 @@ Storefront kini mempunyai customer journey terpisah untuk discovery, product det
 
 ## UI-P5 candidate
 Employee Portal sekarang mempunyai self-service workspace terpisah untuk dashboard, presensi, cuti, lembur, slip gaji, riwayat, dan profil. Perubahan bersifat presentation/information-architecture; employee scope, attendance evidence, approval, payslip access, dan Human UAT tetap authoritative/fail-closed.
+
+## UI-P6 server-driven Admin UI
+Admin nested workspace navigation now follows runtime module/feature state, identity visibility, and safe UiSchema presentation overrides.

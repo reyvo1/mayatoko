@@ -51,3 +51,6 @@ Push UI-P3 dari baseline source nyata `b1c561d97813f5e0916d194e0146cbec147a741e`
 - Changed TS/TSX transpile: **4/4 PASS**.
 - Existing browser-uat tests were not claimed locally because the user-provided subset snapshot does not contain `scripts/browser-uat.mjs` / workflow files that those tests read.
 - GitHub Full System Simulation remains authoritative for authenticated Employee Portal browser/runtime.
+
+## UI-P6 server-driven Admin UI
+Current batch: VERIFICATION. Baseline `e37f7feee08f44544c38fa508e69af6e6cb8468f`. UI-P4 dan UI-P5 ditutup berdasarkan full-system PASS pada baseline tersebut. UI-P6 memperluas runtime resolver ke nested domain views tanpa mengubah backend authority. Human UAT tetap PENDING/fail-closed.

@@ -22,7 +22,7 @@ import { authFetch, clearLoginTokens, storeLoginTokens } from './auth-fetch';
 import {
   ADMIN_WORKSPACES, type AdminRuntimeManifest, identityFromAccessToken, resolveAdminNavigation, workspaceFromPath,
 } from './navigation';
-import { domainViewFromPath, isValidAdminPath } from './domain-workspaces';
+import { isValidAdminPath, resolvedDomainViewFromPath, resolveDomainViews } from './domain-workspaces';
 
 type ToastItem = { id: number; text: string; tone: 'success' | 'error' };
 function useToasts() {
@@ -125,7 +125,7 @@ export default function AdminPage() {
   const navigation = useMemo(() => resolveAdminNavigation(manifest, identity), [manifest, identity]);
   const navItems = useMemo(() => navigation.flatMap((group) => group.items), [navigation]);
   const activeWorkspace = useMemo(() => ADMIN_WORKSPACES.find((item) => item.label === activeNav) ?? workspaceFromPath(pathname), [activeNav, pathname]);
-  const activeDomainView = useMemo(() => domainViewFromPath(pathname, activeWorkspace), [pathname, activeWorkspace]);
+  const activeDomainView = useMemo(() => resolvedDomainViewFromPath(pathname, activeWorkspace, manifest, identity), [pathname, activeWorkspace, manifest, identity]);
 
   function navigateTo(route: string) {
     const target = workspaceFromPath(route);
@@ -137,6 +137,14 @@ export default function AdminPage() {
     if (!token || !manifest || !navItems.length) return;
     if (!navItems.some((item) => item.label === activeNav)) navigateTo(navItems[0].route);
   }, [token, manifest, navItems, activeNav]);
+
+  useEffect(() => {
+    if (!token || !manifest) return;
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length !== 2) return;
+    const visibleViews = resolveDomainViews(activeWorkspace, manifest, identity);
+    if (!visibleViews.some((view) => view.key === parts[1])) router.replace(activeWorkspace.route);
+  }, [token, manifest, identity, pathname, activeWorkspace, router]);
 
   async function request<T>(path: string, init?: RequestInit, overrideToken?: string): Promise<T> {
     const response = await authFetch(`${API}${path}`, overrideToken ?? token, { ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) } });
@@ -332,6 +340,7 @@ export default function AdminPage() {
   return (
     <AdminAppShell
       manifest={manifest}
+      identity={identity}
       navigation={navigation}
       activeWorkspace={activeWorkspace}
       activeDomainView={activeDomainView}

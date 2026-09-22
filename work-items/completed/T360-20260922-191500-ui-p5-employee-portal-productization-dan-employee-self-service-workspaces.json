@@ -5,7 +5,7 @@
   "type": "feature",
   "module": "employee-portal-ui",
   "wave": "W7",
-  "phase": "VERIFICATION",
+  "phase": "CLOSED",
   "risk": "MEDIUM",
   "owner": "reyvo1",
   "featureFlag": "",
@@ -51,5 +51,13 @@
     "handoff/CURRENT-WORK.md"
   ],
   "createdAt": "2026-09-22T19:15:00+08:00",
-  "updatedAt": "2026-09-22T19:15:00+08:00"
+  "updatedAt": "2026-09-22T19:30:00+08:00",
+  "closureEvidence": {
+    "githubCommit": "e37f7feee08f44544c38fa508e69af6e6cb8468f",
+    "sourceFingerprint": "37dc4ffade7152b42638c286bfb8cf02cfde689a290a0f58959e71b3e5ff0606",
+    "buildArtifactId": "24223f78fca3492bb32a1c7c00703ca2d7308703db2d71214114ce7214c3cea8",
+    "fullSystemSimulation": "PASS",
+    "builtBrowser": "PASS",
+    "humanUat": "PENDING 12/12; candidate verifier remains fail-closed"
+  }
 }

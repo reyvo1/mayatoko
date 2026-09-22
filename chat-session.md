@@ -33,3 +33,6 @@ Human Stage-20 UAT remains PENDING 12/12 and must not be auto-passed. After push
 - Changed TS/TSX transpile: **4/4 PASS**.
 - Existing browser-uat tests were not claimed locally because the user-provided subset snapshot does not contain `scripts/browser-uat.mjs` / workflow files that those tests read.
 - GitHub Full System Simulation remains authoritative for authenticated Employee Portal browser/runtime.
+
+## UI-P6 server-driven Admin UI
+Baseline e37f7fe; runtime nested Admin surface integration prepared for GitHub verification. No backend/schema/UAT weakening.

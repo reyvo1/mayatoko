@@ -226,3 +226,8 @@
 - Memecah Employee Portal single-surface menjadi reusable shell dan self-service workspace home, attendance, leave, overtime, payslips, history, dan profile.
 - Mempertahankan kontrak browser/login existing serta seluruh backend authorization/evidence/approval behavior.
 - Human Stage-20 UAT tetap manual dan tidak diubah.
+
+## UI-P6 server-driven Admin UI
+- Added runtime-resolved nested Admin domain views.
+- Admin UiSchema can hide/relabel/reorder canonical nested views only.
+- Module/feature and role/permission visibility remains fail-closed at UI level; backend authority unchanged.
