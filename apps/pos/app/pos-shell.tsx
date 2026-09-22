@@ -31,12 +31,13 @@ export function PosShell({
 }) {
   return (
     <main className="pos posModern">
+      <a className="skipLink" href="#pos-workspace">Lewati ke workspace POS</a>
       <header className="posTopbar">
         <div className="posBrand">
           <span>TOKO360 POS</span>
           <div>
             <h1>Kasir · Terminal penjualan</h1>
-            <small className={`connection ${apiOnline ? 'online' : 'offline'}`}>
+            <small className={`connection ${apiOnline ? 'online' : 'offline'}`} role="status" aria-live="polite">
               {apiOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
               {apiOnline ? 'Server online' : 'Mode offline'}
               {queueCount ? ` · ${queueCount} antrean` : ''}
@@ -65,7 +66,7 @@ export function PosShell({
         })}
       </nav>
 
-      <section className="posWorkspaceSurface">{children}</section>
+      <section id="pos-workspace" className="posWorkspaceSurface" tabIndex={-1}>{children}</section>
     </main>
   );
 }

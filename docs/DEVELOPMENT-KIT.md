@@ -585,3 +585,6 @@ Employee Portal memakai reusable shell dan route self-service terpisah untuk hom
 
 ## UI-P6 Server-driven Admin UI
 Admin runtime manifest sekarang mengendalikan tidak hanya top-level workspace, tetapi juga nested domain visibility/presentation. Canonical route/action tetap source-owned; UiSchema hanya hide/relabel/reorder, sedangkan module/feature/role/permission hanya mengurangi visibility UI. Backend authorization tetap authoritative.
+
+### UI-P7 — final interface hardening
+Empat operator-facing app memakai accessibility/responsive baseline yang sama: skip-link, focus-visible, reduced-motion, coarse-pointer touch target, semantic active navigation, dan focusable primary workspace. Layer ini presentation-only; backend tetap authoritative.

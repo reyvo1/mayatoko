@@ -78,3 +78,16 @@ Tahap ini adalah source/static cleanup. Karena workspace dependency penuh tidak 
 - real staging E2E dan performance/load certification.
 
 Hal-hal tersebut adalah gate runtime berikutnya dan harus dilakukan di TEST/STAGING dengan dependency serta service nyata.
+
+## UI-P7 final interface hardening
+
+UI-P7 menyelesaikan cross-app accessibility/responsive layer untuk Admin, POS, Storefront, dan Employee Portal:
+- keyboard skip-link ke primary workspace;
+- focus-visible yang konsisten;
+- `prefers-reduced-motion` untuk meminimalkan animasi/transisi;
+- minimum 44px coarse-pointer touch target;
+- semantic active navigation dengan `aria-current`;
+- polite live status untuk connection/runtime state yang relevan;
+- mobile horizontal workspace navigation tetap scrollable tanpa mengubah business flow.
+
+Browser UAT literal contracts tetap dipertahankan. UI-P7 tidak memindahkan authorization atau business authority ke frontend.

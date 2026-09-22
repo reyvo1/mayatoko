@@ -231,3 +231,7 @@
 - Added runtime-resolved nested Admin domain views.
 - Admin UiSchema can hide/relabel/reorder canonical nested views only.
 - Module/feature and role/permission visibility remains fail-closed at UI level; backend authority unchanged.
+
+## UI-P7
+- Hardened Admin, POS, Storefront, dan Employee Portal untuk keyboard focus, skip-link, reduced-motion, coarse-pointer touch target, serta semantic navigation/status.
+- Closed UI-P6 dari full-system green evidence `4cac591f0ba27f571e987e07b7343d85dba40241`.

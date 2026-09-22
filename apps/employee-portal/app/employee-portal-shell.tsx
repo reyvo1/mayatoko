@@ -53,6 +53,7 @@ export function EmployeePortalShell({
 
   return (
     <main className="employeeShell">
+      <a className="skipLink" href="#employee-main">Lewati ke konten utama</a>
       <aside className="employeeSidebar">
         <div className="employeeBrand">
           <span className="brandEyebrow">TOKO360 HR</span>
@@ -81,7 +82,7 @@ export function EmployeePortalShell({
         </div>
       </aside>
 
-      <section className="employeeWorkspace">
+      <section id="employee-main" className="employeeWorkspace" tabIndex={-1}>
         <header className="employeeTopbar">
           <div>
             <span className="brandEyebrow">TOKO360 HR</span>
@@ -97,6 +98,7 @@ export function EmployeePortalShell({
               key={item.id}
               className={item.id === activeView ? 'active' : ''}
               href={item.href}
+              aria-current={item.id === activeView ? 'page' : undefined}
             >
               {item.label}
             </Link>

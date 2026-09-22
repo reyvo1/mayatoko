@@ -1082,6 +1082,52 @@
         "UI-DESIGN-SYSTEM.md",
         "handoff/CURRENT-WORK.md"
       ]
+    },
+    {
+      "key": "ui-p7-final-interface-hardening",
+      "priority": 250,
+      "title": "UI-P7 Final visual, responsive, accessibility, dan browser cleanup",
+      "type": "feature",
+      "module": "admin-ui",
+      "wave": "W7",
+      "risk": "LOW",
+      "dependencies": [
+        "ui-p6-server-driven-admin-ui"
+      ],
+      "featureFlag": "",
+      "impacts": {
+        "database": "NONE",
+        "inventory": "NONE",
+        "accounting": "NONE",
+        "tax": "NONE",
+        "payment": "NONE",
+        "payroll": "NONE",
+        "sync": "NONE",
+        "security": "LOW",
+        "performance": "LOW"
+      },
+      "businessRules": [
+        "UI-P7 hanya mengubah presentation, responsive behavior, keyboard/touch accessibility, dan semantic navigation; business authority tetap di backend.",
+        "Browser UAT literal contract existing tidak boleh diubah untuk memaksa PASS.",
+        "Human Stage-20 UAT tetap PENDING sampai evidence manual sah."
+      ],
+      "acceptanceCriteria": [
+        "Admin, POS, Storefront, dan Employee Portal memiliki skip-link dan focusable primary workspace.",
+        "Focus-visible, reduced-motion, dan minimum coarse-pointer touch target konsisten lintas app.",
+        "Active navigation dan connection/runtime state memiliki semantic state yang dapat dibaca assistive technology.",
+        "Existing built-browser UAT contracts tetap utuh."
+      ],
+      "testPlan": [
+        "node --test tests/ui-p7-final-interface-hardening.test.mjs tests/ui-final-cleanup.test.mjs",
+        "node --test tests/ui-p1-admin-application-shell.test.mjs tests/ui-p2-admin-domain-workspaces.test.mjs tests/ui-p3-pos-modernization.test.mjs tests/ui-p4-storefront-productization.test.mjs tests/ui-p5-employee-portal-productization.test.mjs tests/ui-p6-server-driven-admin-ui.test.mjs",
+        "GitHub Full System Simulation untuk build/browser/runtime/Stage-20 automated."
+      ],
+      "documentation": [
+        "docs/UI-UX-FINAL-CLEANUP.md",
+        "docs/DEVELOPMENT-KIT.md",
+        "UI-DESIGN-SYSTEM.md",
+        "handoff/CURRENT-WORK.md"
+      ]
     }
   ]
 }

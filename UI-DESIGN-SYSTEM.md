@@ -56,3 +56,11 @@ Employee self-service memakai desktop sidebar + mobile horizontal navigation, pa
 
 ## UI-P6 — server-driven Admin surfaces
 Nested Admin tabs/cards mengikuti resolved runtime surface: module aktif, identity visibility, dan UiSchema admin. Runtime override tidak boleh menciptakan action atau route baru.
+
+## UI-P7 accessibility baseline
+- Semua shell utama menyediakan `.skipLink` ke primary content.
+- Semua interactive controls harus mempunyai `:focus-visible` yang jelas.
+- Motion wajib menghormati `prefers-reduced-motion: reduce`.
+- Untuk coarse pointer, interactive control minimum 44px.
+- Navigation state aktif memakai `aria-current="page"` jika semantiknya sesuai.
+- Connection/runtime status yang berubah tanpa page navigation memakai `role="status"` + `aria-live="polite"` jika relevan.

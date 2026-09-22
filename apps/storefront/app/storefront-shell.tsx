@@ -29,6 +29,7 @@ export function StorefrontShell({
 }) {
   return (
     <div className="storefrontApp">
+      <a className="skipLink" href="#storefront-main">Lewati ke konten utama</a>
       <header className="storefrontHeader">
         <div className="storefrontHeaderInner">
           <button className="brandButton" type="button" onClick={() => onNavigate('home')} aria-label="Buka beranda">
@@ -40,7 +41,7 @@ export function StorefrontShell({
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = item.id === activeView || (item.id === 'catalog' && activeView === 'product');
-              return <button key={item.id} className={active ? 'navAction active' : 'navAction'} type="button" onClick={() => onNavigate(item.id)}><Icon size={16}/>{item.label}{item.id === 'cart' && cartCount > 0 ? <span className="navCount">{cartCount}</span> : null}</button>;
+              return <button key={item.id} className={active ? 'navAction active' : 'navAction'} type="button" aria-current={active ? 'page' : undefined} onClick={() => onNavigate(item.id)}><Icon size={16}/>{item.label}{item.id === 'cart' && cartCount > 0 ? <span className="navCount">{cartCount}</span> : null}</button>;
             })}
           </nav>
 
@@ -51,7 +52,7 @@ export function StorefrontShell({
         </div>
       </header>
 
-      <main className="storefrontMain">
+      <main id="storefront-main" className="storefrontMain" tabIndex={-1}>
         <div className="viewContext">
           <span className="viewKicker">TOKO360 STOREFRONT</span>
           <span>{activeView === 'product' ? 'Katalog / Detail produk' : NAV_ITEMS.find((item) => item.id === activeView)?.label ?? 'Beranda'}</span>
@@ -63,7 +64,7 @@ export function StorefrontShell({
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active = item.id === activeView || (item.id === 'catalog' && activeView === 'product');
-          return <button key={item.id} className={active ? 'active' : ''} type="button" onClick={() => onNavigate(item.id)}><span className="mobileIconWrap"><Icon size={19}/>{item.id === 'cart' && cartCount > 0 ? <span className="mobileCount">{cartCount}</span> : null}</span><small>{item.label === 'Akun & Pesanan' ? 'Akun' : item.label}</small></button>;
+          return <button key={item.id} className={active ? 'active' : ''} type="button" aria-current={active ? 'page' : undefined} onClick={() => onNavigate(item.id)}><span className="mobileIconWrap"><Icon size={19}/>{item.id === 'cart' && cartCount > 0 ? <span className="mobileCount">{cartCount}</span> : null}</span><small>{item.label === 'Akun & Pesanan' ? 'Akun' : item.label}</small></button>;
         })}
       </nav>
     </div>

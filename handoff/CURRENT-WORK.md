@@ -54,3 +54,13 @@ Push UI-P3 dari baseline source nyata `b1c561d97813f5e0916d194e0146cbec147a741e`
 
 ## UI-P6 server-driven Admin UI
 Current batch: VERIFICATION. Baseline `e37f7feee08f44544c38fa508e69af6e6cb8468f`. UI-P4 dan UI-P5 ditutup berdasarkan full-system PASS pada baseline tersebut. UI-P6 memperluas runtime resolver ke nested domain views tanpa mengubah backend authority. Human UAT tetap PENDING/fail-closed.
+
+## UI-P7 current batch
+UI-P6 telah CLOSED berdasarkan full-system green commit `4cac591f0ba27f571e987e07b7343d85dba40241`.
+
+UI-P7 sekarang VERIFICATION:
+- cross-app skip links dan focus targets;
+- focus-visible/reduced-motion/touch target hardening;
+- semantic active navigation/status;
+- browser literals tidak diubah;
+- Human Stage-20 UAT tetap PENDING/fail-closed.

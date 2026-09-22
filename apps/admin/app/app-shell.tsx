@@ -50,6 +50,7 @@ export default function AdminAppShell({
 
   return (
     <div className={`shell ${sidebarCollapsed ? 'sidebarCollapsed' : ''}`}>
+      <a className="skipLink" href="#admin-main">Lewati ke konten utama</a>
       <aside className="sidebar" aria-label="Navigasi Admin">
         <div className="logo">
           <span className="logoMark">T3</span>
@@ -99,13 +100,13 @@ export default function AdminAppShell({
             <small>{manifest?.branch?.name ?? 'Semua cabang yang diizinkan'}</small>
           </div>
           <div className="topRight">
-            <span className={`connectionPill ${apiConnected ? 'ok' : 'warn'}`}><span className="statusDot" />{apiConnected ? 'API terhubung' : 'Memuat data'}</span>
+            <span className={`connectionPill ${apiConnected ? 'ok' : 'warn'}`} role="status" aria-live="polite"><span className="statusDot" />{apiConnected ? 'API terhubung' : 'Memuat data'}</span>
             <button type="button" className="secondary compactButton" onClick={onReload}><RefreshCw size={15} /> Muat ulang</button>
             <button type="button" className="secondary compactButton" onClick={onLogout}>Keluar</button>
           </div>
         </header>
 
-        <main className="content">
+        <main id="admin-main" className="content" tabIndex={-1}>
           <div className="breadcrumbs" aria-label="Breadcrumb">
             <button type="button" onClick={() => onNavigate('/dashboard')}>Toko360</button>
             <ChevronRight size={13} />

@@ -36,3 +36,5 @@ Human Stage-20 UAT remains PENDING 12/12 and must not be auto-passed. After push
 
 ## UI-P6 server-driven Admin UI
 Baseline e37f7fe; runtime nested Admin surface integration prepared for GitHub verification. No backend/schema/UAT weakening.
+
+UI-P7 dimulai dari baseline hijau `4cac591f0ba27f571e987e07b7343d85dba40241`. Scope hanya final visual/responsive/accessibility/browser cleanup lintas Admin, POS, Storefront, Employee Portal; tidak mengubah backend/business logic atau Human UAT gate.
