@@ -77,3 +77,10 @@ Staging sekarang fail-closed untuk JWT/CORS/master encryption key seperti produc
 
 ## UI productization checkpoint — 2026-09-22
 UI-P1 application shell is CLOSED after GitHub full-system PASS. UI-P2 Admin Domain Workspaces is active in VERIFICATION. Dependency-free regression for the UI-P2 source is **683/683 PASS** on GitHub/Linux-equivalent line endings. No database/schema/business-logic changes are part of UI-P2; heavy Next/browser/runtime validation remains GitHub-authoritative after push.
+
+### UI-P3 verification candidate — 2026-09-22
+- Baseline source: `b1c561d97813f5e0916d194e0146cbec147a741e`
+- Active work item: `T360-20260922-152500` / VERIFICATION
+- Focused POS/UAT regression: 43/43 PASS pada kandidat UI-P3
+- Full dependency-free GitHub-equivalent: 688/688 PASS pada kandidat UI-P3
+- Human Stage-20 UAT: PENDING 12/12, unchanged

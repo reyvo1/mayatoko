@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { clearPosTokens, posAuthFetch, storePosTokens } from './auth-fetch';
 import { Search, ScanBarcode, ShoppingCart, Trash2, Minus, Plus, CreditCard, UserRound, Coins, PackageSearch, Wifi, WifiOff, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Store } from 'lucide-react';
+import { PosShell, PosWorkspace } from './pos-shell';
 import { calculateOfflineQuote, getOrCreateDeviceCode, loadOfflineQueue, loadOfflineSnapshot, nextOfflineSequence, OfflineQueueItem, OfflineTaxCode, reservedOfflineQuantity, saveOfflineQueue, saveOfflineSnapshot } from '../lib/offline';
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -99,6 +100,7 @@ export default function PosPage() {
   const [offlineMaxAgeMinutes, setOfflineMaxAgeMinutes] = useState(1440);
   const [offlineClockOffsetMs, setOfflineClockOffsetMs] = useState(0);
   const pendingPaymentRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const [workspace, setWorkspace] = useState<PosWorkspace>('SALE');
 
   useEffect(() => {
     let saved: string | null = null;
@@ -630,33 +632,20 @@ export default function PosPage() {
   const selectedReturnSale = recentSales.find((sale) => sale.id === returnSaleId);
   const pendingSaleReturns = saleReturns.filter((item) => ['REQUESTED','APPROVED'].includes(item.status));
 
-  return <main className="pos">
-    <header><div><span>TOKO360 POS</span><h1>Kasir</h1><small><span className={`connection ${apiOnline ? 'online' : 'offline'}`}>{apiOnline ? <Wifi size={12} /> : <WifiOff size={12} />} {apiOnline ? 'Server online' : 'Mode offline'}{offlineQueue.length ? ` · ${offlineQueue.length} antrean` : ''}</span></small></div><div className="warehouse"><label>Gudang/toko<select value={warehouseId} onChange={(e) => { setWarehouseId(e.target.value); setCart([]); }}>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label>{ownedOfflineQueue.length > 0 && <button className="syncButton" disabled={!apiOnline || syncBusy} onClick={() => void syncOfflineQueue(token, hasOfflineConflict)}><RefreshCw size={14} className={syncBusy ? 'spin' : ''} /> {syncBusy ? 'SYNC...' : 'SYNC'}</button>}<button className="logout" onClick={() => void logout()}>Keluar</button></div></header>
+  return <PosShell
+    workspace={workspace}
+    onWorkspaceChange={setWorkspace}
+    apiOnline={apiOnline}
+    queueCount={ownedOfflineQueue.length}
+    conflictCount={pendingSaleReturns.length}
+    warehouseControl={<><label>Gudang/toko<select value={warehouseId} onChange={(e) => { setWarehouseId(e.target.value); setCart([]); }}>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label>{ownedOfflineQueue.length > 0 && <button className="syncButton" disabled={!apiOnline || syncBusy} onClick={() => void syncOfflineQueue(token, hasOfflineConflict)}><RefreshCw size={14} className={syncBusy ? 'spin' : ''} /> {syncBusy ? 'SYNC...' : 'SYNC'}</button>}<button className="logout" onClick={() => void logout()}>Keluar</button></>}
+  >
+    {message && <div className={`notice ${(message.includes('berhasil') || message.includes('tersimpan')) ? 'toastLike success' : 'toastLike error'}`}>{(message.includes('berhasil') || message.includes('tersimpan')) ? <CheckCircle2 size={16} /> : <XCircle size={16} />} {message}</div>}
 
-    {offlineQueue.length > 0 && <section className={`offlinePanel ${hasOfflineConflict ? 'conflict' : ''}`}><div><AlertTriangle size={17} /><div><strong>{hasOfflineConflict ? 'Konflik sinkronisasi harus diselesaikan' : ownedOfflineQueue.length ? `${ownedOfflineQueue.length} transaksi kasir ini menunggu sinkronisasi` : `${foreignOfflineCount} transaksi offline milik kasir lain tersimpan`}</strong><small>{hasOfflineConflict ? ownedOfflineQueue.find((item) => item.status === 'CONFLICT')?.error : ownedOfflineQueue.length ? 'Stok lokal sudah direservasi. Data tidak akan dikirim dua kali.' : 'Login dengan kasir asal untuk menyinkronkan antrean tersebut.'}</small></div></div>{ownedOfflineQueue.length > 0 && <button disabled={!apiOnline || syncBusy} onClick={() => void syncOfflineQueue(token, hasOfflineConflict)}>{syncBusy ? 'MEMPROSES...' : hasOfflineConflict ? 'COBA ULANG KONFLIK' : 'SINKRONKAN SEKARANG'}</button>}</section>}
-
-    <section className="shiftPanel">
-      <div className="shiftIdentity"><Store size={18} /><div><strong>{shift ? 'Shift kasir aktif' : 'Shift belum dibuka'}</strong><small>{shift ? `Dibuka ${new Date(shift.openedAt).toLocaleString('id-ID')} · kas awal ${money(shift.openingCash)}` : 'Buka shift sebelum menerima transaksi.'}</small></div></div>
-      {shift ? <div className="shiftActions"><label>Kas fisik saat tutup<input type="number" min="0" value={closingCash} onChange={(e) => setClosingCash(Math.max(0, Number(e.target.value) || 0))} /></label><button className="shiftClose" disabled={shiftBusy || cart.length > 0 || paying || !apiOnline || ownedOfflineQueue.length > 0} onClick={closeShift}>{shiftBusy ? 'MEMPROSES...' : 'TUTUP SHIFT'}</button></div>
-        : <div className="shiftActions"><label>Kas awal<input type="number" min="0" value={openingCash} onChange={(e) => setOpeningCash(Math.max(0, Number(e.target.value) || 0))} /></label><button disabled={shiftBusy} onClick={openShift}>{shiftBusy ? 'MEMPROSES...' : 'BUKA SHIFT'}</button></div>}
-      {shift && <div className="cashMovementBar"><label>Nominal kas<input type="number" min="0" value={cashMovementAmount} onChange={(e) => setCashMovementAmount(Math.max(0, Number(e.target.value) || 0))} /></label><label>Alasan<input value={cashMovementReason} maxLength={240} onChange={(e) => setCashMovementReason(e.target.value)} placeholder="Contoh: uang kecil / biaya parkir" /></label><button disabled={cashMovementBusy || cashMovementAmount <= 0 || !cashMovementReason.trim() || !apiOnline} onClick={() => void recordCashMovement('CASH_IN')}>KAS MASUK</button><button className="shiftClose" disabled={cashMovementBusy || cashMovementAmount <= 0 || !cashMovementReason.trim() || !apiOnline} onClick={() => void recordCashMovement('CASH_OUT')}>KAS KELUAR</button></div>}
-    </section>
-
+    {workspace === 'SALE' && <>
     {ownedHeldSales.length > 0 && <section className="heldPanel"><strong>Transaksi Hold ({ownedHeldSales.length})</strong><div className="heldList">{ownedHeldSales.map((held) => <div key={held.id} className="heldItem"><div><b>{held.label}</b><small>{new Date(held.createdAt).toLocaleString('id-ID')} · {held.items.reduce((sum, item) => sum + item.quantity, 0)} item</small></div><button onClick={() => recallHeld(held.id)}>PANGGIL</button><button className="clear" onClick={() => deleteHeld(held.id)}>HAPUS</button></div>)}</div></section>}
 
-    <details className="returnPanel">
-      <summary>RETUR / REFUND PENJUALAN {pendingSaleReturns.length ? `· ${pendingSaleReturns.length} menunggu proses` : ''}</summary>
-      {!apiOnline ? <small>Retur hanya tersedia saat server online.</small> : <div className="returnWorkspace">
-        <label>Transaksi asal<select value={returnSaleId} onChange={(e) => { setReturnSaleId(e.target.value); setReturnQty({}); }}><option value="">Pilih transaksi terbaru</option>{recentSales.map((sale) => <option key={sale.id} value={sale.id}>{sale.number} · {new Date(sale.createdAt).toLocaleString('id-ID')} · {money(sale.total)}</option>)}</select></label>
-        {selectedReturnSale && <div className="returnItems">{selectedReturnSale.items.map((item) => <label key={item.id}>{item.product.name} · dibeli {item.quantity}<input type="number" min="0" max={item.quantity} value={returnQty[item.id] ?? 0} onChange={(e) => setReturnQty((current) => ({ ...current, [item.id]: Math.min(item.quantity, Math.max(0, Math.floor(Number(e.target.value) || 0))) }))} /></label>)}</div>}
-        <label>Alasan retur<input value={returnReason} maxLength={240} onChange={(e) => setReturnReason(e.target.value)} placeholder="Contoh: barang rusak / salah item" /></label>
-        <label>Metode refund<select value={returnRefundMethod} onChange={(e) => setReturnRefundMethod(e.target.value as typeof returnRefundMethod)}><option value="CASH">Tunai</option><option value="QRIS">QRIS</option><option value="TRANSFER">Transfer</option><option value="CARD">Kartu</option></select></label>
-        <button disabled={returnBusy || !returnSaleId || !returnReason.trim()} onClick={() => void submitSaleReturn()}>{returnBusy ? 'MEMPROSES...' : 'AJUKAN RETUR'}</button>
-        {saleReturns.slice(0, 5).map((row) => <small key={row.id}>{row.number} · {money(row.refundAmount)} · {row.status}</small>)}
-      </div>}
-    </details>
 
-    {message && <div className={`notice ${(message.includes('berhasil') || message.includes('tersimpan')) ? 'toastLike success' : 'toastLike error'}`}>{(message.includes('berhasil') || message.includes('tersimpan')) ? <CheckCircle2 size={16} /> : <XCircle size={16} />} {message}</div>}
     <div className="layout">
       <section className="catalog"><div className="searchWrap"><Search size={15} className="searchIcon" /><input className="search" placeholder="Cari nama, SKU, atau scan barcode..." value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void scanExactBarcode(search); } }} autoFocus /></div>
         <div className="chips">{categories.slice(0, 8).map((cat) => <button key={cat} className={cat === category ? 'chip active' : 'chip'} onClick={() => setCategory(cat)}>{cat}</button>)}</div>
@@ -687,5 +676,38 @@ export default function PosPage() {
         </div>
       </aside>
     </div>
-  </main>;
+
+    </>}
+    {workspace === 'SHIFT' && <>
+    <section className="shiftPanel">
+      <div className="shiftIdentity"><Store size={18} /><div><strong>{shift ? 'Shift kasir aktif' : 'Shift belum dibuka'}</strong><small>{shift ? `Dibuka ${new Date(shift.openedAt).toLocaleString('id-ID')} · kas awal ${money(shift.openingCash)}` : 'Buka shift sebelum menerima transaksi.'}</small></div></div>
+      {shift ? <div className="shiftActions"><label>Kas fisik saat tutup<input type="number" min="0" value={closingCash} onChange={(e) => setClosingCash(Math.max(0, Number(e.target.value) || 0))} /></label><button className="shiftClose" disabled={shiftBusy || cart.length > 0 || paying || !apiOnline || ownedOfflineQueue.length > 0} onClick={closeShift}>{shiftBusy ? 'MEMPROSES...' : 'TUTUP SHIFT'}</button></div>
+        : <div className="shiftActions"><label>Kas awal<input type="number" min="0" value={openingCash} onChange={(e) => setOpeningCash(Math.max(0, Number(e.target.value) || 0))} /></label><button disabled={shiftBusy} onClick={openShift}>{shiftBusy ? 'MEMPROSES...' : 'BUKA SHIFT'}</button></div>}
+      {shift && <div className="cashMovementBar"><label>Nominal kas<input type="number" min="0" value={cashMovementAmount} onChange={(e) => setCashMovementAmount(Math.max(0, Number(e.target.value) || 0))} /></label><label>Alasan<input value={cashMovementReason} maxLength={240} onChange={(e) => setCashMovementReason(e.target.value)} placeholder="Contoh: uang kecil / biaya parkir" /></label><button disabled={cashMovementBusy || cashMovementAmount <= 0 || !cashMovementReason.trim() || !apiOnline} onClick={() => void recordCashMovement('CASH_IN')}>KAS MASUK</button><button className="shiftClose" disabled={cashMovementBusy || cashMovementAmount <= 0 || !cashMovementReason.trim() || !apiOnline} onClick={() => void recordCashMovement('CASH_OUT')}>KAS KELUAR</button></div>}
+    </section>
+
+
+    </>}
+    {workspace === 'RETURNS' && <>
+    <details className="returnPanel">
+      <summary>RETUR / REFUND PENJUALAN {pendingSaleReturns.length ? `· ${pendingSaleReturns.length} menunggu proses` : ''}</summary>
+      {!apiOnline ? <small>Retur hanya tersedia saat server online.</small> : <div className="returnWorkspace">
+        <label>Transaksi asal<select value={returnSaleId} onChange={(e) => { setReturnSaleId(e.target.value); setReturnQty({}); }}><option value="">Pilih transaksi terbaru</option>{recentSales.map((sale) => <option key={sale.id} value={sale.id}>{sale.number} · {new Date(sale.createdAt).toLocaleString('id-ID')} · {money(sale.total)}</option>)}</select></label>
+        {selectedReturnSale && <div className="returnItems">{selectedReturnSale.items.map((item) => <label key={item.id}>{item.product.name} · dibeli {item.quantity}<input type="number" min="0" max={item.quantity} value={returnQty[item.id] ?? 0} onChange={(e) => setReturnQty((current) => ({ ...current, [item.id]: Math.min(item.quantity, Math.max(0, Math.floor(Number(e.target.value) || 0))) }))} /></label>)}</div>}
+        <label>Alasan retur<input value={returnReason} maxLength={240} onChange={(e) => setReturnReason(e.target.value)} placeholder="Contoh: barang rusak / salah item" /></label>
+        <label>Metode refund<select value={returnRefundMethod} onChange={(e) => setReturnRefundMethod(e.target.value as typeof returnRefundMethod)}><option value="CASH">Tunai</option><option value="QRIS">QRIS</option><option value="TRANSFER">Transfer</option><option value="CARD">Kartu</option></select></label>
+        <button disabled={returnBusy || !returnSaleId || !returnReason.trim()} onClick={() => void submitSaleReturn()}>{returnBusy ? 'MEMPROSES...' : 'AJUKAN RETUR'}</button>
+        {saleReturns.slice(0, 5).map((row) => <small key={row.id}>{row.number} · {money(row.refundAmount)} · {row.status}</small>)}
+      </div>}
+    </details>
+
+
+    </>}
+    {workspace === 'SYNC' && <>
+    {offlineQueue.length > 0 && <section className={`offlinePanel ${hasOfflineConflict ? 'conflict' : ''}`}><div><AlertTriangle size={17} /><div><strong>{hasOfflineConflict ? 'Konflik sinkronisasi harus diselesaikan' : ownedOfflineQueue.length ? `${ownedOfflineQueue.length} transaksi kasir ini menunggu sinkronisasi` : `${foreignOfflineCount} transaksi offline milik kasir lain tersimpan`}</strong><small>{hasOfflineConflict ? ownedOfflineQueue.find((item) => item.status === 'CONFLICT')?.error : ownedOfflineQueue.length ? 'Stok lokal sudah direservasi. Data tidak akan dikirim dua kali.' : 'Login dengan kasir asal untuk menyinkronkan antrean tersebut.'}</small></div></div>{ownedOfflineQueue.length > 0 && <button disabled={!apiOnline || syncBusy} onClick={() => void syncOfflineQueue(token, hasOfflineConflict)}>{syncBusy ? 'MEMPROSES...' : hasOfflineConflict ? 'COBA ULANG KONFLIK' : 'SINKRONKAN SEKARANG'}</button>}</section>}
+
+
+      {offlineQueue.length === 0 && <section className="syncEmpty"><CheckCircle2 size={22} /><div><strong>Tidak ada antrean sinkronisasi</strong><small>Semua transaksi perangkat sudah konsisten dengan server.</small></div></section>}
+    </>}
+  </PosShell>;
 }

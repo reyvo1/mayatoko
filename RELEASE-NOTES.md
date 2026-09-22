@@ -91,3 +91,6 @@ A real Windows setup completed `npm ci`, Prisma SQLite generation, and schema pu
 - Admin now supports deep-linkable nested operator workspaces instead of a single flat domain surface.
 - Domain tabs and overview decks expose the existing backend foundation through clearer operator information architecture without duplicating business logic.
 - UI-P1 was closed only after the GitHub full-system run passed; UI-P2 remains in VERIFICATION until its own GitHub simulation passes.
+
+## UI-P3 POS modernization candidate
+POS sekarang mempunyai operator workspace terpisah untuk penjualan, shift/kas, retur, dan sinkronisasi. Perubahan ini presentation-only; transaksi tetap memakai guard server-authoritative dan fail-closed behavior yang sama. Human UAT tidak diubah.

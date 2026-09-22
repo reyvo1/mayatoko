@@ -3,33 +3,28 @@
 Updated: 2026-09-22 Asia/Makassar
 
 ## Last closed work item
-UI-P1 Admin Application Shell is CLOSED after GitHub Full System Simulation PASS on commit `f8f79fda8aa10f98c0df332cb56951a89a98ebf0`.
+UI-P2 Admin Domain Workspaces is CLOSED from the user-confirmed green GitHub baseline:
 
-Evidence:
-- source fingerprint `7e02fd289e53336f9853791b571d5b17b2eef2a817731ae5dbd0503842c41786`
-- exact build artifact `c9da2ae679b5b6ed98409cf31559cd32fc430afbb886269f41a02ed0da666fe5`
-- dependency audit PASS
-- six-app build PASS
-- Stage-18 / payroll migration / Stage-19 PASS
-- built-browser / worker / staging certification / load / index / DR PASS
-- automated Stage-20 PASS
-- Human UAT remains separate and PENDING by design.
+`b1c561d97813f5e0916d194e0146cbec147a741e`
 
 ## Active work item
-`T360-20260922-145500` — UI-P2 Admin domain workspaces dan nested operator navigation.
+`T360-20260922-152500` — UI-P3 POS modernization dan operator workspaces.
 
 Phase: VERIFICATION.
 
 Implemented scope:
-- nested operator route catalog for major Admin domains;
-- canonical `/[section]/[view]` route;
-- sticky secondary domain navigation;
-- overview deck and contextual header;
-- third-level breadcrumb;
-- invalid nested route fail-safe to domain root;
-- existing API/business workflows unchanged.
+- reusable `PosShell`;
+- workspace Penjualan;
+- workspace Shift & Kas;
+- workspace Retur;
+- workspace Sinkronisasi;
+- desktop sticky cart dan responsive mobile workspace;
+- existing quote/payment/stock/shift/return/offline replay/idempotency/auth/tenant contracts tetap authoritative.
 
-No database/schema/business-logic change.
+No database/schema/backend-business-logic change.
+
+## UAT invariant
+Human Stage-20 UAT tetap PENDING 12/12 sampai ada human evidence yang sah. Automated simulation tidak boleh mengubah status itu dan `uat:candidate:verify` tetap fail-closed.
 
 ## Next gate
-Run focused/static regression, workflow validation, full dependency-free regression, then push. GitHub Full System Simulation remains authoritative for heavy Next build/browser/runtime validation. Keep UI-P2 in VERIFICATION until that GitHub run is green.
+Push UI-P3 dari baseline source nyata `b1c561d97813f5e0916d194e0146cbec147a741e`, lalu gunakan GitHub Full System Simulation sebagai heavy validator. UI-P3 tetap VERIFICATION sampai run tersebut hijau.

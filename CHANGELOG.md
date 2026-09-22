@@ -211,3 +211,9 @@
 - Added stable nested Admin operator routes for procurement, finance, people, assets/fleet, platform, inventory control, operations control, commerce, extensions, and master data.
 - Added sticky secondary domain navigation, overview deck, contextual sub-workspace header, and third-level breadcrumbs.
 - Invalid nested routes fail-safe to their canonical domain root; backend authorization and business APIs remain unchanged.
+
+## 2026-09-22 — UI-P3 POS modernization
+- Memecah POS menjadi workspace Penjualan, Shift & Kas, Retur, dan Sinkronisasi melalui reusable `PosShell`.
+- Mempertahankan quote/payment/stock/idempotency/offline replay/auth guard lama tanpa perubahan business contract.
+- UI-P2 ditutup berdasarkan baseline GitHub hijau `b1c561d97813f5e0916d194e0146cbec147a741e`.
+- Human Stage-20 UAT tetap PENDING 12/12 dan tidak dapat dipenuhi automated simulation.

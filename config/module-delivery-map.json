@@ -170,7 +170,8 @@
         "monitoring",
         "backup-recovery",
         "performance",
-        "admin-ui"
+        "admin-ui",
+        "pos-ui"
       ],
       "dependsOn": [
         "W1",

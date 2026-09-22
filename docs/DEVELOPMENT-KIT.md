@@ -571,3 +571,6 @@ Rincian: `docs/CHAT-HANDOFF-AUTOMATION.md`.
 ## UI-P2 — Admin Domain Workspaces (2026-09-22)
 
 Admin information architecture memakai dua tingkat: workspace domain dan nested operator workspace. Nested route hanya mengatur navigasi/context; backend domain service, permission guard, tenant scope, idempotency, accounting, inventory, tax, payroll, dan audit tetap authoritative. Canonical route dan invariant tercatat di `docs/ADMIN-DOMAIN-WORKSPACES.md`.
+
+### UI-P3 POS modernization
+POS presentation dibagi ke workspace Penjualan, Shift & Kas, Retur, dan Sinkronisasi melalui `apps/pos/app/pos-shell.tsx`. Semua business mutation tetap memakai API/guard/idempotency/offline replay yang sudah ada; workspace bukan security boundary.

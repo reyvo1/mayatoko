@@ -5,7 +5,7 @@
   "type": "feature",
   "module": "admin-ui",
   "wave": "W7",
-  "phase": "VERIFICATION",
+  "phase": "CLOSED",
   "risk": "MEDIUM",
   "owner": "reyvo1",
   "featureFlag": "",
@@ -51,5 +51,12 @@
     "handoff/CURRENT-WORK.md"
   ],
   "createdAt": "2026-09-22T14:55:00+08:00",
-  "updatedAt": "2026-09-22T14:55:00+08:00"
+  "updatedAt": "2026-09-22T15:25:00+08:00",
+  "closureEvidence": {
+    "githubCommit": "b1c561d97813f5e0916d194e0146cbec147a741e",
+    "sourceFingerprint": "ff16c90cfd73a4b638ad98c0e560b02d13c18139d307a16ec1b9d3eb9b8ee584",
+    "buildArtifactId": "7988d99b271bb70da0e9236a58299d3e36155aa2a6bea22cafd9c084047808a9",
+    "regression": "683/683 PASS",
+    "humanUat": "PENDING 12/12; candidate verifier remains fail-closed"
+  }
 }

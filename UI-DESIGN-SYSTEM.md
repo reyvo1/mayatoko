@@ -42,3 +42,6 @@ SaaS terkini di internet sebelum coding.
 - Overview domain memakai deck/card yang menjelaskan operator area sebelum masuk ke transaksi.
 - Breadcrumb boleh tiga tingkat: product / domain / operator workspace.
 - Nested route tidak boleh mengubah security boundary atau menggandakan business logic di client.
+
+## UI-P3 POS operator workspaces
+POS menggunakan flat workspace navigation: Penjualan, Shift & Kas, Retur, dan Sinkronisasi. Desktop mempertahankan cart sticky dan katalog luas; mobile menurunkan workspace menjadi grid dua kolom dan single-column transaction flow. Presentation shell tidak boleh mengubah payment/offline/security gate.
