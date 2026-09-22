@@ -16,7 +16,7 @@
     "database": "NONE",
     "inventory": "LOW",
     "accounting": "NONE",
-    "tax": "LOW",
+    "tax": "NONE",
     "payment": "LOW",
     "payroll": "NONE",
     "sync": "NONE",
@@ -51,5 +51,5 @@
     "handoff/CURRENT-WORK.md"
   ],
   "createdAt": "2026-09-22T16:55:00+08:00",
-  "updatedAt": "2026-09-22T16:55:00+08:00"
+  "updatedAt": "2026-09-22T17:59:00+08:00"
 }
