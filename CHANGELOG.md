@@ -349,3 +349,5 @@
 - Fixed GitHub UAT bootstrap fixture IDs to standards-valid deterministic UUIDs accepted by hardened seed validation.
 - Isolated build-gate SQLite compatibility preparation with `SEED_MODE=demo` so PostgreSQL bootstrap identity does not leak into SQLite DB preparation.
 - Kept PostgreSQL seed hardening, DB smoke, exact-artifact, browser UAT, and Stage-18/19/20 gates fail-closed.
+
+- GitHub build-gate root fix: SQLite compatibility DB prepare now forces `NODE_ENV=test` together with `DATABASE_PROFILE=sqlite` and `SEED_MODE=demo`, preventing staging seed policy from misclassifying the isolated SQLite rehearsal while preserving production semantics for the final six-app build.

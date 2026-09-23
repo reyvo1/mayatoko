@@ -26,7 +26,7 @@ test('GitHub UAT env preparation preserves workflow bootstrap credentials and de
 
 test('build gate isolates SQLite compatibility seed from PostgreSQL bootstrap env', () => {
   const buildGate = read('scripts/run-build-gate.mjs');
-  assert.match(buildGate, /DATABASE_PROFILE: 'sqlite', DATABASE_URL: 'file:\.\/data\/build-gate\.db', SEED_MODE: 'demo'/);
+  assert.match(buildGate, /DATABASE_PROFILE: 'sqlite', DATABASE_URL: 'file:\.\/data\/build-gate\.db', SEED_MODE: 'demo', NODE_ENV: 'test'/);
   assert.match(buildGate, /db:local:prepare/);
   assert.match(buildGate, /test:db:smoke/);
 });
