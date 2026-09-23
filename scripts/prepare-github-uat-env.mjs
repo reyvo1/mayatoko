@@ -5,9 +5,11 @@ import { spawnSync } from 'node:child_process';
 const root = process.cwd();
 const primaryUrl = process.env.DATABASE_URL
   || 'postgresql://postgres:toko360_ci_password@localhost:5432/toko360_staging';
-const restoreUrl = 'postgresql://postgres:toko360_ci_password@localhost:5432/toko360_stage18_restore';
-
 const primary = new URL(primaryUrl);
+const restoreDatabase = process.env.T360_CI_STAGE18_RESTORE_DATABASE || 'toko360_stage18_restore';
+const restoreBuilder = new URL(primaryUrl);
+restoreBuilder.pathname = `/${restoreDatabase}`;
+const restoreUrl = restoreBuilder.toString();
 const restore = new URL(restoreUrl);
 
 function parseEnv(file) {
@@ -87,6 +89,8 @@ function normalizeTemplate(target, stage, confirmation, extra = {}) {
       T360_STAGE18_RESTORE_URL: restoreUrl,
       T360_STAGE18_RESTORE_EXPECTED_HOST: restore.hostname,
       T360_STAGE18_RESTORE_EXPECTED_DATABASE: decodeURIComponent(restore.pathname.slice(1)),
+      T360_STAGE18_EXPECTED_RESTORE_HOST: restore.hostname,
+      T360_STAGE18_EXPECTED_RESTORE_DATABASE: decodeURIComponent(restore.pathname.slice(1)),
       T360_STAGE18_RESTORE_CONFIRM: 'REPLACE_T360_STAGE18_RESTORE_DATABASE',
       T360_STAGE18_RESTORE_CONFIRMATION: 'REPLACE_T360_STAGE18_RESTORE_DATABASE',
     });
@@ -162,10 +166,10 @@ function seedValue(name, index) {
     SEED_COMPANY_NAME: 'Toko360 Demo',
     SEED_BRANCH_CODE: 'PUSAT',
     SEED_BRANCH_NAME: 'Cabang Pusat',
-    SEED_ADMIN_EMAIL: 'admin@toko360.local',
-    SEED_ADMIN_PASSWORD: 'Admin123!',
-    SEED_EMPLOYEE_EMAIL: 'karyawan@toko360.local',
-    SEED_EMPLOYEE_PASSWORD: 'Employee123!',
+    SEED_ADMIN_EMAIL: process.env.SEED_ADMIN_EMAIL || process.env.T360_UAT_ADMIN_EMAIL || 'ci-admin@example.invalid',
+    SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD || process.env.T360_UAT_ADMIN_PASSWORD || 'CI-Only-Strong-Password-2026!',
+    SEED_EMPLOYEE_EMAIL: process.env.SEED_EMPLOYEE_EMAIL || 'ci-employee@example.invalid',
+    SEED_EMPLOYEE_PASSWORD: process.env.SEED_EMPLOYEE_PASSWORD || 'CI-Only-Employee-Password-2026!',
   };
   if (known[name]) return known[name];
 
@@ -200,10 +204,10 @@ Object.assign(dotEnv, {
   SEED_BRANCH_ID: fixedUuid.SEED_BRANCH_ID,
   SEED_BRANCH_CODE: 'PUSAT',
   SEED_BRANCH_NAME: 'Cabang Pusat',
-  SEED_ADMIN_EMAIL: 'admin@toko360.local',
-  SEED_ADMIN_PASSWORD: 'Admin123!',
-  SEED_EMPLOYEE_EMAIL: 'karyawan@toko360.local',
-  SEED_EMPLOYEE_PASSWORD: 'Employee123!',
+  SEED_ADMIN_EMAIL: process.env.SEED_ADMIN_EMAIL || process.env.T360_UAT_ADMIN_EMAIL || 'ci-admin@example.invalid',
+  SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD || process.env.T360_UAT_ADMIN_PASSWORD || 'CI-Only-Strong-Password-2026!',
+  SEED_EMPLOYEE_EMAIL: process.env.SEED_EMPLOYEE_EMAIL || 'ci-employee@example.invalid',
+  SEED_EMPLOYEE_PASSWORD: process.env.SEED_EMPLOYEE_PASSWORD || 'CI-Only-Employee-Password-2026!',
 });
 
 requiredNames.forEach((name, index) => {

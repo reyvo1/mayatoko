@@ -252,3 +252,9 @@ UI-P7 sekarang VERIFICATION:
 - Root fix: rehearsal generates an isolated scratch Prisma Client from the current provider schema, verifies the migrated scratch DB, then deletes the scratch directory. It does not regenerate/mutate the exact build artifact client.
 - Validation after fix: targeted GitHub/migration guards 15/15 PASS; workflow validate PASS; repo validate PASS; dependency-free regression 829/829 PASS.
 - Next: apply patch, rerun local static gate, commit/push, rerun GitHub Full System Simulation. Human Stage-20 remains PENDING.
+
+### GitHub UAT bootstrap/config root fix — 2026-09-23
+- Previous migration rehearsal blocker is resolved; latest GitHub run passed expand migration rehearsal.
+- First real blocker was manual UAT seed using `Admin123!`, rejected by bootstrap seed policy (min 14 chars, no demo/default password).
+- Root fixed in workflow and `prepare-github-uat-env.mjs`; restore identity now derives from active PostgreSQL URL.
+- Targeted 15/15 PASS; dependency-free regression 831/831 PASS. Human Stage-20 remains PENDING.

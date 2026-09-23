@@ -39,8 +39,10 @@ jobs:
       DATABASE_PROFILE: postgresql
       DATABASE_URL: postgresql://postgres:toko360_ci_password@localhost:5432/toko360_staging
       T360_UAT_ENVIRONMENT: GITHUB_UAT
-      T360_UAT_ADMIN_EMAIL: admin@toko360.local
-      T360_UAT_ADMIN_PASSWORD: Admin123!
+      SEED_ADMIN_EMAIL: ci-admin@example.invalid
+      SEED_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
+      T360_UAT_ADMIN_EMAIL: ci-admin@example.invalid
+      T360_UAT_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
       T360_UAT_EXPECTED_HOST: localhost
       T360_UAT_EXPECTED_DATABASE: toko360_staging
       T360_ALLOW_PRESERVE_ARTIFACT: "1"
