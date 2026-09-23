@@ -35,7 +35,7 @@ async function main() {
     await runNpm(['run', 'setup:dependencies'], 'DETERMINISTIC_NPM_CI');
     await runNpm(['run', 'workflow:validate'], 'WORKFLOW_VALIDATE');
     await runNpm(['run', 'validate:repo'], 'REPOSITORY_VALIDATE');
-    const sqliteEnv = { DATABASE_PROFILE: 'sqlite', DATABASE_URL: 'file:./data/build-gate.db' };
+    const sqliteEnv = { DATABASE_PROFILE: 'sqlite', DATABASE_URL: 'file:./data/build-gate.db', SEED_MODE: 'demo' };
     const postgresEnv = { DATABASE_PROFILE: 'postgresql', DATABASE_URL: process.env.T360_BUILD_GATE_POSTGRES_URL || process.env.DATABASE_URL || 'postgresql://toko360:toko360@127.0.0.1:5432/toko360_build_gate?schema=public' };
     await runNpm(['run', 'prisma:validate:sqlite', '-w', '@toko360/api'], 'PRISMA_VALIDATE_SQLITE', sqliteEnv);
     await runNpm(['run', 'prisma:validate:postgres', '-w', '@toko360/api'], 'PRISMA_VALIDATE_POSTGRES', postgresEnv);

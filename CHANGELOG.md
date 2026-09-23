@@ -344,3 +344,8 @@
 - GitHub UAT env preparation preserves workflow-provided credentials instead of overwriting them.
 - Stage-18 restore URL now derives host/user/password/port from the active PostgreSQL target and only changes the scratch database name.
 - Added regression coverage for bootstrap credential and restore identity invariants.
+
+## 2026-09-23 — GitHub UAT seed identity/profile root fix
+- Fixed GitHub UAT bootstrap fixture IDs to standards-valid deterministic UUIDs accepted by hardened seed validation.
+- Isolated build-gate SQLite compatibility preparation with `SEED_MODE=demo` so PostgreSQL bootstrap identity does not leak into SQLite DB preparation.
+- Kept PostgreSQL seed hardening, DB smoke, exact-artifact, browser UAT, and Stage-18/19/20 gates fail-closed.

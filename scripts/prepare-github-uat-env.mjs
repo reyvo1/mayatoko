@@ -150,10 +150,10 @@ const requiredNames = [...new Set(
 )];
 
 const fixedUuid = {
-  SEED_COMPANY_ID: '00000000-0000-0000-0000-000000000001',
-  SEED_BRANCH_ID: '00000000-0000-0000-0000-000000000002',
-  SEED_ADMIN_USER_ID: '00000000-0000-0000-0000-000000000003',
-  SEED_EMPLOYEE_USER_ID: '00000000-0000-0000-0000-000000000004',
+  SEED_COMPANY_ID: '11111111-1111-4111-8111-111111111111',
+  SEED_BRANCH_ID: '22222222-2222-4222-8222-222222222222',
+  SEED_ADMIN_USER_ID: '33333333-3333-4333-8333-333333333333',
+  SEED_EMPLOYEE_USER_ID: '44444444-4444-4444-8444-444444444444',
 };
 
 function seedValue(name, index) {
@@ -175,7 +175,7 @@ function seedValue(name, index) {
 
   if (upper.endsWith('_ID')) {
     const suffix = String(100 + index).padStart(12, '0');
-    return `00000000-0000-0000-0000-${suffix}`;
+    return `55555555-5555-4555-8555-${suffix}`;
   }
   if (upper.includes('EMAIL')) return `${name.toLowerCase().replaceAll('_', '-')}@toko360.local`;
   if (upper.includes('PASSWORD') || upper.includes('SECRET')) return 'Toko360-CI-Password-123!';

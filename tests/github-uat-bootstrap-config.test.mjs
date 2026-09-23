@@ -20,4 +20,13 @@ test('GitHub UAT env preparation preserves workflow bootstrap credentials and de
   assert.match(script, /T360_STAGE18_EXPECTED_RESTORE_DATABASE: decodeURIComponent\(restore\.pathname\.slice\(1\)\)/);
   assert.doesNotMatch(script, /SEED_ADMIN_PASSWORD:\s*'Admin123!'/);
   assert.doesNotMatch(script, /postgresql:\/\/postgres:toko360_ci_password@localhost:5432\/toko360_stage18_restore/);
+  assert.match(script, /SEED_COMPANY_ID: '11111111-1111-4111-8111-111111111111'/);
+  assert.doesNotMatch(script, /00000000-0000-0000-0000-000000000001/);
+});
+
+test('build gate isolates SQLite compatibility seed from PostgreSQL bootstrap env', () => {
+  const buildGate = read('scripts/run-build-gate.mjs');
+  assert.match(buildGate, /DATABASE_PROFILE: 'sqlite', DATABASE_URL: 'file:\.\/data\/build-gate\.db', SEED_MODE: 'demo'/);
+  assert.match(buildGate, /db:local:prepare/);
+  assert.match(buildGate, /test:db:smoke/);
 });
