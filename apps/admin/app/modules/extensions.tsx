@@ -36,7 +36,7 @@ async function writeJson<T>(url: string, token: string, method: 'POST' | 'PATCH'
 
 function rows<T>(value: CursorResponse<T>): T[] { return Array.isArray(value) ? value : value.items ?? []; }
 
-export default function ExtensionsView({ token, mode = 'extensions' }: { token: string; mode?: 'extensions' | 'commerce' }) {
+export default function ExtensionsView({ token, mode = 'extensions' }: { token: string; mode?: 'extensions' | 'commerce' | 'loyalty' | 'devices' | 'notifications' | 'integrations' }) {
   const [programs, setPrograms] = useState<LoyaltyProgram[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -259,14 +259,20 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
 
   if (loading) return <TableSkeleton rows={4} />;
 
+  const extensionMode = mode !== 'commerce';
+  const showLoyalty = mode === 'extensions' || mode === 'loyalty';
+  const showDevices = mode === 'extensions' || mode === 'devices';
+  const showNotifications = mode === 'extensions' || mode === 'notifications';
+  const showIntegrations = mode === 'extensions' || mode === 'integrations' || mode === 'notifications';
+
   return (
     <>
-      {mode === 'extensions' && <>
-        <section className="grid2">
-          <Panel eyebrow="LOYALTY" title="Program Loyalitas" badge={`${programs.length} program`}>
+      {extensionMode && <>
+        {(showLoyalty || showDevices) && <section className="grid2">
+          {showLoyalty && <Panel eyebrow="LOYALTY" title="Program Loyalitas" badge={`${programs.length} program`}>
             <Table head={['Nama', 'Poin', 'Status']} rows={programs.map((p) => [<strong>{p.name}</strong>, p.pointsPerAmount != null ? `${p.pointsPerAmount} / Rp` : '-', <StatusChip status={p.isActive === false ? 'NONAKTIF' : 'AKTIF'} />])} empty="Belum ada program loyalitas." />
-          </Panel>
-          <Panel eyebrow="DEVICE REGISTRATION" title="Daftarkan node toko" badge="signed sync">
+          </Panel>}
+          {showDevices && <Panel eyebrow="DEVICE REGISTRATION" title="Daftarkan node toko" badge="signed sync">
             <div className="formStack">
               <label>Kode<input value={deviceForm.code} onChange={(e) => setDeviceForm({ ...deviceForm, code: e.target.value })} placeholder="POS-PUSAT-01" /></label>
               <label>Nama<input value={deviceForm.name} onChange={(e) => setDeviceForm({ ...deviceForm, name: e.target.value })} placeholder="POS Kasir 1" /></label>
@@ -274,17 +280,17 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
               <label>Versi aplikasi<input value={deviceForm.appVersion} onChange={(e) => setDeviceForm({ ...deviceForm, appVersion: e.target.value })} placeholder="0.5.3" /></label>
               <button type="button" disabled={busy} onClick={() => void registerDevice()}>Daftarkan device</button>
             </div>
-          </Panel>
-        </section>
-        <Panel eyebrow="PERANGKAT" title="Device & credential sync" badge={`${devices.length} device`}>
+          </Panel>}
+        </section>}
+        {showDevices && <Panel eyebrow="PERANGKAT" title="Device & credential sync" badge={`${devices.length} device`}>
           <Table head={['Kode', 'Nama', 'Platform', 'Last seen', 'Status', 'Aksi']} rows={devices.map((d) => [
             <strong>{d.code}</strong>, d.name, `${d.platform ?? '-'}${d.appVersion ? ` · ${d.appVersion}` : ''}`, d.lastSeenAt ? tanggal(d.lastSeenAt) : '-',
             <StatusChip status={d.isActive === false ? 'OFF' : 'ON'} />,
             <div className="rowActions"><button type="button" className="secondary" disabled={busy || d.isActive === false} onClick={() => void rotateCredential(d)}>Rotasi secret</button><button type="button" className="secondary" disabled={busy} onClick={() => void setDeviceActive(d, d.isActive === false)}>{d.isActive === false ? 'Aktifkan' : 'Nonaktifkan'}</button></div>,
           ])} empty="Belum ada device." />
           {credential && <div className="notice success"><strong>SECRET SEKALI TAMPIL</strong><br/>Key ID: <code>{credential.keyId}</code><br/>Secret: <code>{credential.secret}</code><br/><small>Simpan pada secure store node toko. Setelah panel ini ditutup, server tidak akan menampilkan secret lagi.</small></div>}
-        </Panel>
-        <section className="grid2">
+        </Panel>}
+        {showIntegrations && <section className="grid2">
           <Panel eyebrow="PROVIDER" title="WhatsApp / Telegram" badge={`${providers.length} connection`}>
             <div className="formStack">
               <label>Channel<select value={providerForm.channel} onChange={(e) => setProviderForm({ ...providerForm, channel: e.target.value, name: e.target.value === 'TELEGRAM' ? 'Telegram Utama' : 'WhatsApp Utama' })}>{['TELEGRAM','WHATSAPP'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
@@ -306,8 +312,8 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
             </div>
             <Table head={['Kode', 'Channel', 'Status', 'Aksi']} rows={templates.slice(0, 30).map((t) => [<strong>{t.code}</strong>, t.channel, <StatusChip status={t.isActive === false ? 'NONAKTIF' : 'AKTIF'} />, <button type="button" className="secondary" onClick={() => editTemplate(t)}>Edit</button>])} empty="Belum ada template." />
           </Panel>
-        </section>
-        <Panel eyebrow="NOTIFICATION QUEUE" title="Kirim notifikasi" badge="worker delivery">
+        </section>}
+        {showNotifications && <Panel eyebrow="NOTIFICATION QUEUE" title="Kirim notifikasi" badge="worker delivery">
           <div className="formStack">
             <label>Channel<select value={notificationForm.channel} onChange={(e) => setNotificationForm({ ...notificationForm, channel: e.target.value, templateCode: '' })}>{['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
             <label>Template<select value={notificationForm.templateCode} onChange={(e) => setNotificationForm({ ...notificationForm, templateCode: e.target.value })}><option value="">Body manual</option>{templates.filter((t) => t.channel === notificationForm.channel && t.isActive !== false).map((t) => <option key={t.id} value={t.code}>{t.code}</option>)}</select></label>
@@ -316,10 +322,10 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
             <label>Body manual<textarea value={notificationForm.body} onChange={(e) => setNotificationForm({ ...notificationForm, body: e.target.value })} placeholder="Kosongkan bila memakai template tanpa variable." /></label>
             <button type="button" disabled={busy} onClick={() => void queueNotification()}>Masukkan antrean</button>
           </div>
-        </Panel>
-        <Panel eyebrow="DELIVERY HISTORY" title="Notification Center" badge={`${notifications.length} item`}>
+        </Panel>}
+        {showNotifications && <Panel eyebrow="DELIVERY HISTORY" title="Notification Center" badge={`${notifications.length} item`}>
           <Table head={['Channel', 'Penerima', 'Status', 'Provider', 'Attempt', 'Error', 'Aksi']} rows={notifications.map((n) => [<strong>{n.channel}</strong>, n.recipient, <StatusChip status={n.status} />, n.provider ?? '-', String(n.attempts ?? 0), n.lastError ? <small title={n.lastError}>{n.lastError.slice(0, 70)}</small> : '-', <div className="rowActions">{n.status === 'QUEUED' && <button type="button" className="secondary" disabled={busy} onClick={() => void notificationAction(n, 'cancel')}>Batal</button>}{['FAILED','CANCELLED'].includes(n.status) && <button type="button" className="secondary" disabled={busy} onClick={() => void notificationAction(n, 'replay')}>Replay</button>}</div>])} empty="Belum ada notifikasi." />
-        </Panel>
+        </Panel>}
       </>}
 
       {mode === 'commerce' && <>

@@ -588,3 +588,11 @@ Admin runtime manifest sekarang mengendalikan tidak hanya top-level workspace, t
 
 ### UI-P7 — final interface hardening
 Empat operator-facing app memakai accessibility/responsive baseline yang sama: skip-link, focus-visible, reduced-motion, coarse-pointer touch target, semantic active navigation, dan focusable primary workspace. Layer ini presentation-only; backend tetap authoritative.
+
+## 46. F12R3 Tailwind UI + Deep GitHub Full-System UAT
+
+Empat operator-facing application memakai Tailwind CSS v4 sebagai presentation foundation: Admin, POS, Storefront, dan Employee Portal. Migrasi ini presentation-only terhadap business authority: API, permission, tenant context, idempotency, inventory, accounting, tax, payroll, outbox, worker, dan audit tidak dipindahkan ke client.
+
+Admin information architecture wajib memperjelas Tenant/User/System, Telegram/WhatsApp/owner reporting, dan AI/forecast assistant. Fitur backend tidak dianggap selesai secara produk bila operator tidak memiliki route/menu/configuration flow yang jelas.
+
+Full GitHub UAT wajib menjalankan structural repo audit, UI interaction inventory, PostgreSQL migration rehearsal, exact build, browser route/workspace + responsive geometry sweep, seluruh documented OpenAPI runtime sweep, Telegram/WhatsApp/owner-digest provider simulation, worker/report probe, tenant integration, Stage-18/19/20, staging/load/index/DR, dan evidence aggregation. Optional live Telegram test memakai protected `provider-uat` GitHub Environment. Detail canonical berada di `docs/FULL-GITHUB-UAT.md`.

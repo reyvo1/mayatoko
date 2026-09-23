@@ -64,3 +64,13 @@ Nested Admin tabs/cards mengikuti resolved runtime surface: module aktif, identi
 - Untuk coarse pointer, interactive control minimum 44px.
 - Navigation state aktif memakai `aria-current="page"` jika semantiknya sesuai.
 - Connection/runtime status yang berubah tanpa page navigation memakai `role="status"` + `aria-live="polite"` jika relevan.
+
+## F12R3 — Tailwind CSS v4 canonical presentation layer
+- Admin, POS, Storefront, dan Employee Portal wajib memakai Tailwind CSS v4 melalui `@tailwindcss/postcss` dan `@import "tailwindcss"`.
+- `globals.css` hanya boleh menjadi Tailwind theme/component layer yang terstruktur; dilarang menumpuk patch/override generasi lama di bagian bawah file.
+- Canonical accent Toko360 adalah biru `#3B82F6`; status colors hanya success/warning/danger.
+- Primary navigation tidak boleh membutuhkan horizontal scroll. Mobile navigation harus wrap/grid ke viewport.
+- Admin hanya boleh memiliki satu primary sidebar/top navigation dan satu secondary domain navigation. Workspace rail/deck/context dekoratif yang menggandakan navigasi dilarang.
+- Tabel desktop harus berada di viewport; narrow viewport mengubah row menjadi stacked labeled cells bila kolom tidak muat.
+- Lucide React adalah canonical icon set untuk empat operator surfaces. Emoji/simbol teks tidak boleh dipakai sebagai ikon aksi.
+- Visual acceptance harus dibuktikan oleh Browser UAT geometry matrix + screenshot artifact, bukan static CSS test saja.

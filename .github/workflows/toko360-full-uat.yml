@@ -2,6 +2,12 @@ name: Toko360 Full Automated UAT
 
 on:
   workflow_dispatch:
+    inputs:
+      run_live_telegram:
+        description: 'Kirim satu pesan uji ke Telegram nyata menggunakan protected GitHub Environment provider-uat'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
 
@@ -46,6 +52,15 @@ jobs:
       T360_UAT_EXPECTED_HOST: localhost
       T360_UAT_EXPECTED_DATABASE: toko360_staging
       T360_ALLOW_PRESERVE_ARTIFACT: "1"
+      T360_API_URL: http://127.0.0.1:4000/api/v1
+      T360_STOREFRONT_URL: http://127.0.0.1:3000
+      T360_ADMIN_URL: http://127.0.0.1:3001
+      T360_POS_URL: http://127.0.0.1:3002
+      T360_EMPLOYEE_URL: http://127.0.0.1:3003
+      WEBHOOK_ALLOW_PRIVATE_TARGETS: "true"
+      T360_CI_TELEGRAM_API_BASE_URL: http://127.0.0.1:4789
+      T360_PROVIDER_SIM_URL: http://127.0.0.1:4789
+      T360_PROVIDER_SIM_LOG: logs/github-uat/provider-simulator.jsonl
 
     steps:
       - name: Checkout
@@ -78,6 +93,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Full repository structural audit
+        id: repo_audit
+        continue-on-error: true
+        run: npm run audit:full:repo
+
+      - name: Four-surface UI source interaction audit
+        id: ui_audit
+        continue-on-error: true
+        run: npm run ci:ui:audit
 
       - name: Rehearse expand migrations from previous source baseline
         id: migration_rehearsal
@@ -169,6 +194,48 @@ jobs:
           console.log(`Browser UAT evidence PASS: ${p}`);
           NODE
 
+      - name: Start exact API + worker + provider simulator for deep runtime sweeps
+        id: runtime_sweep_start
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p logs/github-uat
+          : > /tmp/t360-uat-sweep-pids
+          setsid node scripts/ci-provider-simulator.mjs > logs/github-uat/provider-simulator.log 2>&1 &
+          echo $! >> /tmp/t360-uat-sweep-pids
+          setsid npm run start -w @toko360/api > logs/github-uat/api-runtime.log 2>&1 &
+          echo $! >> /tmp/t360-uat-sweep-pids
+          setsid npm run start -w @toko360/worker > logs/github-uat/worker-runtime.log 2>&1 &
+          echo $! >> /tmp/t360-uat-sweep-pids
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:4000/api/v1/health >/dev/null 2>&1 && curl -fsS http://127.0.0.1:4789/health >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          cat logs/github-uat/api-runtime.log || true
+          cat logs/github-uat/provider-simulator.log || true
+          exit 1
+
+      - name: Sweep every documented OpenAPI operation against exact runtime
+        id: api_sweep
+        continue-on-error: true
+        run: npm run ci:api:sweep
+
+      - name: Exercise Telegram, WhatsApp and owner daily-digest delivery end-to-end
+        id: provider_probe
+        continue-on-error: true
+        run: npm run ci:provider:probe
+
+      - name: Stop deep runtime sweep processes before database release gates
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/t360-uat-sweep-pids ]; then
+            while read -r pid; do kill -TERM -- "-$pid" 2>/dev/null || true; done < /tmp/t360-uat-sweep-pids
+            sleep 2
+            while read -r pid; do kill -KILL -- "-$pid" 2>/dev/null || true; done < /tmp/t360-uat-sweep-pids
+          fi
+
       - name: Stage 18 ownership / restore
         id: stage18
         continue-on-error: true
@@ -226,6 +293,8 @@ jobs:
         if: always()
         shell: bash
         env:
+          STEP_REPO_AUDIT: ${{ steps.repo_audit.outcome }}
+          STEP_UI_AUDIT: ${{ steps.ui_audit.outcome }}
           STEP_MIGRATION: ${{ steps.migration_rehearsal.outcome }}
           STEP_ENV: ${{ steps.env.outcome }}
           STEP_SCHEMA: ${{ steps.schema.outcome }}
@@ -234,6 +303,9 @@ jobs:
           STEP_RECOVERY: ${{ steps.recovery.outcome }}
           STEP_BROWSER: ${{ steps.browser.outcome }}
           STEP_BUILT_BROWSER: ${{ steps.built_browser.outcome }}
+          STEP_RUNTIME_SWEEP_START: ${{ steps.runtime_sweep_start.outcome }}
+          STEP_API_SWEEP: ${{ steps.api_sweep.outcome }}
+          STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
           STEP_PAYROLL: ${{ steps.payroll.outcome }}
@@ -264,6 +336,8 @@ jobs:
         if: always()
         shell: bash
         env:
+          STEP_REPO_AUDIT: ${{ steps.repo_audit.outcome }}
+          STEP_UI_AUDIT: ${{ steps.ui_audit.outcome }}
           STEP_MIGRATION: ${{ steps.migration_rehearsal.outcome }}
           STEP_ENV: ${{ steps.env.outcome }}
           STEP_SCHEMA: ${{ steps.schema.outcome }}
@@ -272,6 +346,9 @@ jobs:
           STEP_RECOVERY: ${{ steps.recovery.outcome }}
           STEP_BROWSER: ${{ steps.browser.outcome }}
           STEP_BUILT_BROWSER: ${{ steps.built_browser.outcome }}
+          STEP_RUNTIME_SWEEP_START: ${{ steps.runtime_sweep_start.outcome }}
+          STEP_API_SWEEP: ${{ steps.api_sweep.outcome }}
+          STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
           STEP_PAYROLL: ${{ steps.payroll.outcome }}
@@ -287,6 +364,8 @@ jobs:
             fi
           }
 
+          check "Full repository audit" "$STEP_REPO_AUDIT"
+          check "UI interaction audit" "$STEP_UI_AUDIT"
           check "Expand migration rehearsal" "$STEP_MIGRATION"
           check "UAT env" "$STEP_ENV"
           check "PostgreSQL schema" "$STEP_SCHEMA"
@@ -295,6 +374,9 @@ jobs:
           check "Payroll recovery fixture" "$STEP_RECOVERY"
           check "Built Browser UAT" "$STEP_BUILT_BROWSER"
           check "Browser UAT evidence" "$STEP_BROWSER"
+          check "Runtime sweep start" "$STEP_RUNTIME_SWEEP_START"
+          check "All OpenAPI runtime sweep" "$STEP_API_SWEEP"
+          check "Telegram/WhatsApp provider probe" "$STEP_PROVIDER_PROBE"
           check "Stage 18" "$STEP_STAGE18"
           check "Stage 19" "$STEP_STAGE19"
           check "Payroll staging" "$STEP_PAYROLL"
@@ -315,3 +397,36 @@ jobs:
 
           echo "Automated UAT PASS."
           echo "Human Stage-20 UAT tetap PENDING sampai direview manusia."
+
+  live-telegram-provider:
+    name: Optional LIVE Telegram Provider
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_live_telegram }}
+    needs: full-uat
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: provider-uat
+    permissions:
+      contents: read
+    env:
+      GITHUB_ACTIONS: "true"
+      T360_UAT_ENVIRONMENT: GITHUB_LIVE_PROVIDER_UAT
+      T360_LIVE_TELEGRAM_BOT_TOKEN: ${{ secrets.T360_LIVE_TELEGRAM_BOT_TOKEN }}
+      T360_LIVE_TELEGRAM_CHAT_ID: ${{ secrets.T360_LIVE_TELEGRAM_CHAT_ID }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Send protected live Telegram smoke message
+        run: npm run ci:telegram:live
+      - name: Upload live provider evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toko360-live-telegram-${{ github.run_id }}
+          retention-days: 14
+          if-no-files-found: error
+          path: handoff/quality/github-live-telegram-smoke-latest.json
+

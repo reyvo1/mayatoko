@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Minus, Plus, PackageSearch, ShoppingBag, ArrowRight, Heart } from 'lucide-react';
+import { Search, Minus, Plus, PackageSearch, ShoppingBag, ArrowRight, Heart, CircleCheck } from 'lucide-react';
 import { StorefrontShell, type StorefrontView } from './storefront-shell';
 export type { StorefrontView } from './storefront-shell';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
@@ -433,8 +433,8 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
           {account ? <>
             <p><strong>{account.email}</strong>{account.phone ? ` · ${account.phone}` : ''}</p><p>Poin loyalitas: <strong>{account.points}</strong> · Tier: <strong>{account.loyaltyTier ?? 'MEMBER'}</strong></p>
             <div className="paymentChooser">
-              <button type="button" className={account.emailVerifiedAt ? 'primary' : 'secondary'} disabled={verificationBusy || Boolean(account.emailVerifiedAt)} onClick={() => void requestCustomerVerification('EMAIL')}>{account.emailVerifiedAt ? '✓ Email terverifikasi' : 'Verifikasi email'}</button>
-              {account.phone && <button type="button" className={account.phoneVerifiedAt ? 'primary' : 'secondary'} disabled={verificationBusy || Boolean(account.phoneVerifiedAt)} onClick={() => void requestCustomerVerification('PHONE')}>{account.phoneVerifiedAt ? '✓ Telepon terverifikasi' : 'Verifikasi telepon'}</button>}
+              <button type="button" className={account.emailVerifiedAt ? 'primary' : 'secondary'} disabled={verificationBusy || Boolean(account.emailVerifiedAt)} onClick={() => void requestCustomerVerification('EMAIL')}>{account.emailVerifiedAt ? <><CircleCheck size={16} />Email terverifikasi</> : 'Verifikasi email'}</button>
+              {account.phone && <button type="button" className={account.phoneVerifiedAt ? 'primary' : 'secondary'} disabled={verificationBusy || Boolean(account.phoneVerifiedAt)} onClick={() => void requestCustomerVerification('PHONE')}>{account.phoneVerifiedAt ? <><CircleCheck size={16} />Telepon terverifikasi</> : 'Verifikasi telepon'}</button>}
             </div>
             {verificationForm.type && <form onSubmit={confirmCustomerVerification}>
               <label>Kode verifikasi {verificationForm.type === 'EMAIL' ? 'email' : 'telepon'}<input inputMode="numeric" pattern="[0-9]{8}" minLength={8} maxLength={8} value={verificationForm.code} onChange={(e) => setVerificationForm({ ...verificationForm, code: e.target.value.replace(/\D/g, '').slice(0, 8) })} /></label>

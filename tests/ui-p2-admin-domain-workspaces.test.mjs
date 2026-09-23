@@ -32,17 +32,15 @@ test('UI-P2 validates nested paths and falls back safely instead of allowing arb
   assert.match(page, /router\.replace\(workspace\.route\)/);
 });
 
-test('UI-P2 shell exposes secondary domain navigation, overview deck and third-level breadcrumb', () => {
-  assert.match(shell, /domainViewsForWorkspace\(activeWorkspace\)/);
+test('UI-P2 shell exposes one secondary domain navigation layer and third-level breadcrumb without redundant decks', () => {
+  assert.match(shell, /resolveDomainViews\(activeWorkspace, manifest, identity\)/);
   assert.match(shell, /className="domainTabs"/);
-  assert.match(shell, /className="domainDeck"/);
-  assert.match(shell, /className="domainCard"/);
   assert.match(shell, /activeDomainView\.label/);
-  assert.match(shell, /Mode kerja:/);
+  assert.doesNotMatch(shell, /className="domainDeck"|className="domainCard"|Mode kerja:/);
   assert.match(css, /\.domainTabs/);
-  assert.match(css, /\.domainDeck/);
-  assert.match(css, /\.domainCard/);
-  assert.match(css, /position:sticky/);
+    assert.match(css, /\.domainDeck\s*,\s*\.domainContext\s*\{\s*@apply hidden;\s*\}/);
+  assert.match(css, /\.statusbar\s*\{\s*@apply hidden;\s*\}/);
+  assert.doesNotMatch(css, /overflow-x:auto|overflow-x: auto/);
 });
 
 test('UI-P2 nested navigation keeps the same domain workspace and business API surface', () => {

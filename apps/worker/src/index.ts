@@ -415,6 +415,21 @@ function notificationSecretToken(encryptedSecrets?: string | null): string | nul
   return null;
 }
 
+function telegramApiBaseUrl(): string {
+  const fallback = 'https://api.telegram.org';
+  const override = process.env.T360_CI_TELEGRAM_API_BASE_URL?.trim();
+  if (!override) return fallback;
+  if (process.env.CI !== 'true' || !process.env.T360_UAT_ENVIRONMENT) {
+    throw new Error('T360_CI_TELEGRAM_API_BASE_URL hanya boleh dipakai pada CI UAT non-production.');
+  }
+  const url = new URL(override);
+  if (!['127.0.0.1', 'localhost'].includes(url.hostname)) {
+    throw new Error('T360_CI_TELEGRAM_API_BASE_URL wajib localhost pada CI UAT.');
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Telegram CI base URL protocol tidak didukung.');
+  return override.replace(/\/$/, '');
+}
+
 async function sendTelegramNotification(
   notification: { id: string; recipient: string; body: string },
   integration: { provider: string; config: Prisma.JsonValue | null; encryptedSecrets: string | null },
@@ -423,7 +438,7 @@ async function sendTelegramNotification(
   if (!token) throw new Error('Secret token Telegram belum dikonfigurasi pada IntegrationConnection.');
   const config = jsonObject(integration.config);
   const parseMode = typeof config.parseMode === 'string' && ['HTML','MarkdownV2'].includes(config.parseMode) ? config.parseMode : undefined;
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  const response = await fetch(`${telegramApiBaseUrl()}/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'idempotency-key': notification.id },
     body: JSON.stringify({
@@ -527,7 +542,7 @@ async function processExternalNotifications(): Promise<void> {
       } else if (notification.channel === 'TELEGRAM') {
         const token = process.env.TELEGRAM_BOT_TOKEN;
         if (!token) throw new Error('Integration NOTIFICATION TELEGRAM atau TELEGRAM_BOT_TOKEN belum dikonfigurasi.');
-        response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        response = await fetch(`${telegramApiBaseUrl()}/bot${token}/sendMessage`, {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ chat_id: notification.recipient, text: notification.body, disable_web_page_preview: true }),
           signal: AbortSignal.timeout(15000),

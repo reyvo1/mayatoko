@@ -36,3 +36,7 @@ RC0.5.3.1_EMBEDDED_INSTRUCTIONS_DYNAMIC_CHAT_HANDOFF
 - Gunakan `pindah-akun-atau-chat.cmd` sebelum berpindah akun/chat.
 - Jangan mengubah database production dengan `db push`, reset, atau seed demo.
 - Perbarui file ini hanya ketika checkpoint resmi baru diterbitkan.
+
+## Active reopening — 2026-09-23 F12R3
+
+Human visual acceptance menolak F12/F12R/F12R2. Final UI dan release readiness dibuka kembali. Work item aktif `T360-20260923-221011` melakukan full repository/product-surface audit, migrasi empat frontend ke Tailwind CSS v4, perbaikan information architecture tenant/integration/AI, dan perluasan GitHub Full UAT. Automated green evidence dari commit sebelum perubahan ini adalah historical evidence dan tidak boleh dipakai untuk menyatakan source baru release-ready.

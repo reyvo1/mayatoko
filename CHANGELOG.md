@@ -1,3 +1,20 @@
+## 2026-09-23 — F12R3 full Tailwind UI + deep GitHub UAT reopening
+
+- Reopened F12 after human visual review rejected the prior layered CSS/navigation result; release/human UAT remain blocked.
+- Migrated Admin, POS, Storefront, and Employee Portal presentation foundations to Tailwind CSS v4/PostCSS with flat one-accent surfaces, viewport-bound navigation/tables, responsive geometry, and Lucide icon consistency.
+- Simplified Admin information architecture so Tenant/User/System, Telegram/WhatsApp/owner reporting, integrations, and AI/forecasting have explicit operator workspaces instead of mixed panels.
+- Expanded GitHub automated UAT with full repository/UI interaction audits, all-OpenAPI runtime sweep, three-viewport all-navigation browser geometry + screenshots, Telegram/WhatsApp/owner-digest provider simulation, and optional protected live Telegram provider smoke.
+- Full dependency-free regression: 843/843 PASS; workflow/repository/full-repo/UI audits PASS. Tailwind install/typecheck/build/runtime remain required verification gates and are not claimed PASS yet.
+
+## 2026-09-23 — F12R2 modern visual contract
+
+- Reopened visual acceptance after operator review found decorative gradients, glyph icons, and inconsistent iconography.
+- Admin/POS now use flat dark surfaces and a single blue accent per `UI-DESIGN-SYSTEM.md`; decorative purple-blue gradients were removed.
+- POS product and payment controls use Lucide icons instead of text glyphs.
+- Storefront verified-state actions use Lucide `CircleCheck` instead of checkmark characters.
+- Employee Portal now declares and uses `lucide-react` consistently for desktop/mobile navigation and logout action.
+- Added `tests/f12r2-modern-visual-contract.test.mjs`; business/API contracts are unchanged.
+
 ## 2026-09-23 — F9 WhatsApp / Telegram Notification Center source closure
 - Promoted existing `IntegrationConnection` into the authoritative tenant/channel notification-provider configuration surface with encrypted secrets and provider health.
 - Added connected Telegram/native and provider-neutral external notification delivery before legacy environment fallback, while retaining worker lease/retry/idempotency behavior.
@@ -351,3 +368,9 @@
 - Kept PostgreSQL seed hardening, DB smoke, exact-artifact, browser UAT, and Stage-18/19/20 gates fail-closed.
 
 - GitHub build-gate root fix: SQLite compatibility DB prepare now forces `NODE_ENV=test` together with `DATABASE_PROFILE=sqlite` and `SEED_MODE=demo`, preventing staging seed policy from misclassifying the isolated SQLite rehearsal while preserving production semantics for the final six-app build.
+
+## 2026-09-23 — F12R operational UI correction
+- Reopened F12 visual closure after human visual acceptance found oversized checkbox controls, redundant horizontal navigation, forced-width tables, excessive whitespace, and poor high-mobility ergonomics.
+- Admin removes the redundant workspace rail, constrains checkboxes to native compact controls, fits desktop tables to the viewport, and stacks table rows on narrow screens instead of forcing horizontal scrolling.
+- POS navigation and transaction surfaces now remain inside the viewport with denser product/cart layout; Employee Portal and Storefront receive the same no-horizontal-page-overflow/mobile-density correction.
+- No business/API/security logic changed. Targeted UI regression 7/7 PASS; workflow/repo validation PASS; dependency-free regression 841/841 PASS. Frontend lint/build still requires dependency-complete local repo because this sandbox has no `next` binary.

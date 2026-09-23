@@ -37,10 +37,10 @@ test('UI-P1 application shell exposes workspace search, collapsible sidebar, bre
   assert.match(shell, /sidebarCollapsed/);
   assert.match(shell, /aria-label="Breadcrumb"/);
   assert.match(shell, /manifest\?\.branch\?\.name/);
-  assert.match(shell, /workspaceRail/);
+  assert.doesNotMatch(shell, /workspaceRail/);
   assert.match(css, /\.sidebarCollapsed \.sidebar/);
   assert.match(css, /\.breadcrumbs/);
-  assert.match(css, /\.workspaceRail/);
+  assert.match(css, /\.workspaceRail \{ @apply hidden; \}/);
 });
 
 test('UI-P1 preserves fail-closed backend authorization while using token claims only for UI visibility', () => {
@@ -51,11 +51,12 @@ test('UI-P1 preserves fail-closed backend authorization while using token claims
 });
 
 test('UI-P1 follows dark restrained design tokens without adding decorative gradients to shell overrides', () => {
-  assert.match(css, /--bg: #0b0e14/);
-  assert.match(css, /--panel: #131722/);
-  assert.match(css, /--accent: #6366f1/);
-  const block = css.slice(css.indexOf('UI-P1 — Admin application shell'));
-  assert.doesNotMatch(block, /linear-gradient\(/);
-  assert.match(block, /max-width: 1440px/);
-  assert.match(block, /width: 240px/);
+  assert.match(css, /@import \"tailwindcss\"/);
+  assert.match(css, /--color-app-bg: #0b0e14/);
+  assert.match(css, /--color-app-surface: #131722/);
+  assert.match(css, /--color-app-accent: #3b82f6/);
+  assert.doesNotMatch(css, /linear-gradient\(|radial-gradient\(/);
+  assert.match(css, /max-w-\[1440px\]/);
+  assert.match(css, /w-\[248px\]/);
+  assert.doesNotMatch(css, /overflow-x:auto|overflow-x: auto/);
 });

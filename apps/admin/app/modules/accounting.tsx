@@ -86,6 +86,8 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
   const [reportForm, setReportForm] = useState({ reportType: 'SALES', format: 'XLSX', from: '', to: '', days: 90 });
   const [manualMatches, setManualMatches] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
+  const [financeDialog, setFinanceDialog] = useState<{ transaction: FinanceTx; action: 'reject' | 'cancel'; notes: string } | null>(null);
+  const [accountEditDialog, setAccountEditDialog] = useState<{ account: Account; name: string } | null>(null);
   const requestKey = useRef(newRequestKey());
   const [form, setForm] = useState({
     type: 'OPERATING_EXPENSE' as FinanceType, description: '', amount: 0, settlementAccount: '1101', transferTargetAccount: '1102',
@@ -180,17 +182,25 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal menyimpan transaksi.'); }
   }
 
-  async function financeAction(transaction: FinanceTx, action: 'approve' | 'reject' | 'cancel' | 'post') {
+  async function financeAction(transaction: FinanceTx, action: 'approve' | 'reject' | 'cancel' | 'post', notes = '') {
     setMessage('');
     try {
-      const notes = action === 'reject' || action === 'cancel' ? window.prompt(action === 'reject' ? 'Alasan penolakan:' : 'Alasan pembatalan:') ?? '' : '';
-      if ((action === 'reject' || action === 'cancel') && !notes.trim()) return;
+      if ((action === 'reject' || action === 'cancel') && !notes.trim()) throw new Error('Alasan wajib diisi.');
       const endpoint = action === 'post'
         ? `/finance-operations/${transaction.id}/post`
         : `/finance-operations/${transaction.id}/${action}`;
       await api(endpoint, { method: 'POST', body: JSON.stringify({ notes }) });
+      setFinanceDialog(null);
       setMessage(`${transaction.number}: ${action} berhasil.`); await refresh();
     } catch (error) { setMessage(error instanceof Error ? error.message : `Gagal ${action} transaksi.`); }
+  }
+
+  function requestFinanceAction(transaction: FinanceTx, action: 'approve' | 'reject' | 'cancel' | 'post') {
+    if (action === 'reject' || action === 'cancel') {
+      setFinanceDialog({ transaction, action, notes: '' });
+      return;
+    }
+    void financeAction(transaction, action);
   }
 
   async function createPeriod(event: React.FormEvent) {
@@ -355,7 +365,7 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
             <label>Tipe<select value={accountForm.type} onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value })}><option>ASSET</option><option>LIABILITY</option><option>EQUITY</option><option>REVENUE</option><option>EXPENSE</option></select></label>
             <button>Tambah akun</button>
           </form>
-          <Table head={['Kode', 'Nama', 'Tipe', 'Status', 'Aksi']} rows={accounts.slice(0, 80).map((a) => [<strong>{a.code}</strong>, a.name, a.type, <StatusChip status={a.isActive ? 'ACTIVE' : 'INACTIVE'} />, <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}><button type="button" className="secondary" onClick={() => { const name = window.prompt('Nama akun:', a.name); if (name?.trim()) void updateAccount(a, { name: name.trim() }); }}>Edit nama</button><button type="button" className="secondary" onClick={() => void updateAccount(a, { isActive: !a.isActive })}>{a.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button></span>])} empty="Belum ada chart of accounts." />
+          <Table head={['Kode', 'Nama', 'Tipe', 'Status', 'Aksi']} rows={accounts.slice(0, 80).map((a) => [<strong>{a.code}</strong>, a.name, a.type, <StatusChip status={a.isActive ? 'ACTIVE' : 'INACTIVE'} />, <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}><button type="button" className="secondary" onClick={() => setAccountEditDialog({ account: a, name: a.name })}>Edit nama</button><button type="button" className="secondary" onClick={() => void updateAccount(a, { isActive: !a.isActive })}>{a.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button></span>])} empty="Belum ada chart of accounts." />
         </Panel>}
       </section>
 
@@ -439,9 +449,9 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
           <label style={{ alignSelf: 'center' }}><input type="checkbox" checked={form.requireApproval} onChange={(e) => setForm({ ...form, requireApproval: e.target.checked })} /> Wajib approval</label>
         </form>
         <Table head={['Nomor', 'Jenis', 'Keterangan', 'Nominal', 'Debit→Kredit', 'Status', 'Aksi']} rows={finances.map((f) => [<strong>{f.number}</strong>, f.type, f.description ?? '-', rupiah(Number(f.grossAmount)), <small style={{ color: 'var(--muted)' }}>{f.debitAccountCode} → {f.creditAccountCode}</small>, <StatusChip status={f.status} />, <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-          {f.status === 'WAITING_APPROVAL' && <><button type="button" onClick={() => void financeAction(f, 'approve')}>Approve</button><button type="button" className="secondary" onClick={() => void financeAction(f, 'reject')}>Reject</button></>}
-          {['DRAFT', 'APPROVED'].includes(f.status) && <button type="button" className="secondary" onClick={() => void financeAction(f, 'post')}>Posting</button>}
-          {['DRAFT', 'WAITING_APPROVAL', 'APPROVED'].includes(f.status) && <button type="button" className="secondary" onClick={() => void financeAction(f, 'cancel')}>Batal</button>}
+          {f.status === 'WAITING_APPROVAL' && <><button type="button" onClick={() => requestFinanceAction(f, 'approve')}>Approve</button><button type="button" className="secondary" onClick={() => requestFinanceAction(f, 'reject')}>Reject</button></>}
+          {['DRAFT', 'APPROVED'].includes(f.status) && <button type="button" className="secondary" onClick={() => requestFinanceAction(f, 'post')}>Posting</button>}
+          {['DRAFT', 'WAITING_APPROVAL', 'APPROVED'].includes(f.status) && <button type="button" className="secondary" onClick={() => requestFinanceAction(f, 'cancel')}>Batal</button>}
         </span>])} empty="Belum ada transaksi kas." />
       </Panel>}
 
@@ -485,6 +495,25 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
       </Panel>}
 
       {show('reports') && <ReportingWorkspace token={token} />}
+
+      {financeDialog && <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="finance-action-title">
+        <div className="modalCard">
+          <span className="eyebrow">FINANCE CONTROL</span>
+          <h2 id="finance-action-title">{financeDialog.action === 'reject' ? 'Tolak' : 'Batalkan'} {financeDialog.transaction.number}</h2>
+          <p className="sectionHelp">Alasan tersimpan sebagai evidence operasional dan tidak boleh kosong.</p>
+          <label>Alasan<textarea autoFocus value={financeDialog.notes} onChange={(event) => setFinanceDialog({ ...financeDialog, notes: event.target.value })} /></label>
+          <div className="modalActions"><button type="button" className="secondary" onClick={() => setFinanceDialog(null)}>Kembali</button><button type="button" className="dangerButton" disabled={!financeDialog.notes.trim()} onClick={() => void financeAction(financeDialog.transaction, financeDialog.action, financeDialog.notes)}>Konfirmasi</button></div>
+        </div>
+      </div>}
+
+      {accountEditDialog && <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="account-edit-title">
+        <div className="modalCard">
+          <span className="eyebrow">CHART OF ACCOUNTS</span>
+          <h2 id="account-edit-title">Edit nama akun {accountEditDialog.account.code}</h2>
+          <label>Nama akun<input autoFocus value={accountEditDialog.name} onChange={(event) => setAccountEditDialog({ ...accountEditDialog, name: event.target.value })} /></label>
+          <div className="modalActions"><button type="button" className="secondary" onClick={() => setAccountEditDialog(null)}>Batal</button><button type="button" disabled={!accountEditDialog.name.trim()} onClick={() => { void updateAccount(accountEditDialog.account, { name: accountEditDialog.name.trim() }); setAccountEditDialog(null); }}>Simpan</button></div>
+        </div>
+      </div>}
 
       {message && <div className="notice" style={{ marginTop: 12 }}>{message}</div>}
     </>

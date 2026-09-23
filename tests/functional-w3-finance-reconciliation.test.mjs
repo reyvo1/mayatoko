@@ -21,9 +21,11 @@ test('W3 finance transaction lifecycle supports approve, reject, cancel and post
   assert.match(financeService, /\['DRAFT', 'WAITING_APPROVAL', 'APPROVED'\]\.includes\(row\.status\)/);
   assert.match(financeService, /CANCEL_FINANCE_TRANSACTION/);
   assert.match(admin, /Wajib approval/);
-  assert.match(admin, /financeAction\(f, 'approve'\)/);
-  assert.match(admin, /financeAction\(f, 'reject'\)/);
-  assert.match(admin, /financeAction\(f, 'cancel'\)/);
+  assert.match(admin, /requestFinanceAction\(f, 'approve'\)/);
+  assert.match(admin, /requestFinanceAction\(f, 'reject'\)/);
+  assert.match(admin, /requestFinanceAction\(f, 'cancel'\)/);
+  assert.match(admin, /financeDialog/);
+  assert.doesNotMatch(admin, /window\.(?:prompt|confirm|alert)/);
 });
 
 test('W3 chart of accounts is tenant/branch scoped and exposed for finance operations', () => {

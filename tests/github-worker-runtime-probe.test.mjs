@@ -38,6 +38,8 @@ test('worker probe is a required aggregate GitHub simulation gate', () => {
   const summary = fs.readFileSync('scripts/ci-write-full-system-summary.mjs', 'utf8');
   assert.match(summary, /github-worker-runtime-probe-latest\.json/);
   assert.match(summary, /workerRuntime: gateStatus/);
-  assert.match(summary, /'builtBrowser','workerRuntime','stagingCertification'/);
+  for (const gate of ['builtBrowser', 'workerRuntime', 'apiRuntimeSweep', 'notificationProviderProbe', 'stagingCertification']) {
+    assert.match(summary, new RegExp(`'${gate}'`));
+  }
   assert.match(summary, /T360_CI_STEP_WORKER_PROBE/);
 });

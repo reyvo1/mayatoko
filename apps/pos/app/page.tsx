@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { clearPosTokens, posAuthFetch, storePosTokens } from './auth-fetch';
-import { Search, ScanBarcode, ShoppingCart, Trash2, Minus, Plus, CreditCard, UserRound, Coins, PackageSearch, Wifi, WifiOff, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Store } from 'lucide-react';
+import { Search, ScanBarcode, ShoppingCart, Trash2, Minus, Plus, CreditCard, UserRound, Coins, PackageSearch, Wifi, WifiOff, RefreshCw, AlertTriangle, CheckCircle2, XCircle, Store, X, Package, WalletCards } from 'lucide-react';
 import { PosShell, PosWorkspace } from './pos-shell';
 import { calculateOfflineQuote, getOrCreateDeviceCode, loadOfflineQueue, loadOfflineSnapshot, nextOfflineSequence, OfflineQueueItem, OfflineTaxCode, reservedOfflineQuantity, saveOfflineQueue, saveOfflineSnapshot } from '../lib/offline';
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -79,6 +79,7 @@ export default function PosPage() {
   const [cashMovementReason, setCashMovementReason] = useState('');
   const [cashMovementBusy, setCashMovementBusy] = useState(false);
   const [heldSales, setHeldSales] = useState<HeldSale[]>([]);
+  const [pendingHeldRecall, setPendingHeldRecall] = useState<string | null>(null);
   const [recentSales, setRecentSales] = useState<RecentSale[]>([]);
   const [saleReturns, setSaleReturns] = useState<SaleReturnRow[]>([]);
   const [returnSaleId, setReturnSaleId] = useState('');
@@ -480,9 +481,13 @@ export default function PosPage() {
   }
 
   function recallHeld(id: string) {
+    if (cart.length) { setPendingHeldRecall(id); return; }
+    performRecallHeld(id);
+  }
+
+  function performRecallHeld(id: string) {
     const held = heldSales.find((item) => item.id === id && item.cashierSub === jwtSubject(token));
     if (!held) return;
-    if (cart.length && !window.confirm('Keranjang sekarang akan diganti oleh transaksi hold. Lanjutkan?')) return;
     const targetWarehouseId = held.warehouseId || warehouseId;
     const restored = held.items.flatMap((line) => {
       const product = products.find((item) => item.id === line.productId);
@@ -499,6 +504,14 @@ export default function PosPage() {
     setWarehouseId(targetWarehouseId); setCart(restored); setCustomerId(held.customerId); setDiscount(held.discount); setRedeemPoints(held.redeemPoints); setPromoCode(held.promoCode); setPaymentMethod(held.paymentMethod || 'CASH'); setSplitEnabled(false);
     persistHeldSales(heldSales.filter((item) => item.id !== id));
     setMessage(`${held.label} dipanggil kembali${restored.length !== held.items.length ? '; beberapa produk tidak lagi tersedia' : ''}.`);
+  }
+
+
+  function confirmHeldRecall() {
+    if (!pendingHeldRecall) return;
+    const id = pendingHeldRecall;
+    setPendingHeldRecall(null);
+    performRecallHeld(id);
   }
 
   function deleteHeld(id: string) { persistHeldSales(heldSales.filter((item) => item.id !== id)); }
@@ -656,7 +669,7 @@ export default function PosPage() {
           {!catalogReady && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>Memuat katalog…</h4><p>Menyiapkan produk dan stok terminal.</p></div>}
           {catalogReady && !products.length && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>Katalog belum tersedia</h4><p>Belum ada produk aktif untuk terminal ini atau data gagal dimuat.</p></div>}
           {products.length > 0 && !visibleProducts.length && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>Tidak ada produk cocok</h4><p>Coba kata kunci lain atau ganti kategori.</p></div>}
-          {visibleProducts.map((product) => <div className="product" key={product.id}><button className="productMain" onClick={() => add(product)} disabled={available(product) <= 0}><div className="productIcon">{product.name.charAt(0)}</div><strong>{product.name}</strong><small>{product.sku} · stok {available(product)} {product.unit}</small><span>{money(productPrice(product))}</span></button>{apiOnline && (product.units?.length ?? 0) > 0 && <div className="unitActions">{product.units!.filter((unit) => !unit.variantId || unit.variantId === product.units?.find((item) => item.isDefaultSale)?.variantId).slice(0,4).map((unit) => <button type="button" key={unit.id} onClick={() => add(product,1,{unitCode:unit.unitCode,quantityFactor:unit.quantityFactor,productUnitId:unit.id,variantId:unit.variantId??undefined})}>{unit.unitCode} × {unit.quantityFactor}</button>)}</div>}</div>)}
+          {visibleProducts.map((product) => <div className="product" key={product.id}><button className="productMain" onClick={() => add(product)} disabled={available(product) <= 0}><div className="productIcon" aria-hidden="true"><Package size={24} strokeWidth={1.7} /></div><strong>{product.name}</strong><small>{product.sku} · stok {available(product)} {product.unit}</small><span>{money(productPrice(product))}</span></button>{apiOnline && (product.units?.length ?? 0) > 0 && <div className="unitActions">{product.units!.filter((unit) => !unit.variantId || unit.variantId === product.units?.find((item) => item.isDefaultSale)?.variantId).slice(0,4).map((unit) => <button type="button" key={unit.id} onClick={() => add(product,1,{unitCode:unit.unitCode,quantityFactor:unit.quantityFactor,productUnitId:unit.id,variantId:unit.variantId??undefined})}>{unit.unitCode} × {unit.quantityFactor}</button>)}</div>}</div>)}
         </div>
       </section>
       <aside className="cart"><div className="cartTitle"><div><span>TRANSAKSI</span><h2><ShoppingCart size={17} style={{verticalAlign:'-3px'}} /> Keranjang kasir</h2></div><div className="rowActions"><button className="clear" disabled={!cart.length} onClick={holdCart}>HOLD</button><button className="clear" onClick={() => setCart([])}><Trash2 size={14} /> Kosongkan</button></div></div>
@@ -674,7 +687,7 @@ export default function PosPage() {
           <div className="grand"><span>TOTAL</span><strong style={{ fontSize: 22 }}>{money(displayTotal)}</strong></div>
           <div className="paymentModeHeader"><strong><CreditCard size={13} style={{verticalAlign:'-2px'}} /> Pembayaran</strong><button type="button" className="clear" disabled={!apiOnline} onClick={() => { const next = !splitEnabled; setSplitEnabled(next); if (next) setSplitPayments([{ method: 'CASH', amount: Number(displayTotal) }, { method: 'QRIS', amount: 0 }]); }}>{splitEnabled ? 'SATU METODE' : 'SPLIT PAYMENT'}</button></div>
           {!splitEnabled ? <label>Metode pembayaran{!apiOnline ? ' · offline hanya tunai' : ''}<select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}><option value="CASH">Tunai</option><option value="QRIS">QRIS</option><option value="TRANSFER">Transfer</option><option value="CARD">Kartu</option></select></label>
-            : <div className="splitPayments">{splitPayments.map((entry, index) => <div className="splitRow" key={`${index}-${entry.method}`}><select value={entry.method} onChange={(e) => setSplitPayments((current) => current.map((item, i) => i === index ? { ...item, method: e.target.value as SplitPayment['method'] } : item))}><option value="CASH">Tunai</option><option value="QRIS">QRIS</option><option value="TRANSFER">Transfer</option><option value="CARD">Kartu</option></select><input type="number" min="0" value={entry.amount} onChange={(e) => setSplitPayments((current) => current.map((item, i) => i === index ? { ...item, amount: Math.max(0, Number(e.target.value) || 0) } : item))} />{splitPayments.length > 2 && <button className="clear" onClick={() => setSplitPayments((current) => current.filter((_, i) => i !== index))}>×</button>}</div>)}<button className="clear" onClick={() => setSplitPayments((current) => [...current, { method: 'TRANSFER', amount: 0 }])}>+ METODE</button><small className={splitReady ? '' : 'fieldWarning'}>Terbagi {money(splitTotal)} dari {money(displayTotal)}{splitReady ? '' : ' · harus sama persis'}</small></div>}
+            : <div className="splitPayments">{splitPayments.map((entry, index) => <div className="splitRow" key={`${index}-${entry.method}`}><select value={entry.method} onChange={(e) => setSplitPayments((current) => current.map((item, i) => i === index ? { ...item, method: e.target.value as SplitPayment['method'] } : item))}><option value="CASH">Tunai</option><option value="QRIS">QRIS</option><option value="TRANSFER">Transfer</option><option value="CARD">Kartu</option></select><input type="number" min="0" value={entry.amount} onChange={(e) => setSplitPayments((current) => current.map((item, i) => i === index ? { ...item, amount: Math.max(0, Number(e.target.value) || 0) } : item))} />{splitPayments.length > 2 && <button className="clear iconOnly" aria-label="Hapus metode pembayaran" onClick={() => setSplitPayments((current) => current.filter((_, i) => i !== index))}><X size={16} /></button>}</div>)}<button className="clear inlineIcon" onClick={() => setSplitPayments((current) => [...current, { method: 'TRANSFER', amount: 0 }])}><Plus size={15} />Metode</button><small className={splitReady ? '' : 'fieldWarning'}>Terbagi {money(splitTotal)} dari {money(displayTotal)}{splitReady ? '' : ' · harus sama persis'}</small></div>}
           <button className="pay" disabled={!cart.length || !warehouseId || !shift || !activeQuote || quoteLoading || !!activeQuoteError || paying || !splitReady} onClick={pay}>{paying ? 'MEMPROSES...' : shift ? (apiOnline ? 'BAYAR' : 'SIMPAN TRANSAKSI OFFLINE') : 'BUKA SHIFT DULU'}</button>
         </div>
       </aside>
@@ -712,5 +725,13 @@ export default function PosPage() {
 
       {offlineQueue.length === 0 && <section className="syncEmpty"><CheckCircle2 size={22} /><div><strong>Tidak ada antrean sinkronisasi</strong><small>Semua transaksi perangkat sudah konsisten dengan server.</small></div></section>}
     </>}
+    {pendingHeldRecall && <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="held-recall-title">
+      <div className="modalCard">
+        <span className="modalKicker">TRANSAKSI HOLD</span>
+        <h2 id="held-recall-title">Ganti keranjang aktif?</h2>
+        <p>Keranjang sekarang akan diganti oleh transaksi hold yang dipilih. Transaksi aktif belum disimpan.</p>
+        <div className="modalActions"><button type="button" className="clear" onClick={() => setPendingHeldRecall(null)}>Kembali</button><button type="button" onClick={confirmHeldRecall}>Panggil transaksi hold</button></div>
+      </div>
+    </div>}
   </PosShell>;
 }

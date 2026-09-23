@@ -39,13 +39,13 @@ test('UI-P7 exposes active navigation state and operational status semantically'
   assert.match(shells.employee, /aria-current=\{item\.id === activeView \? 'page' : undefined\}/);
 });
 
-test('UI-P7 CSS hardens keyboard focus, reduced motion, and touch targets in every app', () => {
+test('UI-P7 Tailwind CSS hardens keyboard focus, reduced motion, and touch targets in every app', () => {
   for (const [name, source] of Object.entries(css)) {
-    assert.match(source, /UI-P7 final accessibility and responsive hardening/, `${name} marker`);
+    assert.match(source, /@import \"tailwindcss\"/, `${name} tailwind import`);
     assert.match(source, /:focus-visible/, `${name} focus visible`);
     assert.match(source, /prefers-reduced-motion:\s*reduce/, `${name} reduced motion`);
-    assert.match(source, /pointer:coarse/, `${name} coarse pointer`);
-    assert.match(source, /min-height:44px/, `${name} touch target`);
+    assert.match(source, /pointer:\s*coarse/, `${name} coarse pointer`);
+    assert.match(source, /min-height:\s*44px|min-h-11|min-h-\[44px\]/, `${name} touch target`);
   }
 });
 
@@ -64,9 +64,13 @@ test('UI-P7 keeps real-browser contracts unchanged while polishing presentation'
   assert.match(shells.employee, /Portal Karyawan/);
 });
 
-test('UI-P7 mobile navigation remains scrollable and large enough for touch', () => {
-  assert.match(css.admin, /workspaceRail,.domainTabs\{scrollbar-width:thin\}/);
-  assert.match(css.pos, /\.posWorkspaceNav\{overflow-x:auto/);
-  assert.match(css.storefront, /\.mobileNav button\{min-height:52px\}/);
-  assert.match(css.employee, /\.employeeMobileNav a\{min-height:44px/);
+test('UI-P7 mobile navigation wraps into the viewport and keeps touch targets without horizontal scrolling', () => {
+  for (const [name, source] of Object.entries(css)) {
+    assert.doesNotMatch(source, /overflow-x:auto|overflow-x: auto/, `${name} primary navigation must not require horizontal scrolling`);
+  }
+  assert.match(css.admin, /\.domainTabs \{ @apply grid grid-cols-2; \}/);
+  assert.match(css.pos, /\.posWorkspaceNav\s*\{?\s*@apply[^}]*grid grid-cols-4/);
+  assert.match(css.storefront, /\.mobileNav\{@apply[^}]*grid-cols-4/);
+  assert.match(css.employee, /\.employeeMobileNav\{@apply grid grid-cols-2/);
+  assert.match(css.admin + css.pos + css.storefront + css.employee, /min-height:\s*44px|min-h-11|min-h-\[44px\]/);
 });

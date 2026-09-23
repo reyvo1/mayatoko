@@ -127,6 +127,62 @@ async function navigateAndAssert(cdp, url, expression, label, timeoutMs = 45000)
   await waitExpression(cdp, `document.readyState === 'complete' && (${expression})`, label, timeoutMs);
 }
 
+async function evaluateValue(cdp, expression) {
+  const result = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+  if (result?.exceptionDetails) throw new Error(result.exceptionDetails.text || 'Browser evaluation gagal.');
+  return result?.result?.value;
+}
+
+async function assertViewportIntegrity(cdp, label, width, height) {
+  await cdp.call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width <= 480 });
+  await sleep(250);
+  const metrics = await evaluateValue(cdp, `(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const scrollWidth = Math.max(root?.scrollWidth || 0, body?.scrollWidth || 0);
+    const overflow = [...document.querySelectorAll('body *')].filter((el) => {
+      const style = getComputedStyle(el); if (style.position === 'fixed' && el.classList.contains('modalOverlay')) return false;
+      const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (r.right > innerWidth + 3 || r.left < -3);
+    }).slice(0, 12).map((el) => ({ tag: el.tagName, className: String(el.className || '').slice(0,120), text: String(el.textContent || '').trim().slice(0,100), rect: el.getBoundingClientRect().toJSON() }));
+    return { innerWidth, scrollWidth, overflow };
+  })()`);
+  if (!metrics || metrics.scrollWidth > width + 3 || metrics.overflow.length) {
+    throw new Error(`${label} overflow pada ${width}x${height}: scrollWidth=${metrics?.scrollWidth}; elements=${JSON.stringify(metrics?.overflow || [])}`);
+  }
+  return { label, width, height, scrollWidth: metrics.scrollWidth };
+}
+
+async function assertResponsiveMatrix(cdp, label) {
+  const checks = [];
+  for (const [width,height] of [[1440,900],[1024,768],[390,844]]) checks.push(await assertViewportIntegrity(cdp,label,width,height));
+  await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  return checks;
+}
+
+
+async function captureSuccessScreenshot(cdp, name) {
+  const shot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
+  if (!shot?.data) throw new Error(`Screenshot sukses tidak terbentuk: ${name}`);
+  const screenshotPath = path.resolve(root, 'logs', 'browser-uat', `${name}.png`);
+  fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
+  fs.writeFileSync(screenshotPath, Buffer.from(shot.data, 'base64'));
+  return path.relative(root, screenshotPath).replaceAll('\\', '/');
+}
+
+async function clickAllNavigation(cdp, selector, label) {
+  const labels = await evaluateValue(cdp, `([...document.querySelectorAll(${JSON.stringify(selector)})]).filter(x => x.getClientRects().length).map(x => (x.textContent || '').trim()).filter(Boolean)`);
+  const visited = [];
+  for (const item of [...new Set(labels || [])]) {
+    const clicked = await evaluateValue(cdp, `(() => { const nodes=[...document.querySelectorAll(${JSON.stringify(selector)})]; const el=nodes.find(x => (x.textContent || '').trim() === ${JSON.stringify(item)}); if(!el)return false; el.click(); return true; })()`);
+    if (!clicked) throw new Error(`${label}: navigasi tidak dapat diklik: ${item}`);
+    await sleep(500);
+    await waitExpression(cdp, `document.readyState === 'complete' && document.body && document.body.innerText.length > 20`, `${label}: ${item}`);
+    await assertViewportIntegrity(cdp, `${label}: ${item}`, 1440, 900);
+    visited.push(item);
+  }
+  return visited;
+}
+
 async function browserPageDiagnostic(cdp, healthUrl) {
   const result = await cdp.call('Runtime.evaluate', {
     expression: `(async () => {
@@ -232,6 +288,18 @@ async function main() {
     await cdp.call('Runtime.evaluate', { expression: `localStorage.setItem('toko360_token', ${access}); localStorage.setItem('toko360_refresh', ${refresh}); location.reload(); true`, returnByValue: true });
     await waitExpression(cdp, `document.body && document.body.innerText.includes('Aset & Fleet')`, 'Navigasi Admin setelah login', 45000);
     evidence.checks.push({ id: 'ADMIN_AUTHENTICATED_SHELL', status: 'PASS' });
+    evidence.checks.push({ id: 'ADMIN_RESPONSIVE_SHELL', status: 'PASS', matrix: await assertResponsiveMatrix(cdp, 'Admin authenticated shell') });
+
+    const adminWorkspaces = await clickAllNavigation(cdp, '.navItem', 'Admin workspace');
+    const adminDomainViews = [];
+    for (const workspace of adminWorkspaces) {
+      const clicked = await evaluateValue(cdp, `(() => { const nodes=[...document.querySelectorAll('.navItem')]; const el=nodes.find(x => (x.textContent || '').trim() === ${JSON.stringify(workspace)}); if(!el)return false; el.click(); return true; })()`);
+      if (!clicked) throw new Error(`Admin workspace hilang saat domain sweep: ${workspace}`);
+      await sleep(350);
+      const domains = await clickAllNavigation(cdp, '.domainTabs button', `Admin domain ${workspace}`);
+      adminDomainViews.push({ workspace, domains });
+    }
+    evidence.checks.push({ id: 'ADMIN_ALL_NAVIGATION_RUNTIME', status: 'PASS', workspaces: adminWorkspaces, domainViews: adminDomainViews, screenshot: await captureSuccessScreenshot(cdp, 'admin-navigation-success') });
 
     const clickFleet = `(() => { const nodes=[...document.querySelectorAll('button,a')]; const el=nodes.find(x=>x.textContent?.trim().includes('Aset & Fleet')); if(!el)return false; el.click(); return true; })()`;
     await waitExpression(cdp, clickFleet, 'Menu Aset & Fleet');
@@ -285,6 +353,8 @@ async function main() {
 
     await navigateAndAssert(cdp, storefrontUrl, `document.body && document.body.innerText.includes('TOKO360 OFFICIAL STORE') && document.body.innerText.includes('Belanja langsung dari toko')`, 'Storefront browser render');
     evidence.checks.push({ id: 'STOREFRONT_BROWSER_RENDER', status: 'PASS', url: storefrontUrl });
+    const storefrontViews = await clickAllNavigation(cdp, '.desktopNav button', 'Storefront navigation');
+    evidence.checks.push({ id: 'STOREFRONT_NAVIGATION_RUNTIME', status: 'PASS', views: storefrontViews, matrix: await assertResponsiveMatrix(cdp, 'Storefront'), screenshot: await captureSuccessScreenshot(cdp, 'storefront-navigation-success') });
 
     await navigateAndAssert(cdp, posUrl, `document.body && document.body.innerText.includes('KASIR TOKO360') && document.body.innerText.includes('Masuk ke terminal kasir')`, 'POS browser render');
     evidence.checks.push({ id: 'POS_BROWSER_RENDER', status: 'PASS', url: posUrl });
@@ -297,6 +367,8 @@ async function main() {
       throw error;
     }
     evidence.checks.push({ id: 'POS_AUTHENTICATED_RUNTIME', status: 'PASS', assertions: ['cashier shell', 'warehouse selector', 'server online', 'offline config/data bootstrap'] });
+    const posWorkspaces = await clickAllNavigation(cdp, '.posWorkspaceNav button', 'POS workspace');
+    evidence.checks.push({ id: 'POS_ALL_WORKSPACES_RUNTIME', status: 'PASS', workspaces: posWorkspaces, matrix: await assertResponsiveMatrix(cdp, 'POS'), screenshot: await captureSuccessScreenshot(cdp, 'pos-workspaces-success') });
 
     await navigateAndAssert(cdp, employeeUrl, `document.body && document.body.innerText.includes('TOKO360 HR') && document.body.innerText.includes('Portal Karyawan')`, 'Employee Portal browser render');
     evidence.checks.push({ id: 'EMPLOYEE_PORTAL_BROWSER_RENDER', status: 'PASS', url: employeeUrl });
@@ -306,6 +378,14 @@ async function main() {
       const employeeText = await cdp.call('Runtime.evaluate', { expression: `document.body.innerText`, returnByValue: true });
       if (String(employeeText?.result?.value || '').includes('Profil belum tersedia')) throw new Error('Employee Portal authenticated shell dirender tetapi self-service read model gagal.');
       evidence.checks.push({ id: 'EMPLOYEE_PORTAL_AUTHENTICATED_RUNTIME', status: 'PASS', assertions: ['employee profile', 'attendance history', 'payslip self-service'] });
+      const employeeRoutes = await evaluateValue(cdp, `([...document.querySelectorAll('.employeeNav a')]).map(a => a.getAttribute('href')).filter(Boolean)`);
+      const visitedEmployeeRoutes = [];
+      for (const href of [...new Set(employeeRoutes || [])]) {
+        await navigateAndAssert(cdp, new URL(href, employeeUrl).href, `document.body && document.body.innerText.includes('TOKO360 HR')`, `Employee Portal ${href}`);
+        await assertViewportIntegrity(cdp, `Employee Portal ${href}`, 1440, 900);
+        visitedEmployeeRoutes.push(href);
+      }
+      evidence.checks.push({ id: 'EMPLOYEE_ALL_SELF_SERVICE_ROUTES', status: 'PASS', routes: visitedEmployeeRoutes, matrix: await assertResponsiveMatrix(cdp, 'Employee Portal'), screenshot: await captureSuccessScreenshot(cdp, 'employee-routes-success') });
     }
 
     // A page that renders while throwing an uncaught JS exception is not a browser-UAT PASS.

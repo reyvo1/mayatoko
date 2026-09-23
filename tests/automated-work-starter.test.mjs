@@ -57,7 +57,7 @@ test('external coding agent is safe-by-default', () => {
 test('automation status command reports the real active/completed backlog state without changing work items', () => {
   const beforeActive = readdirSync('work-items/active').filter((name) => name.endsWith('.json')).sort();
   const beforeCompleted = readdirSync('work-items/completed').filter((name) => name.endsWith('.json')).sort();
-  const activeBacklogKeys = new Set(beforeActive.map((name) => JSON.parse(readFileSync(`work-items/active/${name}`, 'utf8')).backlogKey).filter(Boolean));
+  const activeWorkItems = beforeActive.map((name) => JSON.parse(readFileSync(`work-items/active/${name}`, 'utf8')));
   const completedBacklogKeys = new Set(beforeCompleted.map((name) => JSON.parse(readFileSync(`work-items/completed/${name}`, 'utf8')).backlogKey).filter(Boolean));
 
   const result = spawnSync(process.execPath, ['scripts/start-work.mjs', 'status'], { encoding: 'utf8' });
@@ -65,7 +65,7 @@ test('automation status command reports the real active/completed backlog state 
   assert.match(result.stdout, /Toko360 automated work status/);
   assert.match(result.stdout, new RegExp(`Backlog total\\s+:\\s*${backlog.items.length}`));
   assert.match(result.stdout, new RegExp(`Backlog completed\\s+:\\s*${completedBacklogKeys.size}`));
-  assert.match(result.stdout, new RegExp(`Work item aktif\\s+:\\s*${activeBacklogKeys.size}`));
+  assert.match(result.stdout, new RegExp(`Work item aktif\\s+:\\s*${activeWorkItems.length}`));
   assert.match(result.stdout, /Semua backlog otomatis sudah selesai atau sedang aktif\./);
 
   assert.deepEqual(readdirSync('work-items/active').filter((name) => name.endsWith('.json')).sort(), beforeActive);

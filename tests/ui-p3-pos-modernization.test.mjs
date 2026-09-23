@@ -30,8 +30,9 @@ test('UI-P3 preserves idempotent replay and conflict retention', () => {
 });
 
 test('UI-P3 uses responsive flat workspace surfaces without decorative gradient additions', () => {
-  assert.match(css, /\.posWorkspaceNav/);
-  assert.match(css, /\.posModern \.cart\{position:sticky/);
-  const added = css.split('/* ===== UI-P3 POS MODERNIZATION ===== */')[1] ?? '';
-  assert.doesNotMatch(added, /linear-gradient|radial-gradient/);
+  assert.match(css, /@import \"tailwindcss\"/);
+  assert.match(css, /\.posWorkspaceNav\{@apply[^}]*grid grid-cols-4/);
+  assert.match(css, /\.cart\{@apply sticky top-\[76px\]/);
+  assert.doesNotMatch(css, /linear-gradient|radial-gradient/);
+  assert.doesNotMatch(css, /overflow-x:auto|overflow-x: auto/);
 });

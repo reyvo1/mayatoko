@@ -82,11 +82,12 @@ export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
   { workspaceKey: 'extensions', views: [
     { key: 'loyalty', label: 'Loyalty', title: 'Customer loyalty', description: 'Program loyalty dan customer engagement foundation.', Icon: BadgeDollarSign },
     { key: 'devices', label: 'Devices', title: 'Devices & offline nodes', description: 'Device registration, health, sync, dan offline operation.', Icon: Gauge },
-    { key: 'notifications', label: 'Notifications', title: 'Notification operations', description: 'Notification queue, delivery, retry, dan channel adapter.', Icon: Activity },
-    { key: 'integrations', label: 'Integrations', title: 'Integration connections', description: 'Provider connection, external mapping, dan adapter status.', Icon: RefreshCcw },
+    { key: 'notifications', label: 'Telegram & WhatsApp', title: 'Notification center & provider delivery', description: 'Konfigurasi provider, template, penerima, antrean, delivery, retry, dan laporan owner melalui Telegram/WhatsApp.', Icon: Activity },
+    { key: 'integrations', label: 'Integrasi Provider', title: 'Integration connections', description: 'Koneksi provider eksternal, secret terenkripsi, mapping, health, dan adapter status.', Icon: RefreshCcw },
     { key: 'ai', moduleCodes: ['forecasting'], permissionPrefixes: ['assistant', 'forecast'], label: 'AI & Forecast', title: 'Forecast & operator assistant', description: 'Forecast explainable, anomaly insight, dan assistant berbasis sumber tenant yang diizinkan.', Icon: BrainCircuit },
   ]},
   { workspaceKey: 'platform', views: [
+    { key: 'tenant', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], label: 'Company / Tenant', title: 'Company, branch & tenant context', description: 'Konteks company/tenant aktif, branch yang dipakai sesi, dan jalur ke master organisasi/gudang.', Icon: Building2 },
     { key: 'features', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], label: 'Features', title: 'Runtime features', description: 'Module catalog dan feature flags untuk company aktif.', Icon: Settings2 },
     { key: 'users', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['user', 'role'], label: 'Users', title: 'Users & roles', description: 'User lifecycle, role assignment, dan branch access.', Icon: UserCog },
     { key: 'security', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['user', 'platform'], label: 'Security', title: 'Account security', description: '2FA, recovery, session security, dan protected account controls.', Icon: ShieldCheck },

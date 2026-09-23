@@ -265,3 +265,26 @@ UI-P7 sekarang VERIFICATION:
 - Kept PostgreSQL seed hardening, DB smoke, exact-artifact, browser UAT, and Stage-18/19/20 gates fail-closed.
 
 - GitHub build-gate root fix: SQLite compatibility DB prepare now forces `NODE_ENV=test` together with `DATABASE_PROFILE=sqlite` and `SEED_MODE=demo`, preventing staging seed policy from misclassifying the isolated SQLite rehearsal while preserving production semantics for the final six-app build.
+
+## F12R Operational UI correction — 2026-09-23
+- Human visual acceptance reopened F12: the prior polish still forced horizontal table/navigation scrolling, inherited oversized checkbox sizing, stacked redundant Admin navigation, and left excessive operator whitespace.
+- Corrected presentation only across Admin/POS/Storefront/Employee Portal; F2-F12 business authority and API contracts remain unchanged.
+- Admin workspace rail was removed from rendering; domain navigation wraps, checkboxes are compact, desktop tables fit the viewport, and narrow screens stack labeled cells instead of horizontal panning.
+- POS uses denser high-mobility product/cart layout and non-scrolling 2-column mobile workspace navigation. Employee Portal tables/nav and Storefront catalog are likewise viewport-bound.
+- Regression contract was strengthened: UI-P1 now rejects rendering the redundant workspace rail instead of requiring it.
+- Validation: focused 7/7 PASS; workflow validation PASS; repository validation PASS (180 Prisma models); dependency-free regression 841/841 PASS. Frontend lint/build not run in sandbox because `next` dependency is absent; run local `npm run uat:pre-github:local` after applying.
+- Human Stage-20 remains blocked until visual acceptance of this F12R candidate.
+
+## 2026-09-23 F12R2 visual reopening
+- Human visual acceptance rejected the previous F12/F12R result as cluttered and visually dated.
+- F12R2 removes decorative gradients, standardizes Lucide icons, and keeps one-accent flat operator surfaces.
+- Functional/business contracts remain unchanged; rerun local candidate gate and GitHub full-system simulation before Human Stage-20 resumes.
+
+## 2026-09-23 F12R3 full UI + GitHub UAT reopening
+- Active work item: `T360-20260923-221011-full-ui-tailwind-and-github-uat-expansion` (HIGH risk, VERIFICATION).
+- Full audit baseline: seluruh repository snapshot dibaca/inventaris; current source audit menemukan 401 Nest HTTP handlers dan 278+ operator interactive controls.
+- Empat operator surfaces sedang dipindahkan ke Tailwind CSS v4; legacy layered CSS override tidak lagi canonical.
+- Admin information architecture memisahkan Tenant/User/System, Telegram/WhatsApp/provider/owner reporting, dan AI/Forecast agar operator tidak perlu mencari fitur di panel campur-aduk.
+- GitHub UAT diperluas dengan full repository audit, UI control audit, all-OpenAPI runtime sweep, browser all-navigation + 3-viewport geometry sweep + screenshots, Telegram/WhatsApp/owner-digest E2E provider simulator, serta optional protected live Telegram smoke.
+- Business/domain authority tidak dipindahkan atau dilemahkan. Human Stage-20 tetap BLOCKED sampai source baru lulus local/full GitHub gates dan visual acceptance.
+- Tailwind dependency lock/build belum dinyatakan PASS sampai dependency install dan production build benar-benar berhasil.

@@ -5,6 +5,8 @@ const out = path.join(process.cwd(), 'logs', 'github-uat');
 fs.mkdirSync(out, { recursive: true });
 
 const rows = [
+  ['Full repository audit', process.env.STEP_REPO_AUDIT],
+  ['UI interaction audit', process.env.STEP_UI_AUDIT],
   ['UAT env', process.env.STEP_ENV],
   ['PostgreSQL schema', process.env.STEP_SCHEMA],
   ['PostgreSQL seed', process.env.STEP_SEED],
@@ -12,6 +14,9 @@ const rows = [
   ['Payroll recovery fixture', process.env.STEP_RECOVERY],
   ['Built Browser UAT', process.env.STEP_BUILT_BROWSER],
   ['Browser UAT evidence', process.env.STEP_BROWSER],
+  ['Runtime sweep start', process.env.STEP_RUNTIME_SWEEP_START],
+  ['All OpenAPI runtime sweep', process.env.STEP_API_SWEEP],
+  ['Telegram/WhatsApp provider probe', process.env.STEP_PROVIDER_PROBE],
   ['Stage 18', process.env.STEP_STAGE18],
   ['Stage 19', process.env.STEP_STAGE19],
   ['Payroll staging', process.env.STEP_PAYROLL],

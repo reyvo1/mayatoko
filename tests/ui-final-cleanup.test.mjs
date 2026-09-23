@@ -23,7 +23,7 @@ const layouts = [
 ].map((path) => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
 
 test('admin navigation only exposes implemented work areas and has a mobile navigation path', () => {
-  for (const label of ['Dashboard', 'Owner Suite', 'Master Data', 'Pembelian & Stok', 'Storefront & Fulfillment', 'Retur & Transfer', 'Kontrol Operasional', 'Akuntansi & Kas', 'HRIS & Payroll', 'Aset & Fleet', 'Loyalty & Devices', 'Sistem & Akses']) assert.match(admin, new RegExp(label.replace(/[&]/g, '\\&')));
+  for (const label of ['Dashboard', 'Owner Suite', 'Master Data', 'Pembelian & Stok', 'Storefront & Fulfillment', 'Retur & Transfer', 'Kontrol Operasional', 'Akuntansi & Kas', 'HRIS & Payroll', 'Aset & Fleet', 'Integrasi, Notifikasi & AI', 'Tenant, User & Sistem']) assert.match(admin, new RegExp(label.replace(/[&]/g, '\\&')));
   assert.doesNotMatch(admin, /Business Intelligence|Laporan Operasional|Audit Trail|Pengaturan Sistem/);
   assert.doesNotMatch(admin, /label: 'Kas & Bank'[\s\S]*label: 'Kas & Bank'/);
   assert.match(admin, /className="mobileNav"/);

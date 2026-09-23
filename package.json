@@ -101,11 +101,19 @@
     "test:dependency-free": "node --test tests/*.test.mjs",
     "ci:preflight:local": "npm run workflow:validate && npm run validate:repo && npm run test:dependency-free",
     "ci:security:proposal": "node scripts/ci-propose-security-dependency-refresh.mjs",
-    "uat:pre-github:local": "node scripts/run-local-candidate-gate.mjs"
+    "uat:pre-github:local": "node scripts/run-local-candidate-gate.mjs",
+    "audit:full:repo": "node scripts/audit-full-repository.mjs",
+    "ci:api:sweep": "node scripts/ci-runtime-api-sweep.mjs",
+    "ci:ui:audit": "node scripts/ci-ui-source-audit.mjs",
+    "ci:provider:probe": "node scripts/ci-notification-provider-probe.mjs",
+    "ci:telegram:live": "node scripts/ci-live-telegram-smoke.mjs"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
     "concurrently": "^9.2.1",
-    "dotenv-cli": "^8.0.0"
+    "dotenv-cli": "^8.0.0",
+    "postcss": "8.5.28",
+    "tailwindcss": "4.3.3"
   },
   "engines": {
     "node": ">=20.9.0"

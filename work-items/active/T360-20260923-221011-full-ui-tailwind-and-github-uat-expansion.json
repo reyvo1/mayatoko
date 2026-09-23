@@ -1,0 +1,62 @@
+{
+  "id": "T360-20260923-221011",
+  "title": "Full UI Tailwind migration and GitHub full-system UAT expansion",
+  "type": "feature",
+  "module": "admin-ui",
+  "wave": "W7",
+  "phase": "VERIFICATION",
+  "risk": "HIGH",
+  "owner": "openai",
+  "featureFlag": "",
+  "dependencies": [],
+  "impacts": {
+    "database": "NONE",
+    "inventory": "NONE",
+    "accounting": "NONE",
+    "tax": "NONE",
+    "payment": "NONE",
+    "payroll": "NONE",
+    "sync": "LOW",
+    "security": "LOW",
+    "performance": "MEDIUM"
+  },
+  "businessRules": [
+    "Presentation migration must not create duplicate business workflows or move authority from API/server guards into the client.",
+    "Admin, POS, Storefront, and Employee Portal must use one Tailwind-based visual foundation with Lucide icons, responsive no-horizontal-page-overflow behavior, clear tenant/company/branch context, and progressive disclosure.",
+    "GitHub UAT must remain fail-closed and must test exact built artifacts, PostgreSQL runtime, tenant isolation, permissions, idempotency, worker/report flows, provider adapters, browser geometry, and documented operator scenarios.",
+    "External provider tests must never print or persist credentials; Telegram and WhatsApp require deterministic CI provider simulation, while optional live probes may run only when protected environment secrets are configured.",
+    "Human UAT remains separate from automated GitHub PASS and cannot be auto-approved."
+  ],
+  "acceptanceCriteria": [
+    "Legacy hand-written application styling for all four user-facing apps is replaced by Tailwind CSS v4/PostCSS foundation; no decorative gradients, emoji UI icons, forced page horizontal scrolling, or duplicate Admin navigation layers remain.",
+    "Admin information architecture makes Company/Tenant, Branch/Warehouse, Users/Roles, Notifications/Telegram/WhatsApp, Automation/Reports, and AI/Forecasting discoverable from explicit operator workspaces.",
+    "POS primary sale flow fits common desktop and tablet viewports without horizontal page scrolling and keeps checkout/cart actions immediately visible.",
+    "GitHub Full System Simulation runs expanded API, browser, provider-adapter, UI-interaction/geometry, tenant/security, worker, reporting, migration, staging, load/index, and DR gates and uploads machine-readable evidence/screenshots.",
+    "Automated workflow fails when an uncovered critical API/operator flow/provider contract is detected; it does not convert Human Stage-20 to PASS.",
+    "Repository workflow validation, TypeScript lint, dependency-free regression, database smoke, six-app build, local candidate gate, and GitHub simulation configuration validation remain PASS."
+  ],
+  "testPlan": [
+    "Run repository-wide static audit mapping docs/modules/routes/controllers/buttons/navigation/provider flows and store source-bound evidence.",
+    "Run Tailwind/UI regression tests forbidding legacy gradients, page-level horizontal overflow, duplicate nav rails, emoji action icons, and requiring Tailwind/PostCSS in all four apps.",
+    "Run TypeScript lint and six-app production build after Tailwind migration.",
+    "Run PostgreSQL migration rehearsal and database smoke unchanged.",
+    "Run API inventory/contract sweep against live exact runtime, including authentication, tenant denial, permission denial, idempotency/replay and representative mutation lifecycle tests.",
+    "Run GitHub provider adapter simulation for Telegram and generic WhatsApp HTTP with local deterministic mock server, retry/error/status evidence and secret redaction.",
+    "Run built-browser desktop/tablet/mobile matrix checking overlap, viewport overflow, uncaught errors, navigation reachability, forms/buttons for critical operator workflows, and screenshots on failure.",
+    "Run worker/report job probe, staging certification, load/index profile, backup/restore DR rehearsal, and automated Stage-20 while Human UAT remains pending."
+  ],
+  "migrationPlan": "No database schema change is planned. Tailwind/PostCSS and CI/UAT changes are source/build tooling only; existing expand-only database migration chain remains unchanged and must still be rehearsed.",
+  "rollbackPlan": "Revert this work item commit set to the last source-bound automated-GitHub-PASS commit. No database rollback is required because schema is unchanged. If the new UAT gate itself is defective, fix the gate while preserving or strengthening its assertions; never bypass it to release.",
+  "monitoringPlan": "GitHub job summary and uploaded source-bound evidence will report API coverage, browser viewport coverage, provider simulation results, exact artifact identity, worker/report probe, staging/load/index/DR and Stage-20 automated state. UI regressions are additionally checked by local candidate gate before push.",
+  "securityNotes": "All runtime identity continues to come from authenticated server context. CI uses non-production PostgreSQL and synthetic provider endpoints. GitHub secrets/environment secrets are never echoed, browser/localStorage evidence is sanitized, provider mocks validate headers/payloads without storing real tokens, and Human Stage-20 remains separately approved.",
+  "documentation": [
+    "UI-DESIGN-SYSTEM.md",
+    "docs/DEVELOPMENT-KIT.md",
+    "docs/DEVELOPMENT-WORKFLOW.md",
+    "docs/ADMIN-DOMAIN-WORKSPACES.md",
+    ".github/workflows/full-system-simulation.yml",
+    ".github/workflows/toko360-full-uat.yml"
+  ],
+  "createdAt": "2026-09-23T14:10:11.719Z",
+  "updatedAt": "2026-09-23T14:39:55.377Z"
+}

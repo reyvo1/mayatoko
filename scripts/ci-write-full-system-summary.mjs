@@ -58,6 +58,10 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
   const transport = readJson(root, 'handoff/quality/github-runtime-artifact-transport-latest.json');
   const dependencyAudit = readJson(root, 'handoff/quality/npm-audit-production-latest.json');
   const coverage = readJson(root, 'handoff/quality/github-critical-uat-coverage-latest.json');
+  const repositoryAudit = readJson(root, 'handoff/quality/full-repository-audit-latest.json');
+  const uiAudit = readJson(root, 'handoff/quality/ui-interaction-audit-latest.json');
+  const apiSweep = readJson(root, 'handoff/quality/github-api-runtime-sweep-latest.json');
+  const providerProbe = readJson(root, 'handoff/quality/github-notification-provider-probe-latest.json');
   const stage18 = readJson(root, 'logs/stage18-product-supplier-postgres/latest.json');
   const payroll = readJson(root, 'logs/payroll-adjustment-postgres-stage/latest.json');
   const stage19 = readJson(root, 'logs/stage19-tenant-integration/latest.json');
@@ -89,6 +93,10 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
       && /^(?:sha256:)?[a-f0-9]{64}$/i.test(String(v.github?.artifactDigest || ''))),
     dependencyAudit: gateStatus(dependencyAudit, current, (v) => v.status === 'PASS' && v.blockingCount === 0 && v.productionTouched === false),
     criticalUatCoverage: gateStatus(coverage, current, (v) => v.status === 'PASS' && v.scenarioCount === 12),
+    repositoryAudit: gateStatus(repositoryAudit, current, (v) => v.status === 'PASS' && v.inventory?.apiHandlers > 0),
+    uiInteractionAudit: gateStatus(uiAudit, current, (v) => v.status === 'PASS' && Object.values(v.surfaces || {}).every((surface) => surface.inertButtons === 0 && surface.inertLinks === 0)),
+    apiRuntimeSweep: gateStatus(apiSweep, current, (v) => v.status === 'PASS' && v.operationCount > 0 && v.blockerCount === 0),
+    notificationProviderProbe: gateStatus(providerProbe, current, (v) => v.status === 'PASS' && v.productionTouched === false && v.simulator?.telegramCalls >= 2 && v.simulator?.whatsappCalls >= 1),
     stage18: gateStatus(stage18, current, (v) => v.gate?.passed === true),
     payrollMigration: gateStatus(payroll, current, (v) => v.status === 'PASS' && v.gate?.passed === true),
     stage19: gateStatus(stage19, current, (v) => v.gate?.passed === true && (!artifactId || v.buildArtifactId === artifactId)),
@@ -104,6 +112,8 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
   };
 
   const diagnosticSteps = {
+    repositoryAudit: stepOutcome(env, 'T360_CI_STEP_REPO_AUDIT'),
+    uiInteractionAudit: stepOutcome(env, 'T360_CI_STEP_UI_AUDIT'),
     dependencyAudit: stepOutcome(env, 'T360_CI_STEP_DEPENDENCY_AUDIT'),
     criticalUatCoverage: stepOutcome(env, 'T360_CI_STEP_CRITICAL_COVERAGE'),
     restoreDatabases: stepOutcome(env, 'T360_CI_STEP_RESTORE_DATABASES'),
@@ -113,6 +123,8 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
     builtBrowser: stepOutcome(env, 'T360_CI_STEP_BUILT_BROWSER'),
     runtimeStart: stepOutcome(env, 'T360_CI_STEP_RUNTIME_START'),
     workerProbe: stepOutcome(env, 'T360_CI_STEP_WORKER_PROBE'),
+    apiRuntimeSweep: stepOutcome(env, 'T360_CI_STEP_API_SWEEP'),
+    notificationProviderProbe: stepOutcome(env, 'T360_CI_STEP_PROVIDER_PROBE'),
     stagingCertification: stepOutcome(env, 'T360_CI_STEP_STAGING_CERTIFICATION'),
     loadSmoke: stepOutcome(env, 'T360_CI_STEP_LOAD_SMOKE'),
     indexProfile: stepOutcome(env, 'T360_CI_STEP_INDEX_PROFILE'),
@@ -125,8 +137,8 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
 
   const priorJobStatus = String(env.T360_CI_JOB_STATUS || 'unknown').toLowerCase();
   const requiredAutomated = [
-    'build','buildArtifact','artifactTransport','dependencyAudit','criticalUatCoverage','stage18','payrollMigration','stage19',
-    'builtBrowser','workerRuntime','stagingCertification','load','indexProfile','dr','stage20Automated',
+    'build','buildArtifact','artifactTransport','dependencyAudit','criticalUatCoverage','repositoryAudit','uiInteractionAudit','stage18','payrollMigration','stage19',
+    'builtBrowser','workerRuntime','apiRuntimeSweep','notificationProviderProbe','stagingCertification','load','indexProfile','dr','stage20Automated',
   ];
   const automatedPassed = requiredAutomated.every((key) => gate[key] === 'PASS');
   const reportedDiagnostics = Object.values(diagnosticSteps).filter((value) => value !== 'NOT_REPORTED');

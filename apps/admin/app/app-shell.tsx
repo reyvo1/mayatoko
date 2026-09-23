@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronRight, PanelLeftClose, PanelLeftOpen, RefreshCw, Search } from 'lucide-react';
 import type { AdminIdentity, AdminRuntimeManifest, AdminWorkspace, ResolvedAdminNavigation } from './navigation';
-import { domainRoute, domainViewsForWorkspace, resolveDomainViews, type AdminDomainView } from './domain-workspaces';
+import { domainRoute, resolveDomainViews, type AdminDomainView } from './domain-workspaces';
 
 type AdminAppShellProps = {
   manifest: AdminRuntimeManifest | null;
@@ -35,7 +35,6 @@ export default function AdminAppShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [navQuery, setNavQuery] = useState('');
   const navItems = useMemo(() => navigation.flatMap((group) => group.items), [navigation]);
-  const canonicalDomainViews = useMemo(() => domainViewsForWorkspace(activeWorkspace), [activeWorkspace]);
   const domainViews = useMemo(() => resolveDomainViews(activeWorkspace, manifest, identity), [activeWorkspace, manifest, identity]);
   const filteredNavigation = useMemo(() => {
     const query = navQuery.trim().toLocaleLowerCase('id-ID');
@@ -84,7 +83,6 @@ export default function AdminAppShell({
           <span>{manifest ? `${navItems.length} workspace tersedia` : 'Memuat module catalog...'}</span>
           <span>{manifest ? `${manifest.modules.filter((module) => module.isCore || !module.featureKey || manifest.features?.[module.featureKey]?.enabled === true).length}/${manifest.modules.length} module aktif` : 'Feature flags belum dimuat'}</span>
           <span>{manifest?.uiSchemas?.filter((item) => item.surface.toLowerCase() === 'admin').length ?? 0} Admin UI schema</span>
-          <span>{domainViews.length}/{canonicalDomainViews.length} domain view terlihat</span>
           <span>v{manifest?.version ?? '0.5.3'}</span>
         </div>
       </aside>
@@ -125,48 +123,22 @@ export default function AdminAppShell({
             {headerAction}
           </div>
 
-          <section className="workspaceRail" aria-label="Workspace terkait">
-            {navigation.find((group) => group.group === activeWorkspace.group)?.items.map((item) => (
-              <button key={item.route} type="button" className={item.route === activeWorkspace.route ? 'active' : ''} onClick={() => onNavigate(item.route)}>
-                <item.Icon size={15} /><span>{item.label}</span>
-              </button>
-            ))}
-          </section>
-
           {domainViews.length > 0 && (
-            <section className="domainWorkspace" aria-label={`${activeWorkspace.label} workspaces`}>
+            <nav className="domainWorkspace" aria-label={`${activeWorkspace.label} workspaces`}>
               <div className="domainTabs">
-                <button type="button" className={!activeDomainView ? 'active' : ''} onClick={() => onNavigate(activeWorkspace.route)}>Overview</button>
+                <button type="button" className={!activeDomainView ? 'active' : ''} onClick={() => onNavigate(activeWorkspace.route)}>Ringkasan</button>
                 {domainViews.map((view) => (
                   <button key={view.key} type="button" className={activeDomainView?.key === view.key ? 'active' : ''} onClick={() => onNavigate(domainRoute(activeWorkspace, view))}>
                     <view.Icon size={15} /><span>{view.label}</span>
                   </button>
                 ))}
               </div>
-              {!activeDomainView && (
-                <div className="domainDeck">
-                  {domainViews.map((view) => (
-                    <button key={view.key} type="button" className="domainCard" onClick={() => onNavigate(domainRoute(activeWorkspace, view))}>
-                      <span className="domainCardIcon"><view.Icon size={18} /></span>
-                      <span><strong>{view.title}</strong><small>{view.description}</small></span>
-                      <ChevronRight size={16} />
-                    </button>
-                  ))}
-                </div>
-              )}
-              {activeDomainView && <div className="domainContext"><activeDomainView.Icon size={16} /><span>Mode kerja: <strong>{activeDomainView.label}</strong></span><small>Data dan action tetap berasal dari API domain authoritative yang sama.</small></div>}
-            </section>
+            </nav>
           )}
 
           {children}
         </main>
 
-        <footer className="statusbar">
-          <span><span className={`dot ${apiConnected ? '' : 'warn'}`} />{apiConnected ? 'API terhubung' : 'Data belum lengkap'}</span>
-          <span>{manifest?.company?.name ?? 'Runtime belum dimuat'}</span>
-          <span className="footerNote">Status queue, storage, dan worker ditinjau dari Operations Control / staging evidence.</span>
-          <span className="footerVersion">v{manifest?.version ?? '0.5.3'}</span>
-        </footer>
       </div>
     </div>
   );
