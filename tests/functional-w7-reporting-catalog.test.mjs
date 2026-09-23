@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 
 const dto = readFileSync(new URL('../apps/api/src/reports/dto/create-report-job.dto.ts', import.meta.url), 'utf8');
 const worker = readFileSync(new URL('../apps/worker/src/index.ts', import.meta.url), 'utf8');
-const admin = readFileSync(new URL('../apps/admin/app/modules/accounting.tsx', import.meta.url), 'utf8');
+const accounting = readFileSync(new URL('../apps/admin/app/modules/accounting.tsx', import.meta.url), 'utf8');
+const reporting = readFileSync(new URL('../apps/admin/app/modules/reporting-workspace.tsx', import.meta.url), 'utf8');
+const admin = `${accounting}\n${reporting}`;
 
 const required = ['SALES','PRODUCTS','CASHIER','CHANNELS','CUSTOMERS','DISCOUNTS','RETURNS','INVENTORY','INVENTORY_MOVEMENTS','BATCH_EXPIRY','STOCK_OPNAME','PURCHASES','SUPPLIERS','MARGIN','CASH_FLOW','PROFIT_LOSS','TRIAL_BALANCE','BALANCE_SHEET','GENERAL_LEDGER','TAX_SUMMARY','AUDIT_LOG'];
 

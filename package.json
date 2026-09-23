@@ -27,6 +27,8 @@
     "db:postgres:seed": "npm run prisma:seed:postgres -w @toko360/api",
     "db:postgres:studio": "npm run prisma:studio:postgres -w @toko360/api",
     "db:postgres:prepare": "npm run db:postgres:generate && npm run db:postgres:push && npm run db:postgres:seed",
+    "db:migrations:rehearse:sqlite": "npm run db:local:generate && node scripts/rehearse-expand-migrations.mjs --provider sqlite",
+    "db:migrations:rehearse:postgres": "node scripts/rehearse-expand-migrations.mjs --provider postgresql",
     "prisma:generate": "npm run db:local:generate",
     "prisma:push": "npm run db:local:push",
     "prisma:seed": "npm run db:local:seed",
@@ -98,7 +100,8 @@
     "ci:audit:production": "node scripts/ci-audit-production-deps.mjs",
     "test:dependency-free": "node --test tests/*.test.mjs",
     "ci:preflight:local": "npm run workflow:validate && npm run validate:repo && npm run test:dependency-free",
-    "ci:security:proposal": "node scripts/ci-propose-security-dependency-refresh.mjs"
+    "ci:security:proposal": "node scripts/ci-propose-security-dependency-refresh.mjs",
+    "uat:pre-github:local": "node scripts/run-local-candidate-gate.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

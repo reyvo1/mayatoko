@@ -172,3 +172,34 @@ label{display:grid;gap:6px;font-size:12.5px;color:var(--muted)}
   .employeeMobileNav{overscroll-behavior-inline:contain}
   .employeeMobileNav a{min-height:44px;display:inline-flex;align-items:center}
 }
+
+
+/* ===== F12 FINAL EMPLOYEE PORTAL POLISH ===== */
+html{color-scheme:dark;scrollbar-color:#30384b transparent}
+body{line-height:1.5;text-rendering:optimizeLegibility}
+.employeeShell{grid-template-columns:252px minmax(0,1fr)}
+.employeeSidebar{padding:18px 12px;background:#0d1119}
+.employeeBrand{padding:4px 8px 8px}
+.employeeNav{gap:3px}
+.employeeNavItem{padding:10px;border-radius:8px}
+.employeeNavItem.active{background:#171d29;border-color:rgba(255,255,255,.1)}
+.employeeWorkspace{width:min(100%,1440px);padding:20px 24px 52px}
+.employeeTopbar{border-radius:12px;padding:15px 17px}
+.employeePageHeading{padding:22px 2px 10px}
+.employeePageHeading h2{font-size:25px;letter-spacing:-.025em}
+.card,.welcomeDeck article,.pStat{border-radius:10px;box-shadow:none}
+.card{padding:16px}.pStat{padding:14px}
+.statGrid{gap:8px}.dashboardGrid,.profileGrid{gap:12px}
+input,select{min-height:40px;border-radius:8px}
+button{min-height:40px;border-radius:8px}
+.statusPill{min-height:26px}
+.table{border:1px solid var(--border);border-radius:9px;overflow:auto}
+.tr{padding:11px 10px}.tr.th{position:sticky;top:0;background:#171d29;z-index:1}
+.row{padding:11px 0}
+.emptyState{padding:30px 8px}
+@media(max-width:1040px){.employeeShell{grid-template-columns:220px minmax(0,1fr)}}
+@media(max-width:760px){
+  .employeeWorkspace{padding:10px 12px 40px}.employeeTopbar{border-radius:10px}
+  .employeeMobileNav{margin-inline:-12px;padding-inline:12px}.employeePageHeading{padding-top:16px}
+}
+@media(max-width:430px){.statGrid{grid-template-columns:1fr}.employeeTopbar{padding:13px}}

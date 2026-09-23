@@ -122,3 +122,36 @@ button.compact{width:auto;padding:10px 14px;display:inline-flex;align-items:cent
   .mobileNav button{min-height:52px}
   .storefrontHeaderInner{min-height:60px}
 }
+
+
+/* ===== F12 FINAL STOREFRONT POLISH ===== */
+html{color-scheme:light;scrollbar-color:#cbd5e1 transparent}
+body{background:#f6f7f9;line-height:1.5;text-rendering:optimizeLegibility}
+.storefrontHeader{background:rgba(255,255,255,.96);box-shadow:0 1px 0 rgba(15,23,42,.04)}
+.storefrontHeaderInner{min-height:64px}
+.storefrontMain{padding-top:22px}
+.brandMark{border-radius:9px;box-shadow:none}
+.navAction,.accountShortcut,.secondary,button.compact{border-radius:8px}
+.homeDeck,.productDetail,.panel,.orderPanel,.productCard{border-radius:12px;box-shadow:none}
+.homeDeck{padding:28px}
+.metricDeck article{border-radius:10px;background:#f8fafc}
+.catalogToolbar,.catalogControls{gap:10px}
+.productGrid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.productCard{background:#fff;min-width:0}
+.productCard:hover{border-color:#94a3b8}
+.productImage{height:150px;background:#f1f5f9;color:#64748b}
+.productCard .body{padding:15px}
+.cardActions{gap:6px}
+.productDetailVisual{background:#f1f5f9;color:#64748b}
+input,textarea,select{min-height:42px;border-radius:8px}
+button.primary,.productCard button,.paymentChooser button{min-height:42px;border-radius:8px}
+.cartRow{padding:14px 0}
+.qty button{min-width:34px;min-height:34px}
+.emptyState{padding:38px 18px}
+.mobileNav{box-shadow:0 -8px 24px rgba(15,23,42,.05)}
+@media(max-width:700px){
+  .storefrontHeaderInner{min-height:58px}.storefrontMain{padding-top:14px}
+  .homeDeck{padding:18px}.productGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .productImage{height:126px}.productCard .body{padding:12px}.cardActions{grid-template-columns:1fr}
+}
+@media(max-width:430px){.productGrid{grid-template-columns:1fr}.productImage{height:150px}}

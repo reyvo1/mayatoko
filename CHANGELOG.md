@@ -1,3 +1,23 @@
+## 2026-09-23 — F9 WhatsApp / Telegram Notification Center source closure
+- Promoted existing `IntegrationConnection` into the authoritative tenant/channel notification-provider configuration surface with encrypted secrets and provider health.
+- Added connected Telegram/native and provider-neutral external notification delivery before legacy environment fallback, while retaining worker lease/retry/idempotency behavior.
+- Added notification history filters, safe cancel/replay lifecycle, and Admin Notification Center provider/template/delivery operations.
+- Hardened legacy tenant notification regression to verify actual company + branch-envelope behavior instead of brittle source formatting.
+- Verification: focused 18/18 PASS; workflow/repo validation PASS; dependency-free regression 796/796 PASS.
+
+
+## 2026-09-23 — F7 AR/AP/Cash/Bank/Reconciliation source closure
+- Added tenant-scoped AR/AP aging buckets and AP due dates from supplier payment terms.
+- Added journal-backed cash/bank position with latest bank-statement comparison.
+- Added settlement trace from source document through OperationalFinanceTransaction, AccountingEvent, and JournalEntry.
+- Added Admin finance-depth workspace for aging, cash/bank position, and settlement drill-down while preserving canonical settlement/reconciliation flows.
+- Verification: focused 29/29 PASS; workflow/repo validation PASS; dependency-free regression 781/781 PASS.
+
+## 2026-09-23 — F6 Financial Reporting + Drill-down source closure
+- Added journal-backed Cash Flow, operational Margin, period comparison, role-scoped branch comparison, and cost-center dimension reporting.
+- Added account → journal → accounting event → source drill-down endpoint and Admin Reporting workspace.
+- Hardened ReportJob filter validation and expanded worker exports with inventory valuation and comparison reports.
+- Added F6 regression/evidence; runtime/browser/human UAT remains deferred.
 ## 2026-09-22 — Final automation closure
 - Closed UI-P7 from authoritative full-system green commit `97346eafe34b1cad9eb24f3072f04d7fd2c0150d`.
 - Final automation evidence: regression 708 PASS, Built Browser UAT PASS, Stage-18/19/20 automated PASS, aggregate PASS.
@@ -243,3 +263,72 @@
 ## UI-P7
 - Hardened Admin, POS, Storefront, dan Employee Portal untuk keyboard focus, skip-link, reduced-motion, coarse-pointer touch target, serta semantic navigation/status.
 - Closed UI-P6 dari full-system green evidence `4cac591f0ba27f571e987e07b7343d85dba40241`.
+
+## 2026-09-23 — F2 category/subcategory hierarchy
+- Added tenant-scoped category parent/child hierarchy, ordering and active lifecycle with SQLite/PostgreSQL schema parity.
+- Added server-side parent ownership, anti-cycle, sibling-name, and safe deactivation validation.
+- Product Admin can now create, edit, reorder, parent, activate and deactivate categories/subcategories; product selection only uses active categories.
+
+
+## 2026-09-23 — F3 inventory source completion
+- Completed batch/expiry/serial/condition/location inventory source flows and operator visibility.
+- Hardened stock transfer with batch and serial manifests, explicit serial IN_TRANSIT lifecycle, destination batch restoration, and derived in-transit reporting.
+- Added batch-aware whole-warehouse stock opname and reorder visibility using inbound transfer projection.
+- Full dependency-free regression: 757/757 PASS; runtime/browser/human UAT remains deferred.
+
+
+## 2026-09-23 — F4 Accounting enterprise source completion
+- Added branch-scoped Chart of Accounts create/update/lifecycle controls with history and active-posting-rule safety.
+- Added immutable/versioned posting-rule management, effective-date overlap validation, literal account mapping validation, and ACTIVE/INACTIVE lifecycle.
+- Added tenant-scoped accounting event drill-down from business source through posting rule to journal/account lines.
+- Preserved legacy accounting audit action contract while adding explicit version-operation payload.
+- Full dependency-free regression: 762/762 PASS; runtime/browser/human UAT remains deferred.
+
+## 2026-09-23 — F5 Dynamic Tax source completion
+- Added versioned/effective-dated TaxCode configuration without rewriting historical TaxTransaction identity.
+- Added immutable-after-active/used lifecycle, effective overlap guard, branch COA mapping validation, tax ledger/document/reconciliation APIs, and full Admin tax operator workspace.
+- Added expand-only SQLite/PostgreSQL tax-version migration.
+- Verification: workflow/repo gates PASS; dependency-free regression 771/771 PASS. Runtime/browser/human UAT deferred.
+## 2026-09-23 — F8 Automation + Scheduled Reports
+- Completed source-level automation rule lifecycle and operator execution history/cancel/replay.
+- Added first-class scheduled reports with company-timezone recurrence and atomic worker materialization into canonical ReportJob.
+- Added report enqueue rule action, Admin automation workspace, expand-only SQLite/PostgreSQL migration, and F8 regression coverage.
+- Verification: workflow/repo validation PASS; focused F8 21/21 PASS; dependency-free regression 791/791 PASS. Runtime/browser/human UAT remains deferred.
+
+
+
+## 2026-09-23 — F10 AI / Forecasting / Operator Assistant
+- Hardened canonical moving-average forecast with available-stock semantics plus explainable formula, inputs, confidence, and source evidence.
+- Added tenant-scoped OperatorInsight lifecycle for stock, finance, automation, and reporting anomalies/recommendations.
+- Added permission-scoped, source-grounded, read-only Operator Assistant with auditable interaction history and human-confirmation action guards.
+- Added Admin AI & Forecast workspace plus expand-only SQLite/PostgreSQL migration for insight/interaction history.
+- Verification: focused F10/tenant tests 20/20 PASS; workflow/repo validation PASS; dependency-free regression 805/805 PASS. Runtime/browser/human UAT remains deferred.
+
+## F11 Purchase / Sales / POS UOM integration source closure — 2026-09-23
+- F11 source implementation is COMPLETE; runtime/browser/human UAT remains deferred by operator instruction.
+- ProductUnit is now the transaction authority for direct Purchase and POS/Sales UOM selection; barcode remains only a shortcut to the same unit snapshot.
+- PurchaseOrderItem and GoodsReceiptItem preserve selected UOM/variant/factor/cost snapshots while ordered/received inventory quantities remain canonical integer base units.
+- SaleItem preserves variant/ProductUnit identity in addition to unit/factor/barcode snapshots; pricing remains server-authoritative and variant/UOM aware.
+- Admin procurement exposes purchase UOM selection and receiving in PO UOM; POS exposes direct active ProductUnit actions and keeps non-base UOM online-only.
+- Expand-only SQLite/PostgreSQL migration is included but intentionally not auto-applied.
+- Static gates: focused F11 + legacy unit/procurement regression 30/30 PASS, workflow validation PASS, repository validation PASS (180 Prisma models), dependency-free regression 809/809 PASS.
+- Next locked phase: F12 Final UI/UX polish.
+
+## 2026-09-23 — F12 final UI/UX polish
+- Completed presentation-only final polish across Admin, POS, Storefront, and Employee Portal.
+- Added consistent table/form/modal/feedback density, responsive terminal/customer/self-service layouts, and mobile ergonomics without changing business authority.
+- Added F12 static regression guard and completion evidence.
+
+## 2026-09-23 — Local candidate gate before GitHub full-system simulation
+- Added `npm run uat:pre-github:local` and `RUN-LOCAL-CANDIDATE-GATE.cmd` as a fail-closed local gate after F12/UAT migration hardening.
+- The gate runs SQLite expand-migration rehearsal, the canonical full local quality/build/DB-smoke gate, and 12-scenario critical-UAT coverage evidence before GitHub heavy simulation.
+- Local candidate validation refuses production/live and PostgreSQL targets; PostgreSQL exact-artifact/browser/Stage-18/19/20 validation remains authoritative in GitHub Full System Simulation.
+- Human Stage-20 UAT remains explicitly PENDING and is never auto-approved by the local gate.
+
+## 2026-09-23 — Local candidate TypeScript closure
+- Fixed Admin tax ledger rendering type narrowing after F5 versioned tax workspace.
+- Updated seed compound unique selectors for tenant category hierarchy and versioned TaxCode schema.
+- Made accounting tenant-denial guards narrow nullable Prisma rows through Promise<never> instead of leaving false-positive nullable access.
+- Allowed aggregate extension audit events without a concrete entity id, matching nullable AuditLog.entityId.
+- Preserved typed outstandingAmount in supplier aging rows, explicitly typed Purchase UOM prepared items, and included variant/ProductUnit identity in Sales prepared item snapshots.
+- Added local-candidate TypeScript regression guards; dependency-free regression 829/829 PASS in source snapshot. Full workspace lint/build must be re-run on the local dependency-complete repository.

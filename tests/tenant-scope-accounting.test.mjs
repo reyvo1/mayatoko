@@ -22,7 +22,7 @@ test('accounting event list is company and branch scoped', () => {
 });
 
 test('tax codes and posting rules use token company instead of dto company', () => {
-  assert.match(service, /companyId_code: \{ companyId: scope\.companyId, code: dto\.code \}/);
+  assert.match(service, /companyId_code_version: \{ companyId: scope\.companyId, code/);
   assert.match(service, /companyId_code_version: \{ companyId: scope\.companyId, code: dto\.code/);
   assert.doesNotMatch(service, /companyId_code: \{ companyId: dto\.companyId/);
   assert.doesNotMatch(service, /companyId_code_version: \{ companyId: dto\.companyId/);

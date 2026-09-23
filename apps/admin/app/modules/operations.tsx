@@ -12,16 +12,20 @@ type PurchaseReturnItem = { id: string; productId: string; quantity: number; met
 type PurchaseReturn = { id: string; number: string; status: string; amount: string | number; goodsReceiptId?: string | null; supplierCreditNoteNumber?: string | null; inspectionId?: string | null; items: PurchaseReturnItem[]; createdAt: string };
 type GoodsReceiptItem = { id: string; productId: string; quantityReceived: number; acceptedQty: number; product?: { id: string; sku: string; name: string } };
 type GoodsReceipt = { id: string; number: string; operationalStatus: string; supplier?: { id: string; name: string }; warehouse?: { id: string; code: string; name: string }; items: GoodsReceiptItem[]; receivedAt: string };
-type TransferItem = { id: string; productId: string; quantity: number; shippedQty: number; receivedQty: number; batchNumber?: string | null };
+type TransferItem = { id: string; productId: string; quantity: number; shippedQty: number; receivedQty: number; batchNumber?: string | null; serialNumbers?: string[] | null };
 type Transfer = { id: string; number: string; sourceWarehouseId: string; destinationWarehouseId: string; status: string; items: TransferItem[]; createdAt: string };
-type OpnameItem = { id: string; productId: string; systemQty: number; countedQty?: number | null; difference?: number | null; reason?: string | null };
+type OpnameItem = { id: string; productId: string; batchNumber?: string | null; systemQty: number; countedQty?: number | null; difference?: number | null; reason?: string | null };
 type Opname = { id: string; number: string; warehouseId: string; locationId?: string | null; status: string; items: OpnameItem[]; createdAt: string };
 type Warehouse = { id: string; code: string; name: string; branchId: string; isActive?: boolean };
-type Product = { id: string; sku: string; name: string; trackBatch?: boolean; trackSerial?: boolean };
+type Product = { id: string; sku: string; name: string; trackBatch?: boolean; trackExpiry?: boolean; trackSerial?: boolean };
 type InventoryBatch = { id:string; warehouseId:string; productId:string; batchNumber:string; quantity:number; reserved:number; producedAt?:string|null; expiryDate?:string|null };
 type InventorySerial = { id:string; warehouseId:string; productId:string; serialNumber:string; status:string; referenceType?:string|null; referenceId?:string|null; createdAt:string };
 type WarehouseLocation = { id:string; warehouseId:string; code:string; name:string; type:string; isDefault?:boolean; isActive?:boolean };
 type LocationBalance = { id:string; warehouseId:string; locationId:string; productId:string; quantity:number; reserved:number; available:number; location?:WarehouseLocation|null; product?:{ id:string; sku:string; name:string; baseUnit?:string }|null };
+type InventoryCondition = 'AVAILABLE'|'DAMAGED'|'QUARANTINE'|'LOST';
+type ConditionBalance = { id:string; warehouseId:string; locationId:string; productId:string; condition:InventoryCondition; quantity:number; location?:{ id:string; code:string; name:string; isActive:boolean }|null };
+type TransitBalance = { transferId:string; number:string; sourceWarehouseId:string; destinationWarehouseId:string; productId:string; condition:'IN_TRANSIT'; quantity:number; batchNumber?:string|null; serialCount:number; shippedAt?:string|null };
+type ReorderVisibility = { warehouseId:string; warehouse:{id:string;code:string;name:string}; productId:string; product:{id:string;sku:string;name:string;minStock:number}; available:number; minStock:number; inboundInTransit:number; outboundInTransit:number; projectedAvailable:number; shortage:number; lowStock:boolean };
 
 type CursorResponse<T> = T[] | { items?: T[] };
 function rowsOf<T>(value: CursorResponse<T>): T[] { return Array.isArray(value) ? value : value.items ?? []; }
@@ -39,15 +43,20 @@ export default function OperationsView({ token }: { token: string }) {
   const [serials, setSerials] = useState<InventorySerial[]>([]);
   const [locations, setLocations] = useState<WarehouseLocation[]>([]);
   const [locationBalances, setLocationBalances] = useState<LocationBalance[]>([]);
+  const [conditionBalances, setConditionBalances] = useState<ConditionBalance[]>([]);
+  const [transitBalances, setTransitBalances] = useState<TransitBalance[]>([]);
+  const [reorderVisibility, setReorderVisibility] = useState<ReorderVisibility[]>([]);
+  const [conditionProductId, setConditionProductId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busyKey, setBusyKey] = useState('');
-  const [transferForm, setTransferForm] = useState({ sourceWarehouseId: '', destinationWarehouseId: '', productId: '', quantity: 1, notes: '' });
+  const [transferForm, setTransferForm] = useState({ sourceWarehouseId: '', destinationWarehouseId: '', productId: '', quantity: 1, batchNumber: '', serialText: '', notes: '' });
   const [opnameWarehouseId, setOpnameWarehouseId] = useState('');
   const [opnameLocationId, setOpnameLocationId] = useState('');
   const [locationWarehouseId, setLocationWarehouseId] = useState('');
   const [relocationForm, setRelocationForm] = useState({ productId:'', sourceLocationId:'', destinationLocationId:'', quantity:1, notes:'' });
+  const [conditionForm, setConditionForm] = useState<{locationId:string;fromCondition:InventoryCondition;toCondition:InventoryCondition;quantity:number;notes:string}>({ locationId:'', fromCondition:'AVAILABLE', toCondition:'QUARANTINE', quantity:1, notes:'' });
   const [purchaseReturnForm, setPurchaseReturnForm] = useState({ goodsReceiptId: '', goodsReceiptItemId: '', quantity: 1, reason: '', supplierCreditNoteNumber: '' });
   const [selectedOpnameId, setSelectedOpnameId] = useState('');
   const [counts, setCounts] = useState<Record<string, string>>({});
@@ -69,7 +78,7 @@ export default function OperationsView({ token }: { token: string }) {
   async function refresh() {
     setLoading(true); setError('');
     try {
-      const [sr, ort, prt, gr, tr, op, wh, pr, ba, se, lo] = await Promise.all([
+      const [sr, ort, prt, gr, tr, op, wh, pr, ba, se, lo, transit, reorder] = await Promise.all([
         api<CursorResponse<SaleReturn>>('/returns/sales?limit=50'),
         api<CursorResponse<OrderReturn>>('/returns/orders'),
         api<CursorResponse<PurchaseReturn>>('/returns/purchases?limit=50'),
@@ -81,12 +90,14 @@ export default function OperationsView({ token }: { token: string }) {
         api<CursorResponse<InventoryBatch>>('/inventory-batches'),
         api<CursorResponse<InventorySerial>>('/inventory-serials'),
         api<CursorResponse<WarehouseLocation>>('/master-data/warehouse-locations'),
+        api<TransitBalance[]>('/advanced-inventory/transit-balances'),
+        api<ReorderVisibility[]>('/advanced-inventory/reorder-visibility'),
       ]);
       const warehouseRows = rowsOf(wh).filter((row) => row.isActive !== false);
       const productRows = rowsOf(pr);
       const receiptRows = rowsOf(gr).filter((row) => ['CONFIRMED','PARTIALLY_ACCEPTED'].includes(row.operationalStatus));
       const locationRows = rowsOf(lo).filter((row) => row.isActive !== false);
-      setSaleReturns(rowsOf(sr)); setOrderReturns(rowsOf(ort)); setPurchaseReturns(rowsOf(prt)); setGoodsReceipts(receiptRows); setTransfers(rowsOf(tr)); setOpnames(rowsOf(op)); setWarehouses(warehouseRows); setProducts(productRows); setBatches(rowsOf(ba)); setSerials(rowsOf(se)); setLocations(locationRows);
+      setSaleReturns(rowsOf(sr)); setOrderReturns(rowsOf(ort)); setPurchaseReturns(rowsOf(prt)); setGoodsReceipts(receiptRows); setTransfers(rowsOf(tr)); setOpnames(rowsOf(op)); setWarehouses(warehouseRows); setProducts(productRows); setBatches(rowsOf(ba)); setSerials(rowsOf(se)); setLocations(locationRows); setTransitBalances(transit); setReorderVisibility(reorder);
       setPurchaseReturnForm((value) => {
         const receiptId = value.goodsReceiptId || receiptRows[0]?.id || '';
         const receipt = receiptRows.find((row) => row.id === receiptId);
@@ -102,6 +113,7 @@ export default function OperationsView({ token }: { token: string }) {
       setOpnameWarehouseId((value) => value || warehouseRows[0]?.id || '');
       setLocationWarehouseId((value) => value || warehouseRows[0]?.id || '');
       setRelocationForm((value) => ({ ...value, productId:value.productId || productRows[0]?.id || '' }));
+      setConditionProductId((value) => value || productRows[0]?.id || '');
       const batchProducts = productRows.filter((row) => row.trackBatch);
       const serialProducts = productRows.filter((row) => row.trackSerial);
       setBatchForm((value) => ({ ...value, warehouseId: value.warehouseId || warehouseRows[0]?.id || '', productId: value.productId || batchProducts[0]?.id || '' }));
@@ -121,11 +133,25 @@ export default function OperationsView({ token }: { token: string }) {
     return () => { cancelled = true; };
   }, [locationWarehouseId, token]);
 
+  useEffect(() => {
+    if (!locationWarehouseId || !conditionProductId) { setConditionBalances([]); return; }
+    let cancelled = false;
+    const query = `/advanced-inventory/condition-balances?warehouseId=${encodeURIComponent(locationWarehouseId)}&productId=${encodeURIComponent(conditionProductId)}`;
+    void api<ConditionBalance[]>(query).then((value) => {
+      if (cancelled) return;
+      setConditionBalances(value);
+      const availableSource = value.find((row) => row.quantity > 0);
+      setConditionForm((form) => ({ ...form, locationId: value.some((row) => row.locationId === form.locationId && row.condition === form.fromCondition && row.quantity > 0) ? form.locationId : availableSource?.locationId ?? '' }));
+    }).catch((err) => { if (!cancelled) setMessage(err instanceof Error ? err.message : 'Saldo kondisi inventory gagal dimuat.'); });
+    return () => { cancelled = true; };
+  }, [locationWarehouseId, conditionProductId, token]);
+
   const warehouseById = useMemo(() => new Map(warehouses.map((row) => [row.id, row])), [warehouses]);
   const productById = useMemo(() => new Map(products.map((row) => [row.id, row])), [products]);
   const selectedOpname = opnames.find((row) => row.id === selectedOpnameId);
   const locationOptions = locations.filter((row) => row.warehouseId === locationWarehouseId);
   const opnameLocationOptions = locations.filter((row) => row.warehouseId === opnameWarehouseId);
+  const conditionSourceRows = conditionBalances.filter((row) => row.condition === conditionForm.fromCondition && row.quantity > 0);
 
   async function run(key: string, work: () => Promise<string | void>) {
     if (busyKey) return;
@@ -214,10 +240,14 @@ export default function OperationsView({ token }: { token: string }) {
       if (!transferForm.sourceWarehouseId || !transferForm.destinationWarehouseId || !transferForm.productId) throw new Error('Pilih gudang asal, tujuan, dan produk.');
       if (transferForm.sourceWarehouseId === transferForm.destinationWarehouseId) throw new Error('Gudang asal dan tujuan harus berbeda.');
       if (!Number.isInteger(transferForm.quantity) || transferForm.quantity < 1) throw new Error('Jumlah transfer minimal 1.');
+      const product = productById.get(transferForm.productId);
+      const serialNumbers = transferForm.serialText.split(/[\n,]+/).map((value) => value.trim()).filter(Boolean);
+      if (product?.trackBatch && !transferForm.batchNumber.trim()) throw new Error('Produk ini memakai batch; pilih nomor batch.');
+      if (product?.trackSerial && serialNumbers.length !== transferForm.quantity) throw new Error(`Produk serial membutuhkan ${transferForm.quantity} serial.`);
       const row = await api<Transfer>('/advanced-inventory/stock-transfers', {
-        method: 'POST', body: JSON.stringify({ sourceWarehouseId: transferForm.sourceWarehouseId, destinationWarehouseId: transferForm.destinationWarehouseId, notes: transferForm.notes || undefined, items: [{ productId: transferForm.productId, quantity: transferForm.quantity }] }),
+        method: 'POST', body: JSON.stringify({ sourceWarehouseId: transferForm.sourceWarehouseId, destinationWarehouseId: transferForm.destinationWarehouseId, notes: transferForm.notes || undefined, items: [{ productId: transferForm.productId, quantity: transferForm.quantity, batchNumber: transferForm.batchNumber.trim() || undefined, serialNumbers: serialNumbers.length ? serialNumbers : undefined }] }),
       });
-      setTransferForm((value) => ({ ...value, quantity: 1, notes: '' }));
+      setTransferForm((value) => ({ ...value, quantity: 1, batchNumber: '', serialText: '', notes: '' }));
       return `Transfer ${row.number} dibuat dan menunggu approval.`;
     });
   }
@@ -287,6 +317,20 @@ export default function OperationsView({ token }: { token: string }) {
     });
   }
 
+  async function moveCondition(event: FormEvent) {
+    event.preventDefault();
+    await run('condition:move', async () => {
+      if (!locationWarehouseId || !conditionProductId || !conditionForm.locationId) throw new Error('Gudang, produk, dan lokasi kondisi wajib dipilih.');
+      if (conditionForm.fromCondition === conditionForm.toCondition) throw new Error('Kondisi asal dan tujuan harus berbeda.');
+      if (!Number.isInteger(conditionForm.quantity) || conditionForm.quantity < 1) throw new Error('Jumlah perubahan kondisi minimal 1.');
+      await api('/advanced-inventory/condition-movements', { method:'POST', body:JSON.stringify({ warehouseId:locationWarehouseId, productId:conditionProductId, locationId:conditionForm.locationId, fromCondition:conditionForm.fromCondition, toCondition:conditionForm.toCondition, quantity:conditionForm.quantity, notes:conditionForm.notes || undefined }) });
+      const fresh = await api<ConditionBalance[]>(`/advanced-inventory/condition-balances?warehouseId=${encodeURIComponent(locationWarehouseId)}&productId=${encodeURIComponent(conditionProductId)}`);
+      setConditionBalances(fresh);
+      setConditionForm((value) => ({ ...value, quantity:1, notes:'' }));
+      return `Kondisi stok ${conditionForm.fromCondition} → ${conditionForm.toCondition} berhasil. Stok fisik tetap, sellable stock disesuaikan server.`;
+    });
+  }
+
   async function createBatch(event: FormEvent) {
     event.preventDefault();
     await run('batch:create', async () => {
@@ -318,10 +362,10 @@ export default function OperationsView({ token }: { token: string }) {
             <label>Produk batch<select required value={batchForm.productId} onChange={(e)=>setBatchForm({...batchForm,productId:e.target.value})}><option value="">Pilih produk</option>{products.filter((p)=>p.trackBatch).map((p)=><option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select></label>
             <label>Nomor batch<input required value={batchForm.batchNumber} onChange={(e)=>setBatchForm({...batchForm,batchNumber:e.target.value})}/></label>
             <label>Tanggal produksi<input type="date" value={batchForm.producedAt} onChange={(e)=>setBatchForm({...batchForm,producedAt:e.target.value})}/></label>
-            <label>Kedaluwarsa<input type="date" value={batchForm.expiryDate} onChange={(e)=>setBatchForm({...batchForm,expiryDate:e.target.value})}/></label>
+            <label>Kedaluwarsa{productById.get(batchForm.productId)?.trackExpiry?' (wajib)':''}<input required={Boolean(productById.get(batchForm.productId)?.trackExpiry)} type="date" value={batchForm.expiryDate} onChange={(e)=>setBatchForm({...batchForm,expiryDate:e.target.value})}/></label>
             <button disabled={Boolean(busyKey)}>Praregistrasi batch</button>
           </form>
-          <Table head={['Batch','Produk','Gudang','Qty / Reserved','Expiry']} rows={batches.slice(0,40).map((b)=>[<strong>{b.batchNumber}</strong>,productById.get(b.productId)?.sku??b.productId,warehouseById.get(b.warehouseId)?.code??'-',`${b.quantity} / ${b.reserved}`,b.expiryDate?tanggal(b.expiryDate):'-'])} empty="Belum ada batch." />
+          <Table head={['Batch','Produk','Gudang','Qty / Reserved','Expiry','Status']} rows={batches.slice(0,40).map((b)=>{const expired=Boolean(b.expiryDate&&new Date(b.expiryDate).getTime()<=Date.now());return [<strong>{b.batchNumber}</strong>,productById.get(b.productId)?.sku??b.productId,warehouseById.get(b.warehouseId)?.code??'-',`${b.quantity} / ${b.reserved}`,b.expiryDate?tanggal(b.expiryDate):'-',<StatusChip status={expired?'EXPIRED':'ACTIVE'}/>];})} empty="Belum ada batch." />
           <p className="sectionHelp">Praregistrasi tidak menambah stok. Kuantitas batch hanya boleh berasal dari penerimaan/retur/transfer/movement canonical.</p>
         </Panel>
         <Panel eyebrow="TRACEABILITY" title="Serial Number" badge={`${serials.length} serial`}>
@@ -360,8 +404,10 @@ export default function OperationsView({ token }: { token: string }) {
           <form className="formStack" onSubmit={createTransfer}>
             <label>Gudang asal<select required value={transferForm.sourceWarehouseId} onChange={(e) => setTransferForm({ ...transferForm, sourceWarehouseId: e.target.value })}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
             <label>Gudang tujuan<select required value={transferForm.destinationWarehouseId} onChange={(e) => setTransferForm({ ...transferForm, destinationWarehouseId: e.target.value })}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
-            <label>Produk<select required value={transferForm.productId} onChange={(e) => setTransferForm({ ...transferForm, productId: e.target.value })}>{products.map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select></label>
+            <label>Produk<select required value={transferForm.productId} onChange={(e) => setTransferForm({ ...transferForm, productId: e.target.value, batchNumber:'', serialText:'' })}>{products.map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select></label>
             <label>Jumlah<input required type="number" min="1" step="1" value={transferForm.quantity} onChange={(e) => setTransferForm({ ...transferForm, quantity: Number(e.target.value) })} /></label>
+            {productById.get(transferForm.productId)?.trackBatch && <label>Batch<select required value={transferForm.batchNumber} onChange={(e)=>setTransferForm({...transferForm,batchNumber:e.target.value})}><option value="">Pilih batch</option>{batches.filter((b)=>b.warehouseId===transferForm.sourceWarehouseId&&b.productId===transferForm.productId&&b.quantity>b.reserved).map((b)=><option key={b.id} value={b.batchNumber}>{b.batchNumber} · tersedia {b.quantity-b.reserved}{b.expiryDate?` · exp ${tanggal(b.expiryDate)}`:''}</option>)}</select></label>}
+            {productById.get(transferForm.productId)?.trackSerial && <label>Serial transfer <small>(satu per baris/koma)</small><textarea required value={transferForm.serialText} onChange={(e)=>setTransferForm({...transferForm,serialText:e.target.value})} placeholder="SN001&#10;SN002" /></label>}
             <label>Catatan<input value={transferForm.notes} onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })} /></label>
             <button disabled={Boolean(busyKey)}>{busyKey === 'transfer:create' ? 'Membuat…' : 'Buat transfer'}</button>
           </form>
@@ -407,6 +453,17 @@ export default function OperationsView({ token }: { token: string }) {
       </Panel>
 
       <section className="grid2">
+        <Panel eyebrow="IN-TRANSIT" title="Stok Dalam Perjalanan" badge={`${transitBalances.reduce((sum,row)=>sum+row.quantity,0)} unit`}>
+          <Table head={['Transfer','Rute','Produk','Batch / Serial','Qty']} rows={transitBalances.map((row)=>[<strong>{row.number}</strong>,`${warehouseById.get(row.sourceWarehouseId)?.code??'?'} → ${warehouseById.get(row.destinationWarehouseId)?.code??'?'}`,productById.get(row.productId)?.sku??row.productId,row.batchNumber?`${row.batchNumber}${row.serialCount?` · ${row.serialCount} serial`:''}`:(row.serialCount?`${row.serialCount} serial`:'-'),row.quantity])} empty="Tidak ada stok IN_TRANSIT." />
+          <p className="sectionHelp">IN_TRANSIT dihitung dari ledger StockTransfer (shippedQty − receivedQty), bukan disimpan sebagai stok gudang agar quantity tidak terhitung ganda.</p>
+        </Panel>
+        <Panel eyebrow="REORDER" title="Minimum Stok & Reorder Visibility" badge={`${reorderVisibility.filter((row)=>row.shortage>0).length} shortage`}>
+          <Table head={['Gudang','Produk','Available','Min','Inbound','Projected','Shortage']} rows={reorderVisibility.map((row)=>[row.warehouse.code,`${row.product.sku} · ${row.product.name}`,row.available,row.minStock,row.inboundInTransit,row.projectedAvailable,row.shortage])} empty="Tidak ada produk minimum-stock yang perlu ditinjau." />
+          <p className="sectionHelp">Projected = available + inbound IN_TRANSIT. Shortage menghitung kebutuhan terhadap minimum stok tanpa menganggap stok outbound masih tersedia.</p>
+        </Panel>
+      </section>
+
+      <section className="grid2">
         <Panel eyebrow="LOCATION INVENTORY" title="Saldo Stok per Lokasi" badge={`${locationBalances.length} saldo`}>
           <div className="formStack">
             <label>Gudang<select value={locationWarehouseId} onChange={(e) => { setLocationWarehouseId(e.target.value); setRelocationForm((value) => ({ ...value, sourceLocationId:'', destinationLocationId:'' })); }}>{warehouses.map((w)=><option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
@@ -423,6 +480,27 @@ export default function OperationsView({ token }: { token: string }) {
             <button disabled={Boolean(busyKey)}>{busyKey==='location:relocate'?'Memindahkan…':'Relokasi stok'}</button>
           </form>
           <p className="sectionHelp">Relokasi hanya memindahkan saldo antar bin/lokasi. Quantity warehouse aggregate, accounting, dan nilai persediaan tidak berubah.</p>
+        </Panel>
+      </section>
+
+      <section className="grid2">
+        <Panel eyebrow="CONDITION CONTROL" title="Kondisi Stok per Lokasi" badge="sellable-aware">
+          <div className="formStack">
+            <label>Produk<select value={conditionProductId} onChange={(e)=>{setConditionProductId(e.target.value);setConditionForm((value)=>({...value,locationId:''}));}}><option value="">Pilih produk</option>{products.map((p)=><option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select></label>
+          </div>
+          <Table head={['Lokasi','Kondisi','Quantity']} rows={conditionBalances.map((row)=>[row.location?`${row.location.code} · ${row.location.name}`:row.locationId,<StatusChip status={row.condition}/>,row.quantity])} empty="Belum ada saldo kondisi. Stok legacy akan dimaterialisasi sebagai AVAILABLE saat pertama diakses." />
+          <p className="sectionHelp">AVAILABLE adalah stok sellable. DAMAGED, QUARANTINE, dan LOST tetap tercatat sebagai stok fisik terklasifikasi tetapi tidak dapat dipakai penjualan/reservasi.</p>
+        </Panel>
+        <Panel eyebrow="CONDITION MOVE" title="Ubah Kondisi Stok" badge="append-only audit">
+          <form className="formStack" onSubmit={moveCondition}>
+            <label>Kondisi asal<select value={conditionForm.fromCondition} onChange={(e)=>setConditionForm({...conditionForm,fromCondition:e.target.value as InventoryCondition,locationId:''})}><option value="AVAILABLE">AVAILABLE</option><option value="DAMAGED">DAMAGED</option><option value="QUARANTINE">QUARANTINE</option><option value="LOST">LOST</option></select></label>
+            <label>Lokasi / saldo<select required value={conditionForm.locationId} onChange={(e)=>setConditionForm({...conditionForm,locationId:e.target.value})}><option value="">Pilih saldo</option>{conditionSourceRows.map((row)=><option key={row.id} value={row.locationId}>{row.location?.code ?? row.locationId} · {row.quantity} {row.condition}</option>)}</select></label>
+            <label>Kondisi tujuan<select value={conditionForm.toCondition} onChange={(e)=>setConditionForm({...conditionForm,toCondition:e.target.value as InventoryCondition})}><option value="AVAILABLE">AVAILABLE</option><option value="DAMAGED">DAMAGED</option><option value="QUARANTINE">QUARANTINE</option><option value="LOST">LOST</option></select></label>
+            <label>Jumlah<input type="number" min="1" step="1" value={conditionForm.quantity} onChange={(e)=>setConditionForm({...conditionForm,quantity:Number(e.target.value)})}/></label>
+            <label>Catatan<input value={conditionForm.notes} onChange={(e)=>setConditionForm({...conditionForm,notes:e.target.value})} placeholder="Alasan rusak, karantina, hilang, atau release"/></label>
+            <button disabled={Boolean(busyKey)}>{busyKey==='condition:move'?'Memproses…':'Ubah kondisi'}</button>
+          </form>
+          <p className="sectionHelp">Server menolak pemindahan stok AVAILABLE yang sedang reserved. Setiap perubahan kondisi menghasilkan audit log, outbox event, dan condition movement immutable.</p>
         </Panel>
       </section>
 
@@ -449,7 +527,7 @@ export default function OperationsView({ token }: { token: string }) {
 
       {selectedOpname && selectedOpname.status === 'COUNTING' && <Panel eyebrow="PHYSICAL COUNT" title={`Hitung ${selectedOpname.number}`} badge={`${selectedOpname.items.length} item`}>
         {selectedOpname.items.length === 0 ? <p className="sectionHelp">Gudang belum memiliki inventory yang dapat dihitung.</p> : <div className="formStack">
-          {selectedOpname.items.map((item) => <label key={item.id}>{productById.get(item.productId)?.name ?? item.productId} · sistem {item.systemQty}
+          {selectedOpname.items.map((item) => <label key={item.id}>{productById.get(item.productId)?.name ?? item.productId}{item.batchNumber?` · batch ${item.batchNumber}`:''} · sistem {item.systemQty}
             <input type="number" min="0" step="1" value={counts[item.id] ?? ''} onChange={(e) => setCounts((value) => ({ ...value, [item.id]: e.target.value }))} />
           </label>)}
           <div className="rowActions"><button type="button" disabled={Boolean(busyKey)} onClick={() => void saveCounts(selectedOpname)}>{busyKey === `opname:${selectedOpname.id}:count` ? 'Menyimpan…' : 'Simpan hitung fisik'}</button><button type="button" className="secondary" onClick={() => setSelectedOpnameId('')}>Tutup</button></div>

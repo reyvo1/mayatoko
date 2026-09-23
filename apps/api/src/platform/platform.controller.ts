@@ -5,9 +5,10 @@ import { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import { Roles } from '../auth/roles.decorator';
+import { Permissions } from '../auth/permissions.decorator';
 import {
   CreateApprovalPolicyDto, CreateApprovalRequestDto, CreateBusinessRuleDto, CreateCustomFieldDto,
-  CreateIntegrationDto, CreateUiSchemaDto, CreateWebhookDto, DecideApprovalDto, DelegateApprovalDto, UpdateIntegrationDto,
+  CreateIntegrationDto, CreateUiSchemaDto, CreateWebhookDto, DecideApprovalDto, DelegateApprovalDto, UpdateBusinessRuleDto, UpdateIntegrationDto,
   SetCustomFieldValueDto, UpsertFeatureFlagDto, UpsertSettingDto,
 } from './dto/platform.dto';
 import { PlatformService } from './platform.service';
@@ -44,8 +45,12 @@ import { PlatformService } from './platform.service';
   @Get('webhooks') webhooks(@CurrentUser() user: AuthUser, @Query('companyId') companyId?: string) { return this.platform.listWebhooks(user, companyId); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('webhooks') createWebhook(@Body() dto: CreateWebhookDto, @CurrentUser() user: AuthUser) { return this.platform.createWebhook(dto, user); }
 
-  @Get('business-rules') rules(@CurrentUser() user: AuthUser, @Query('companyId') companyId?: string) { return this.platform.listRules(user, companyId); }
-  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('business-rules') createRule(@Body() dto: CreateBusinessRuleDto, @CurrentUser() user: AuthUser) { return this.platform.createRule(dto, user); }
+  @Get('business-rules') @Permissions('automation.manage') rules(@CurrentUser() user: AuthUser, @Query('companyId') companyId?: string) { return this.platform.listRules(user, companyId); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('business-rules') @Permissions('automation.manage') createRule(@Body() dto: CreateBusinessRuleDto, @CurrentUser() user: AuthUser) { return this.platform.createRule(dto, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Patch('business-rules/:id') @Permissions('automation.manage') updateRule(@Param('id') id: string, @Body() dto: UpdateBusinessRuleDto, @CurrentUser() user: AuthUser) { return this.platform.updateRule(id, dto, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Get('automation-jobs') automationJobs(@CurrentUser() user: AuthUser, @Query('status') status?: string, @Query('ruleCode') ruleCode?: string, @Query('limit') limit?: string) { return this.platform.listAutomationJobs(user, status, ruleCode, limit ? Number(limit) : 100); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Get('automation-jobs/:id') automationJob(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.automationJobDetail(id, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('automation-jobs/:id/cancel') @Permissions('automation.manage') cancelAutomation(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.cancelAutomationJob(id, user); }
 
   @Get('approval-policies') approvalPolicies(@CurrentUser() user: AuthUser, @Query('companyId') companyId?: string) { return this.platform.listApprovalPolicies(user, companyId); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('approval-policies') createApprovalPolicy(@Body() dto: CreateApprovalPolicyDto, @CurrentUser() user: AuthUser) { return this.platform.createApprovalPolicy(dto, user); }
@@ -53,10 +58,11 @@ import { PlatformService } from './platform.service';
   @Post('approval-requests') createApprovalRequest(@Body() dto: CreateApprovalRequestDto, @CurrentUser() user: AuthUser) { return this.platform.createApprovalRequest(dto, user); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN','FINANCE','WAREHOUSE','PURCHASING') @Patch('approval-requests/:id/decision') decideApproval(@Param('id') id: string, @Body() dto: DecideApprovalDto, @CurrentUser() user: AuthUser) { return this.platform.decideApproval(id, dto, user); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN','FINANCE','WAREHOUSE','PURCHASING') @Patch('approval-requests/:id/delegate') delegateApproval(@Param('id') id: string, @Body() dto: DelegateApprovalDto, @CurrentUser() user: AuthUser) { return this.platform.delegateApproval(id, dto, user); }
-  @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Post('automation-jobs/:id/replay') replayAutomation(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.replayAutomationJob(id, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('automation-jobs/:id/replay') @Permissions('automation.manage') replayAutomation(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.replayAutomationJob(id, user); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Post('webhook-deliveries/:id/replay') replayWebhook(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.replayWebhookDelivery(id, user); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Post('outbox/:id/replay') replayOutbox(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.replayOutboxEvent(id, user); }
-  @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Post('notifications/:id/replay') replayNotification(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.replayNotification(id, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('notifications/:id/cancel') @Permissions('notification.manage') cancelNotification(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.cancelNotification(id, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('notifications/:id/replay') @Permissions('notification.manage') replayNotification(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.platform.replayNotification(id, user); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Get('audit-logs') auditLogs(@CurrentUser() user: AuthUser, @Query('limit') limit?: string, @Query('action') action?: string, @Query('entityType') entityType?: string) { return this.platform.listAuditLogs(user, limit ? Number(limit) : 100, action, entityType); }
 
   @Get('ui-schemas') uiSchemas(@CurrentUser() user: AuthUser, @Query('companyId') companyId?: string, @Query('code') code?: string) { return this.platform.listUiSchemas(user, companyId, code); }

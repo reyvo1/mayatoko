@@ -1,7 +1,13 @@
 {
   "workItem": "T360-20260802-145524",
   "stage": 18,
-  "generatedAt": "2026-08-02T16:11:06.346Z",
+  "runId": "2026-09-22T15-45-38-082Z",
+  "generatedAt": "2026-09-22T15:45:49.402Z",
+  "sourceIdentity": {
+    "algorithm": "sha256",
+    "value": "00621ae6604475a218fce9ece0965f32f15f98c4c818d7d41d6c63c744ecf7d4",
+    "fileCount": 518
+  },
   "targetMode": "STAGING",
   "target": {
     "hostHash": "49960de5880e8c68",
@@ -14,7 +20,8 @@
     "serverVersion": "16.14"
   },
   "backup": {
-    "sha256": "a0fe13e6a8c0228ccf8f9a6d52c731e604a73ed00de823d7533306c4baa65a5a",
+    "path": "logs/stage18-product-supplier-postgres/2026-09-22T15-45-38-082Z/pre-stage18.dump",
+    "sha256": "4aa5c5b414897dc1c7f4c7ee7b3c47cd8563ec081e49ca018f0a5beefe5862f7",
     "archiveListVerified": true
   },
   "restoreTest": {
@@ -23,9 +30,9 @@
     "supplierTotal": 1
   },
   "decisions": {
-    "fileHash": "20481428a458ee2472efcc5dcb3b0dc34e25b6bc6090ddcf3e2f5d2d670f148b",
+    "fileHash": "884438f4ce124c8fdac2b75aaef380a3818749eabb1749ff23ffd733c206c94e",
     "productAssignments": 0,
-    "supplierAssignments": 1
+    "supplierAssignments": 0
   },
   "before": {
     "productTotal": 3,

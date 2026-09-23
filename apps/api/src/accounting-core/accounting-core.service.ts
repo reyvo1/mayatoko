@@ -1,10 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, TaxTransactionDirection } from '@prisma/client';
+import { AccountType, Prisma, TaxTransactionDirection } from '@prisma/client';
 import { AuthUser } from '../auth/auth.types';
 import { nextDocumentNumber } from '../common/numbering';
 import { decodeCursor, parsePageLimit, toCursorPage } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreatePostingRuleDto, CreateTaxCodeDto, PostManualAccountingEventDto } from './dto/accounting-core.dto';
+import { CreateAccountDto, CreatePostingRuleDto, CreateTaxCodeDto, PostManualAccountingEventDto, UpdateAccountDto } from './dto/accounting-core.dto';
 
 export interface OperationalEventLineInput {
   itemType?: string;
@@ -117,6 +117,39 @@ export class AccountingCoreService {
     });
   }
 
+  async createAccount(dto: CreateAccountDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const code = dto.code.trim().toUpperCase();
+    const name = dto.name.trim();
+    if (!code || !name) throw new BadRequestException('Kode dan nama akun wajib diisi.');
+    return this.prisma.$transaction(async (tx) => {
+      const duplicate = await tx.account.findUnique({ where: { branchId_code: { branchId: scope.branchId, code } } });
+      if (duplicate) throw new BadRequestException(`Akun ${code} sudah ada pada branch ini.`);
+      const account = await tx.account.create({ data: { branchId: scope.branchId, code, name, type: dto.type as AccountType } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_ACCOUNT', entityType: 'Account', entityId: account.id, payload: { branchId: scope.branchId, code, type: dto.type } } });
+      return account;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async updateAccount(id: string, dto: UpdateAccountDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const account = (await tx.account.findFirst({ where: { id, branchId: scope.branchId, branch: { companyId: scope.companyId } } }))
+        ?? (await this.denyTenantAccess(tx, user, scope, 'Account', id));
+      const journalUsage = dto.type && dto.type !== account.type
+        ? await tx.journalLine.count({ where: { accountId: id } }) : 0;
+      if (journalUsage > 0) throw new BadRequestException('Tipe akun yang sudah memiliki histori jurnal tidak boleh diubah. Buat akun baru untuk klasifikasi baru.');
+      if (dto.isActive === false) {
+        const activeRules = await tx.accountingPostingRule.findMany({ where: { companyId: scope.companyId, status: 'ACTIVE' }, select: { id: true, code: true, journalLines: true } });
+        const usedByRule = activeRules.find((rule) => Array.isArray(rule.journalLines) && rule.journalLines.some((line) => typeof line === 'object' && line !== null && (line as { accountCode?: string }).accountCode === account.code));
+        if (usedByRule) throw new BadRequestException(`Akun ${account.code} masih dipakai posting rule ACTIVE ${usedByRule.code}. Nonaktifkan/versikan rule terlebih dahulu.`);
+      }
+      const updated = await tx.account.update({ where: { id }, data: { ...(dto.name !== undefined ? { name: dto.name.trim() } : {}), ...(dto.type !== undefined ? { type: dto.type as AccountType } : {}), ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}) } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPDATE_ACCOUNT', entityType: 'Account', entityId: id, payload: { branchId: scope.branchId, name: dto.name, type: dto.type, isActive: dto.isActive } } });
+      return updated;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
   async listEvents(user: AuthUser, limitValue?: string, cursorValue?: string, requestedCompanyId?: string) {
     const scope = this.requireTenantScope(user);
     await this.assertRequestedScope(this.prisma, user, scope, requestedCompanyId);
@@ -138,53 +171,223 @@ export class AccountingCoreService {
     return toCursorPage(rows, limit, (item) => ({ createdAt: item.createdAt.toISOString(), id: item.id }));
   }
 
+  async getEventDetail(id: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const event = (await this.prisma.accountingEvent.findFirst({
+      where: { id, companyId: scope.companyId, branchId: scope.branchId },
+      include: { lines: { orderBy: { lineNumber: 'asc' } }, postings: { orderBy: { postedAt: 'asc' } }, taxTransactions: { orderBy: { transactionDate: 'asc' } } },
+    })) ?? (await this.denyTenantAccess(this.prisma, user, scope, 'AccountingEvent', id));
+    const ruleIds = [...new Set(event.postings.map((row) => row.ruleId).filter((value): value is string => Boolean(value)))];
+    const rules = ruleIds.length ? await this.prisma.accountingPostingRule.findMany({ where: { id: { in: ruleIds }, companyId: scope.companyId } }) : [];
+    const journalEntry = event.journalEntryId ? await this.prisma.journalEntry.findFirst({
+      where: { id: event.journalEntryId, lines: { some: { account: { branchId: scope.branchId, branch: { companyId: scope.companyId } } } } },
+      include: { lines: { include: { account: { select: { id: true, code: true, name: true, type: true } } }, orderBy: { id: 'asc' } } },
+    }) : null;
+    return { event, rules, journalEntry, source: { type: event.sourceType, id: event.sourceId } };
+  }
+
   async listTaxCodes(user: AuthUser, requestedCompanyId?: string) {
     const scope = this.requireTenantScope(user);
     await this.assertRequestedScope(this.prisma, user, scope, requestedCompanyId, undefined, 'TaxCode');
     return this.prisma.taxCode.findMany({
       where: { companyId: scope.companyId },
-      orderBy: [{ scope: 'asc' }, { code: 'asc' }],
+      orderBy: [{ scope: 'asc' }, { code: 'asc' }, { version: 'desc' }],
     });
+  }
+
+  private async validateTaxCodeDefinition(
+    client: DbClient,
+    scope: TenantScope,
+    dto: CreateTaxCodeDto,
+    excludeId?: string,
+  ) {
+    const code = dto.code.trim().toUpperCase();
+    if (!code || !dto.name.trim()) throw new BadRequestException('Kode dan nama pajak wajib diisi.');
+    if (dto.effectiveFrom && dto.effectiveTo && new Date(dto.effectiveFrom) > new Date(dto.effectiveTo)) {
+      throw new BadRequestException('Tanggal efektif tax code tidak valid.');
+    }
+    const accountRules: Array<{ code?: string; type: AccountType; label: string }> = [
+      { code: dto.payableAccountCode, type: 'LIABILITY', label: 'payableAccountCode' },
+      { code: dto.receivableAccountCode, type: 'ASSET', label: 'receivableAccountCode' },
+      { code: dto.expenseAccountCode, type: 'EXPENSE', label: 'expenseAccountCode' },
+    ];
+    for (const rule of accountRules) {
+      const accountCode = rule.code?.trim().toUpperCase();
+      if (!accountCode) continue;
+      const account = await client.account.findFirst({
+        where: { branchId: scope.branchId, branch: { companyId: scope.companyId }, code: accountCode, isActive: true },
+        select: { type: true },
+      });
+      if (!account) throw new BadRequestException(`${rule.label} ${accountCode} belum aktif/tersedia pada branch ini.`);
+      if (account.type !== rule.type) throw new BadRequestException(`${rule.label} ${accountCode} harus bertipe ${rule.type}.`);
+    }
+    if ((dto.status ?? 'DRAFT') === 'ACTIVE') {
+      const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : null;
+      const effectiveTo = dto.effectiveTo ? new Date(dto.effectiveTo) : null;
+      const overlap = await client.taxCode.findFirst({
+        where: {
+          companyId: scope.companyId,
+          code,
+          status: 'ACTIVE',
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+          AND: [
+            effectiveFrom ? { OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }] } : {},
+            effectiveTo ? { OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: effectiveTo } }] } : {},
+          ],
+        },
+        select: { code: true, version: true },
+      });
+      if (overlap) throw new BadRequestException(`Tax code ACTIVE ${overlap.code} v${overlap.version} memiliki periode efektif yang bertumpang tindih.`);
+    }
   }
 
   async createTaxCode(dto: CreateTaxCodeDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
     await this.assertRequestedScope(this.prisma, user, scope, dto.companyId, undefined, 'TaxCode');
+    const code = dto.code.trim().toUpperCase();
+    const version = dto.version ?? 1;
     return this.prisma.$transaction(async (tx) => {
-      const taxCode = await tx.taxCode.upsert({
-        where: { companyId_code: { companyId: scope.companyId, code: dto.code } },
-        create: {
-          companyId: scope.companyId, code: dto.code, name: dto.name, scope: dto.scope,
-          rate: new Prisma.Decimal(dto.rate), inclusive: dto.inclusive ?? false,
-          recoverable: dto.recoverable ?? false, payableAccountCode: dto.payableAccountCode,
-          receivableAccountCode: dto.receivableAccountCode, expenseAccountCode: dto.expenseAccountCode,
-          effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : undefined,
-          effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : undefined,
-          status: dto.status ?? 'DRAFT', calculationRules: dto.calculationRules as Prisma.InputJsonValue | undefined,
-          legalReference: dto.legalReference,
-        },
-        update: {
-          name: dto.name, scope: dto.scope, rate: new Prisma.Decimal(dto.rate), inclusive: dto.inclusive ?? false,
-          recoverable: dto.recoverable ?? false, payableAccountCode: dto.payableAccountCode,
-          receivableAccountCode: dto.receivableAccountCode, expenseAccountCode: dto.expenseAccountCode,
-          effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : undefined,
-          effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : undefined,
-          status: dto.status ?? 'DRAFT', calculationRules: dto.calculationRules as Prisma.InputJsonValue | undefined,
-          legalReference: dto.legalReference,
-        },
-      });
+      const existing = await tx.taxCode.findUnique({ where: { companyId_code_version: { companyId: scope.companyId, code, version } } });
+      if (existing) {
+        const usage = await tx.taxTransaction.count({ where: { taxCodeId: existing.id } });
+        if (existing.status !== 'DRAFT' || usage > 0) {
+          throw new BadRequestException(`Tax code ${code} v${version} sudah menjadi histori. Buat version baru, jangan menimpa konfigurasi lama.`);
+        }
+      }
+      await this.validateTaxCodeDefinition(tx, scope, dto, existing?.id);
+      const data = {
+        name: dto.name.trim(), scope: dto.scope, rate: new Prisma.Decimal(dto.rate), inclusive: dto.inclusive ?? false,
+        recoverable: dto.recoverable ?? false,
+        payableAccountCode: dto.payableAccountCode?.trim().toUpperCase() || null,
+        receivableAccountCode: dto.receivableAccountCode?.trim().toUpperCase() || null,
+        expenseAccountCode: dto.expenseAccountCode?.trim().toUpperCase() || null,
+        effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : null,
+        effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : null,
+        status: dto.status ?? 'DRAFT', calculationRules: dto.calculationRules as Prisma.InputJsonValue | undefined,
+        legalReference: dto.legalReference?.trim() || null,
+      };
+      const taxCode = existing
+        ? await tx.taxCode.update({ where: { id: existing.id }, data })
+        : await tx.taxCode.create({ data: { companyId: scope.companyId, code, version, ...data } });
       await tx.auditLog.create({
         data: {
-          companyId: scope.companyId,
-          userId: user.sub,
-          action: 'UPSERT_TAX_CODE',
-          entityType: 'TaxCode',
-          entityId: taxCode.id,
-          payload: { code: taxCode.code, status: taxCode.status },
+          companyId: scope.companyId, userId: user.sub, action: 'UPSERT_TAX_CODE', entityType: 'TaxCode', entityId: taxCode.id,
+          payload: { operation: existing ? 'UPDATE_DRAFT_VERSION' : 'CREATE_VERSION', code: taxCode.code, version: taxCode.version, status: taxCode.status },
         },
       });
       return taxCode;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async updateTaxCodeStatus(id: string, status: 'DRAFT'|'ACTIVE'|'INACTIVE', user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const taxCode = (await tx.taxCode.findFirst({ where: { id, companyId: scope.companyId } }))
+        ?? (await this.denyTenantAccess(tx, user, scope, 'TaxCode', id));
+      if (status === 'DRAFT' && taxCode.status !== 'DRAFT') {
+        throw new BadRequestException('Tax code yang sudah pernah ACTIVE/INACTIVE tidak boleh kembali menjadi DRAFT. Buat version baru.');
+      }
+      if (status === 'ACTIVE') {
+        await this.validateTaxCodeDefinition(tx, scope, {
+          code: taxCode.code, version: taxCode.version, name: taxCode.name, scope: taxCode.scope as never,
+          rate: Number(taxCode.rate), inclusive: taxCode.inclusive, recoverable: taxCode.recoverable,
+          payableAccountCode: taxCode.payableAccountCode ?? undefined, receivableAccountCode: taxCode.receivableAccountCode ?? undefined,
+          expenseAccountCode: taxCode.expenseAccountCode ?? undefined, effectiveFrom: taxCode.effectiveFrom?.toISOString(), effectiveTo: taxCode.effectiveTo?.toISOString(),
+          status: 'ACTIVE', calculationRules: taxCode.calculationRules as Record<string, unknown> | undefined, legalReference: taxCode.legalReference ?? undefined,
+        }, taxCode.id);
+      }
+      const updated = await tx.taxCode.update({ where: { id }, data: { status } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPDATE_TAX_CODE_STATUS', entityType: 'TaxCode', entityId: id, payload: { code: taxCode.code, version: taxCode.version, from: taxCode.status, to: status } } });
+      return updated;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  private taxDateRange(fromValue?: string, toValue?: string) {
+    const from = fromValue ? new Date(`${fromValue}T00:00:00.000Z`) : new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
+    const to = toValue ? new Date(`${toValue}T23:59:59.999Z`) : new Date();
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) throw new BadRequestException('Rentang tanggal pajak tidak valid.');
+    return { from, to };
+  }
+
+  async listTaxTransactions(user: AuthUser, fromValue?: string, toValue?: string, directionValue?: string, limitValue?: string, cursorValue?: string) {
+    const scope = this.requireTenantScope(user);
+    const { from, to } = this.taxDateRange(fromValue, toValue);
+    const allowedDirections = ['INPUT','OUTPUT','WITHHOLDING','SELF_ASSESSED'] as const;
+    if (directionValue && !allowedDirections.includes(directionValue as typeof allowedDirections[number])) throw new BadRequestException('Direction pajak tidak valid.');
+    const limit = parsePageLimit(limitValue);
+    const cursor = decodeCursor<{ transactionDate: string; id: string }>(cursorValue);
+    const rows = await this.prisma.taxTransaction.findMany({
+      where: {
+        companyId: scope.companyId, branchId: scope.branchId, transactionDate: { gte: from, lte: to },
+        ...(directionValue ? { direction: directionValue as TaxTransactionDirection } : {}),
+        ...(cursor ? { OR: [{ transactionDate: { lt: new Date(cursor.transactionDate) } }, { transactionDate: new Date(cursor.transactionDate), id: { lt: cursor.id } }] } : {}),
+      },
+      orderBy: [{ transactionDate: 'desc' }, { id: 'desc' }], take: limit + 1,
+    });
+    const codeIds = [...new Set(rows.map((row) => row.taxCodeId))];
+    const codes = codeIds.length ? await this.prisma.taxCode.findMany({ where: { companyId: scope.companyId, id: { in: codeIds } }, select: { id: true, code: true, version: true, name: true } }) : [];
+    const codeMap = new Map(codes.map((row) => [row.id, row]));
+    const page = toCursorPage(rows, limit, (item) => ({ transactionDate: item.transactionDate.toISOString(), id: item.id }));
+    return { ...page, items: page.items.map((row) => ({ ...row, taxCode: codeMap.get(row.taxCodeId) ?? null })) };
+  }
+
+  async listTaxDocuments(user: AuthUser, fromValue?: string, toValue?: string, limitValue?: string, cursorValue?: string) {
+    const scope = this.requireTenantScope(user);
+    const { from, to } = this.taxDateRange(fromValue, toValue);
+    const limit = parsePageLimit(limitValue);
+    const cursor = decodeCursor<{ issueDate: string; id: string }>(cursorValue);
+    const rows = await this.prisma.taxDocument.findMany({
+      where: {
+        companyId: scope.companyId, branchId: scope.branchId, issueDate: { gte: from, lte: to },
+        ...(cursor ? { OR: [{ issueDate: { lt: new Date(cursor.issueDate) } }, { issueDate: new Date(cursor.issueDate), id: { lt: cursor.id } }] } : {}),
+      },
+      orderBy: [{ issueDate: 'desc' }, { id: 'desc' }], take: limit + 1,
+    });
+    return toCursorPage(rows, limit, (item) => ({ issueDate: item.issueDate.toISOString(), id: item.id }));
+  }
+
+  async taxReconciliation(user: AuthUser, fromValue?: string, toValue?: string) {
+    const scope = this.requireTenantScope(user);
+    const { from, to } = this.taxDateRange(fromValue, toValue);
+    const transactions = await this.prisma.taxTransaction.findMany({
+      where: { companyId: scope.companyId, branchId: scope.branchId, transactionDate: { gte: from, lte: to } },
+      orderBy: [{ transactionDate: 'asc' }, { id: 'asc' }],
+    });
+    const codeIds = [...new Set(transactions.map((row) => row.taxCodeId))];
+    const codes = codeIds.length ? await this.prisma.taxCode.findMany({ where: { companyId: scope.companyId, id: { in: codeIds } } }) : [];
+    const codeMap = new Map(codes.map((row) => [row.id, row]));
+    const eventIds = [...new Set(transactions.map((row) => row.accountingEventId).filter((value): value is string => Boolean(value)))];
+    const events = eventIds.length ? await this.prisma.accountingEvent.findMany({ where: { id: { in: eventIds }, companyId: scope.companyId, branchId: scope.branchId }, select: { id: true, journalEntryId: true, status: true } }) : [];
+    const eventMap = new Map(events.map((row) => [row.id, row]));
+    const journalEntryIds = [...new Set(events.map((row) => row.journalEntryId).filter((value): value is string => Boolean(value)))];
+    const mappedCodes = [...new Set(codes.flatMap((row) => [row.payableAccountCode, row.receivableAccountCode, row.expenseAccountCode].filter((value): value is string => Boolean(value))))];
+    const journalLines = journalEntryIds.length && mappedCodes.length ? await this.prisma.journalLine.findMany({
+      where: { journalEntryId: { in: journalEntryIds }, account: { branchId: scope.branchId, branch: { companyId: scope.companyId }, code: { in: mappedCodes } } },
+      include: { account: { select: { code: true, name: true, type: true } } },
+    }) : [];
+    const byDirection = new Map<string, { taxableBase: Prisma.Decimal; taxAmount: Prisma.Decimal; count: number }>();
+    for (const row of transactions) {
+      const current = byDirection.get(row.direction) ?? { taxableBase: new Prisma.Decimal(0), taxAmount: new Prisma.Decimal(0), count: 0 };
+      current.taxableBase = current.taxableBase.add(row.taxableBase); current.taxAmount = current.taxAmount.add(row.taxAmount); current.count += 1;
+      byDirection.set(row.direction, current);
+    }
+    const accountMovement = new Map<string, { name: string; type: string; debit: Prisma.Decimal; credit: Prisma.Decimal }>();
+    for (const line of journalLines) {
+      const current = accountMovement.get(line.account.code) ?? { name: line.account.name, type: line.account.type, debit: new Prisma.Decimal(0), credit: new Prisma.Decimal(0) };
+      current.debit = current.debit.add(line.debit); current.credit = current.credit.add(line.credit); accountMovement.set(line.account.code, current);
+    }
+    const missingAccountingEvent = transactions.filter((row) => !row.accountingEventId || !eventMap.has(row.accountingEventId)).length;
+    const missingJournal = transactions.filter((row) => row.accountingEventId && !eventMap.get(row.accountingEventId)?.journalEntryId).length;
+    const nonPosted = transactions.filter((row) => row.status !== 'POSTED').length;
+    const documents = await this.prisma.taxDocument.aggregate({ where: { companyId: scope.companyId, branchId: scope.branchId, issueDate: { gte: from, lte: to }, status: { not: 'CANCELLED' } }, _count: true, _sum: { taxAmount: true, netAmount: true, grossAmount: true } });
+    return {
+      from, to, companyId: scope.companyId, branchId: scope.branchId,
+      directions: [...byDirection.entries()].map(([direction, value]) => ({ direction, count: value.count, taxableBase: Number(value.taxableBase), taxAmount: Number(value.taxAmount) })),
+      mappedAccountMovement: [...accountMovement.entries()].map(([code, value]) => ({ code, ...value, debit: Number(value.debit), credit: Number(value.credit), net: Number(value.debit.sub(value.credit)) })),
+      integrity: { transactionCount: transactions.length, missingAccountingEvent, missingJournal, nonPosted, ok: missingAccountingEvent === 0 && missingJournal === 0 && nonPosted === 0 },
+      documents: { count: documents._count, netAmount: Number(documents._sum.netAmount ?? 0), taxAmount: Number(documents._sum.taxAmount ?? 0), grossAmount: Number(documents._sum.grossAmount ?? 0) },
+      codes: codes.map((row) => ({ id: row.id, code: row.code, version: row.version, name: row.name, status: row.status, payableAccountCode: row.payableAccountCode, receivableAccountCode: row.receivableAccountCode, expenseAccountCode: row.expenseAccountCode })),
+    };
   }
 
   async listPostingRules(user: AuthUser, eventType?: string, requestedCompanyId?: string) {
@@ -196,45 +399,115 @@ export class AccountingCoreService {
     });
   }
 
+  private async validatePostingRuleDefinition(
+    client: DbClient,
+    scope: TenantScope,
+    dto: CreatePostingRuleDto,
+    excludeRuleId?: string,
+  ) {
+    if (!dto.journalLines.length) throw new BadRequestException('Aturan jurnal harus memiliki baris.');
+    if (!dto.journalLines.some((line) => line.side === 'DEBIT') || !dto.journalLines.some((line) => line.side === 'CREDIT')) {
+      throw new BadRequestException('Posting rule wajib memiliki minimal satu baris DEBIT dan satu baris CREDIT.');
+    }
+    if (dto.effectiveFrom && dto.effectiveTo && new Date(dto.effectiveFrom) > new Date(dto.effectiveTo)) {
+      throw new BadRequestException('Tanggal efektif posting rule tidak valid.');
+    }
+    const literalCodes = new Set<string>();
+    for (const line of dto.journalLines) {
+      const hasLiteral = Boolean(line.accountCode?.trim());
+      const hasKey = Boolean(line.accountCodeKey?.trim());
+      if (hasLiteral === hasKey) throw new BadRequestException('Setiap baris posting rule harus memakai tepat satu accountCode atau accountCodeKey.');
+      if (!line.amountKey.trim()) throw new BadRequestException('amountKey posting rule wajib diisi.');
+      if (hasLiteral) literalCodes.add(line.accountCode!.trim().toUpperCase());
+    }
+    if (literalCodes.size) {
+      const accounts = await client.account.findMany({
+        where: { branchId: scope.branchId, branch: { companyId: scope.companyId }, code: { in: [...literalCodes] }, isActive: true },
+        select: { code: true },
+      });
+      const found = new Set(accounts.map((row) => row.code));
+      const missing = [...literalCodes].filter((code) => !found.has(code));
+      if (missing.length) throw new BadRequestException(`Akun posting rule belum aktif/tersedia pada branch ini: ${missing.join(', ')}.`);
+    }
+    if ((dto.status ?? 'DRAFT') === 'ACTIVE') {
+      const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : null;
+      const effectiveTo = dto.effectiveTo ? new Date(dto.effectiveTo) : null;
+      const overlapping = await client.accountingPostingRule.findFirst({
+        where: {
+          companyId: scope.companyId,
+          eventType: dto.eventType,
+          priority: dto.priority ?? 100,
+          status: 'ACTIVE',
+          ...(excludeRuleId ? { id: { not: excludeRuleId } } : {}),
+          AND: [
+            effectiveFrom ? { OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }] } : {},
+            effectiveTo ? { OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: effectiveTo } }] } : {},
+          ],
+        },
+        select: { code: true, version: true },
+      });
+      if (overlapping) throw new BadRequestException(`Posting rule ACTIVE ${overlapping.code} v${overlapping.version} bertumpang tindih untuk eventType/priority yang sama.`);
+    }
+  }
+
   async createPostingRule(dto: CreatePostingRuleDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
     await this.assertRequestedScope(this.prisma, user, scope, dto.companyId, undefined, 'AccountingPostingRule');
-    if (!dto.journalLines.length) throw new BadRequestException('Aturan jurnal harus memiliki baris.');
+    const version = dto.version ?? 1;
     return this.prisma.$transaction(async (tx) => {
-      const rule = await tx.accountingPostingRule.upsert({
-        where: { companyId_code_version: { companyId: scope.companyId, code: dto.code, version: dto.version ?? 1 } },
-        create: {
-          companyId: scope.companyId, code: dto.code, version: dto.version ?? 1, name: dto.name,
-          eventType: dto.eventType, priority: dto.priority ?? 100, status: (dto.status ?? 'DRAFT') as never,
-          effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : undefined,
-          effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : undefined,
-          conditions: dto.conditions as Prisma.InputJsonValue | undefined,
-          journalLines: dto.journalLines as unknown as Prisma.InputJsonValue,
-          taxBehavior: dto.taxBehavior as Prisma.InputJsonValue | undefined,
-          dimensions: dto.dimensions as Prisma.InputJsonValue | undefined,
-        },
-        update: {
-          name: dto.name, eventType: dto.eventType, priority: dto.priority ?? 100,
-          status: (dto.status ?? 'DRAFT') as never,
-          effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : undefined,
-          effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : undefined,
-          conditions: dto.conditions as Prisma.InputJsonValue | undefined,
-          journalLines: dto.journalLines as unknown as Prisma.InputJsonValue,
-          taxBehavior: dto.taxBehavior as Prisma.InputJsonValue | undefined,
-          dimensions: dto.dimensions as Prisma.InputJsonValue | undefined,
-        },
-      });
+      const existing = await tx.accountingPostingRule.findUnique({ where: { companyId_code_version: { companyId: scope.companyId, code: dto.code, version } } });
+      if (existing) {
+        const postingCount = await tx.accountingPosting.count({ where: { ruleId: existing.id } });
+        if (existing.status !== 'DRAFT' || postingCount > 0) {
+          throw new BadRequestException(`Posting rule ${dto.code} v${version} sudah menjadi histori. Buat version baru, jangan menimpa rule lama.`);
+        }
+      }
+      await this.validatePostingRuleDefinition(tx, scope, dto, existing?.id);
+      const rule = existing
+        ? await tx.accountingPostingRule.update({ where: { id: existing.id }, data: {
+            name: dto.name, eventType: dto.eventType, priority: dto.priority ?? 100,
+            status: (dto.status ?? 'DRAFT') as never,
+            effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : null,
+            effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : null,
+            conditions: dto.conditions as Prisma.InputJsonValue | undefined,
+            journalLines: dto.journalLines.map((line) => ({ ...line, accountCode: line.accountCode?.trim().toUpperCase() })) as unknown as Prisma.InputJsonValue,
+            taxBehavior: dto.taxBehavior as Prisma.InputJsonValue | undefined,
+            dimensions: dto.dimensions as Prisma.InputJsonValue | undefined,
+          } })
+        : await tx.accountingPostingRule.create({ data: {
+            companyId: scope.companyId, code: dto.code.trim().toUpperCase(), version, name: dto.name,
+            eventType: dto.eventType, priority: dto.priority ?? 100, status: (dto.status ?? 'DRAFT') as never,
+            effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : undefined,
+            effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : undefined,
+            conditions: dto.conditions as Prisma.InputJsonValue | undefined,
+            journalLines: dto.journalLines.map((line) => ({ ...line, accountCode: line.accountCode?.trim().toUpperCase() })) as unknown as Prisma.InputJsonValue,
+            taxBehavior: dto.taxBehavior as Prisma.InputJsonValue | undefined,
+            dimensions: dto.dimensions as Prisma.InputJsonValue | undefined,
+          } });
       await tx.auditLog.create({
-        data: {
-          companyId: scope.companyId,
-          userId: user.sub,
-          action: 'UPSERT_ACCOUNTING_POSTING_RULE',
-          entityType: 'AccountingPostingRule',
-          entityId: rule.id,
-          payload: { code: rule.code, version: rule.version, status: rule.status },
-        },
+        data: { companyId: scope.companyId, userId: user.sub, action: 'UPSERT_ACCOUNTING_POSTING_RULE', entityType: 'AccountingPostingRule', entityId: rule.id, payload: { operation: existing ? 'UPDATE_DRAFT_VERSION' : 'CREATE_VERSION', code: rule.code, version: rule.version, status: rule.status, eventType: rule.eventType, priority: rule.priority } },
       });
       return rule;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async updatePostingRuleStatus(id: string, status: 'DRAFT'|'ACTIVE'|'INACTIVE', user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const rule = (await tx.accountingPostingRule.findFirst({ where: { id, companyId: scope.companyId } }))
+        ?? (await this.denyTenantAccess(tx, user, scope, 'AccountingPostingRule', id));
+      if (status === 'DRAFT' && rule.status !== 'DRAFT') throw new BadRequestException('Rule yang sudah pernah ACTIVE/INACTIVE tidak boleh kembali menjadi DRAFT. Buat version baru.');
+      if (status === 'ACTIVE') {
+        const lines = Array.isArray(rule.journalLines) ? rule.journalLines as Array<Record<string, unknown>> : [];
+        await this.validatePostingRuleDefinition(tx, scope, {
+          code: rule.code, name: rule.name, eventType: rule.eventType, version: rule.version, priority: rule.priority, status: 'ACTIVE',
+          effectiveFrom: rule.effectiveFrom?.toISOString(), effectiveTo: rule.effectiveTo?.toISOString(),
+          journalLines: lines.map((line) => ({ accountCode: typeof line.accountCode === 'string' ? line.accountCode : undefined, accountCodeKey: typeof line.accountCodeKey === 'string' ? line.accountCodeKey : undefined, side: line.side as 'DEBIT'|'CREDIT', amountKey: String(line.amountKey ?? ''), description: typeof line.description === 'string' ? line.description : undefined, skipIfZero: typeof line.skipIfZero === 'boolean' ? line.skipIfZero : undefined })),
+        }, rule.id);
+      }
+      const updated = await tx.accountingPostingRule.update({ where: { id }, data: { status: status as never } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPDATE_ACCOUNTING_POSTING_RULE_STATUS', entityType: 'AccountingPostingRule', entityId: id, payload: { code: rule.code, version: rule.version, from: rule.status, to: status } } });
+      return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 

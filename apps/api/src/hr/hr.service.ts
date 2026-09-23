@@ -69,7 +69,7 @@ export class HrService {
     client: DbClient,
     user: AuthUser,
     scope: TenantScope,
-    departmentId?: string,
+    departmentId?: string | null,
   ): Promise<void> {
     if (!departmentId) return;
     const department = await client.department.findFirst({
@@ -83,7 +83,7 @@ export class HrService {
     client: DbClient,
     user: AuthUser,
     scope: TenantScope,
-    positionId?: string,
+    positionId?: string | null,
   ): Promise<void> {
     if (!positionId) return;
     const position = await client.position.findFirst({
@@ -97,7 +97,7 @@ export class HrService {
     client: DbClient,
     user: AuthUser,
     scope: TenantScope,
-    userId?: string,
+    userId?: string | null,
   ): Promise<void> {
     if (!userId) return;
     const account = await client.user.findFirst({

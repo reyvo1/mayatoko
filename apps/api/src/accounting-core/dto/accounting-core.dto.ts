@@ -1,12 +1,30 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+
+
+export class CreateAccountDto {
+  @ApiProperty() @IsString() code!: string;
+  @ApiProperty() @IsString() name!: string;
+  @ApiProperty({ enum: ['ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE'] }) @IsIn(['ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE']) type!: 'ASSET'|'LIABILITY'|'EQUITY'|'REVENUE'|'EXPENSE';
+}
+
+export class UpdateAccountDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional({ enum: ['ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE'] }) @IsOptional() @IsIn(['ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE']) type?: 'ASSET'|'LIABILITY'|'EQUITY'|'REVENUE'|'EXPENSE';
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+export class UpdatePostingRuleStatusDto {
+  @ApiProperty({ enum: ['DRAFT','ACTIVE','INACTIVE'] }) @IsIn(['DRAFT','ACTIVE','INACTIVE']) status!: 'DRAFT'|'ACTIVE'|'INACTIVE';
+}
 
 enum TaxScopeDto { SALE='SALE', PURCHASE='PURCHASE', EXPENSE='EXPENSE', ASSET='ASSET', PAYROLL='PAYROLL', SHIPPING='SHIPPING', WITHHOLDING='WITHHOLDING', OTHER='OTHER' }
 
 export class CreateTaxCodeDto {
   @ApiPropertyOptional({ description: 'Kompatibilitas lama; tenant tetap berasal dari token.' }) @IsOptional() @IsString() companyId?: string;
   @ApiProperty() @IsString() code!: string;
+  @ApiPropertyOptional({ default: 1 }) @IsOptional() @IsInt() @Min(1) version?: number;
   @ApiProperty() @IsString() name!: string;
   @ApiProperty({ enum: TaxScopeDto }) @IsEnum(TaxScopeDto) scope!: TaxScopeDto;
   @ApiProperty({ example: 0 }) @IsNumber() @Min(0) rate!: number;
@@ -17,9 +35,13 @@ export class CreateTaxCodeDto {
   @ApiPropertyOptional() @IsOptional() @IsString() expenseAccountCode?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveFrom?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveTo?: string;
-  @ApiPropertyOptional({ default: 'DRAFT' }) @IsOptional() @IsString() status?: string;
+  @ApiPropertyOptional({ default: 'DRAFT', enum: ['DRAFT','ACTIVE'] }) @IsOptional() @IsIn(['DRAFT','ACTIVE']) status?: 'DRAFT'|'ACTIVE';
   @ApiPropertyOptional() @IsOptional() @IsObject() calculationRules?: Record<string, unknown>;
   @ApiPropertyOptional() @IsOptional() @IsString() legalReference?: string;
+}
+
+export class UpdateTaxCodeStatusDto {
+  @ApiProperty({ enum: ['DRAFT','ACTIVE','INACTIVE'] }) @IsIn(['DRAFT','ACTIVE','INACTIVE']) status!: 'DRAFT'|'ACTIVE'|'INACTIVE';
 }
 
 class PostingRuleLineDto {

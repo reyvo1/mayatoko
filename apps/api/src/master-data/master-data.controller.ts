@@ -5,9 +5,9 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { Permissions } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import {
-  CreateBranchDto, CreateCategoryDto, CreateCustomerDto, CreateProductBarcodeDto, CreateProductPriceDto,
+  CreateBranchDto, CreateCategoryDto, CreateCustomerDto, CreateProductBarcodeDto, CreateProductPriceDto, CreateProductUnitDto, CreateProductVariantDto,
   CreateReferenceDto, CreateWarehouseDto, CreateWarehouseLocationDto, UpdateBranchDto, UpdateCategoryDto,
-  UpdateCustomerDto, UpdateProductBarcodeDto, UpdateProductPriceDto, UpdateReferenceDto, UpdateWarehouseDto,
+  UpdateCustomerDto, UpdateProductBarcodeDto, UpdateProductPriceDto, UpdateProductUnitDto, UpdateProductVariantDto, UpdateReferenceDto, UpdateWarehouseDto,
   UpdateWarehouseLocationDto,
 } from './dto/master-data.dto';
 import { MasterDataService } from './master-data.service';
@@ -41,6 +41,15 @@ export class MasterDataController {
   @Get('references') @Permissions('master_data.view') references(@CurrentUser() user: AuthUser, @Query('type') type?: string) { return this.service.references(user, type); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('references') @Permissions('master_data.manage') createReference(@Body() dto: CreateReferenceDto, @CurrentUser() user: AuthUser) { return this.service.createReference(dto, user); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN') @Patch('references/:id') @Permissions('master_data.manage') updateReference(@Param('id') id: string, @Body() dto: UpdateReferenceDto, @CurrentUser() user: AuthUser) { return this.service.updateReference(id, dto, user); }
+
+  @Get('products/:productId/variants') @Permissions('master_data.view') variants(@Param('productId') productId: string, @CurrentUser() user: AuthUser) { return this.service.variants(productId, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('products/:productId/variants') @Permissions('master_data.manage') createVariant(@Param('productId') productId: string, @Body() dto: CreateProductVariantDto, @CurrentUser() user: AuthUser) { return this.service.createVariant(productId, dto, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Patch('products/:productId/variants/:id') @Permissions('master_data.manage') updateVariant(@Param('productId') productId: string, @Param('id') id: string, @Body() dto: UpdateProductVariantDto, @CurrentUser() user: AuthUser) { return this.service.updateVariant(productId, id, dto, user); }
+
+
+  @Get('products/:productId/units') @Permissions('master_data.view') units(@Param('productId') productId: string, @CurrentUser() user: AuthUser) { return this.service.units(productId, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('products/:productId/units') @Permissions('master_data.manage') createUnit(@Param('productId') productId: string, @Body() dto: CreateProductUnitDto, @CurrentUser() user: AuthUser) { return this.service.createUnit(productId, dto, user); }
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Patch('products/:productId/units/:id') @Permissions('master_data.manage') updateUnit(@Param('productId') productId: string, @Param('id') id: string, @Body() dto: UpdateProductUnitDto, @CurrentUser() user: AuthUser) { return this.service.updateUnit(productId, id, dto, user); }
 
   @Get('products/:productId/barcodes') @Permissions('master_data.view') barcodes(@Param('productId') productId: string, @CurrentUser() user: AuthUser) { return this.service.barcodes(productId, user); }
   @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('products/:productId/barcodes') @Permissions('master_data.manage') createBarcode(@Param('productId') productId: string, @Body() dto: CreateProductBarcodeDto, @CurrentUser() user: AuthUser) { return this.service.createBarcode(productId, dto, user); }

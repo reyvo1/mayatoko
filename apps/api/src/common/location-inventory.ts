@@ -48,8 +48,63 @@ export async function prepareLocationInventory(tx: Prisma.TransactionClient, war
   return { aggregate, defaultLocation: await defaultLocation(tx, warehouseId) };
 }
 
+export async function prepareConditionInventory(tx: Prisma.TransactionClient, warehouseId: string, productId: string) {
+  const { aggregate } = await prepareLocationInventory(tx, warehouseId, productId);
+  const locations = await tx.inventoryLocationBalance.findMany({ where: { warehouseId, productId } });
+  const existing = await tx.inventoryConditionBalance.findMany({ where: { warehouseId, productId } });
+  if (!existing.length) {
+    for (const location of locations) {
+      if (location.quantity <= 0) continue;
+      await tx.inventoryConditionBalance.create({
+        data: { warehouseId, locationId: location.locationId, productId, condition: 'AVAILABLE', quantity: location.quantity },
+      });
+    }
+    return tx.inventoryConditionBalance.findMany({ where: { warehouseId, productId }, orderBy: [{ locationId: 'asc' }, { condition: 'asc' }] });
+  }
+
+  const byLocation = new Map<string, typeof existing>();
+  for (const row of existing) {
+    const rows = byLocation.get(row.locationId) ?? [];
+    rows.push(row);
+    byLocation.set(row.locationId, rows);
+  }
+  for (const location of locations) {
+    const rows = byLocation.get(location.locationId) ?? [];
+    const classified = rows.reduce((sum, row) => sum + row.quantity, 0);
+    if (classified !== location.quantity) {
+      throw new BadRequestException(`INVENTORY_CONDITION_DRIFT:${warehouseId}:${location.locationId}:${productId}; location=${location.quantity}; classified=${classified}`);
+    }
+    const sellable = rows.find((row) => row.condition === 'AVAILABLE')?.quantity ?? 0;
+    if (sellable < location.reserved || sellable - location.reserved !== location.available) {
+      throw new BadRequestException(`INVENTORY_CONDITION_AVAILABLE_DRIFT:${warehouseId}:${location.locationId}:${productId}; availableCondition=${sellable}; reserved=${location.reserved}; free=${location.available}`);
+    }
+  }
+  const totalClassified = existing.reduce((sum, row) => sum + row.quantity, 0);
+  if (totalClassified !== (aggregate?.quantity ?? 0)) {
+    throw new BadRequestException(`INVENTORY_CONDITION_TOTAL_DRIFT:${warehouseId}:${productId}; aggregate=${aggregate?.quantity ?? 0}; classified=${totalClassified}`);
+  }
+  return existing;
+}
+
+async function incrementAvailableCondition(tx: Prisma.TransactionClient, input: { warehouseId: string; locationId: string; productId: string; quantity: number }) {
+  await tx.inventoryConditionBalance.upsert({
+    where: { locationId_productId_condition: { locationId: input.locationId, productId: input.productId, condition: 'AVAILABLE' } },
+    create: { warehouseId: input.warehouseId, locationId: input.locationId, productId: input.productId, condition: 'AVAILABLE', quantity: input.quantity },
+    update: { quantity: { increment: input.quantity } },
+  });
+}
+
+async function decrementAvailableCondition(tx: Prisma.TransactionClient, input: { locationId: string; productId: string; quantity: number }) {
+  const changed = await tx.inventoryConditionBalance.updateMany({
+    where: { locationId: input.locationId, productId: input.productId, condition: 'AVAILABLE', quantity: { gte: input.quantity } },
+    data: { quantity: { decrement: input.quantity } },
+  });
+  if (changed.count !== 1) throw new BadRequestException('Saldo kondisi AVAILABLE tidak mencukupi atau tidak sinkron.');
+}
+
 async function orderedAvailableBalances(tx: Prisma.TransactionClient, warehouseId: string, productId: string) {
   const { defaultLocation: primary } = await prepareLocationInventory(tx, warehouseId, productId);
+  await prepareConditionInventory(tx, warehouseId, productId);
   const rows = await tx.inventoryLocationBalance.findMany({ where: { warehouseId, productId, available: { gt: 0 } }, orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }] });
   return rows.sort((a, b) => (a.locationId === primary.id ? -1 : b.locationId === primary.id ? 1 : 0));
 }
@@ -57,12 +112,14 @@ async function orderedAvailableBalances(tx: Prisma.TransactionClient, warehouseI
 export async function depositLocationStock(tx: Prisma.TransactionClient, input: { warehouseId: string; productId: string; quantity: number; locationId?: string | null }) {
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new BadRequestException('Jumlah stock-in lokasi harus integer positif.');
   const { defaultLocation: primary } = await prepareLocationInventory(tx, input.warehouseId, input.productId);
+  await prepareConditionInventory(tx, input.warehouseId, input.productId);
   const location = input.locationId ? await assertLocation(tx, input.warehouseId, input.locationId) : primary;
   const row = await tx.inventoryLocationBalance.upsert({
     where: { locationId_productId: { locationId: location.id, productId: input.productId } },
     create: { warehouseId: input.warehouseId, locationId: location.id, productId: input.productId, quantity: input.quantity, available: input.quantity },
     update: { quantity: { increment: input.quantity }, available: { increment: input.quantity } },
   });
+  await incrementAvailableCondition(tx, { warehouseId: input.warehouseId, locationId: location.id, productId: input.productId, quantity: input.quantity });
   return { locationId: location.id, balance: row };
 }
 
@@ -76,6 +133,7 @@ export async function consumeAvailableLocationStock(tx: Prisma.TransactionClient
     const take = Math.min(row.available, remaining);
     const changed = await tx.inventoryLocationBalance.updateMany({ where: { id: row.id, quantity: { gte: take }, available: { gte: take } }, data: { quantity: { decrement: take }, available: { decrement: take } } });
     if (changed.count !== 1) throw new BadRequestException('Saldo lokasi berubah saat stock-out. Ulangi transaksi.');
+    await decrementAvailableCondition(tx, { locationId: row.locationId, productId: input.productId, quantity: take });
     allocations.push({ locationId: row.locationId, quantity: take });
     remaining -= take;
   }
@@ -138,6 +196,7 @@ async function mutateLegacyReservedStock(
         : { reserved: { decrement: take }, available: { increment: take } },
     });
     if (changed.count !== 1) throw new BadRequestException('Reservasi lokasi legacy berubah saat rekonsiliasi. Ulangi transaksi.');
+    if (input.consume) await decrementAvailableCondition(tx, { locationId: balance.locationId, productId: input.productId, quantity: take });
     allocations.push({ locationId: balance.locationId, quantity: take });
     remaining -= take;
   }
@@ -159,6 +218,7 @@ export async function releaseLocationReservations(tx: Prisma.TransactionClient, 
 }
 
 export async function consumeLocationReservations(tx: Prisma.TransactionClient, input: { sourceType: string; sourceId: string; warehouseId: string; productId: string; quantity: number }) {
+  await prepareConditionInventory(tx, input.warehouseId, input.productId);
   const rows = await tx.inventoryReservation.findMany({ where: { sourceType: input.sourceType, sourceId: input.sourceId, productId: input.productId, status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } });
   if (!rows.length) return mutateLegacyReservedStock(tx, { warehouseId: input.warehouseId, productId: input.productId, quantity: input.quantity, consume: true });
   const total = rows.reduce((sum, row) => sum + row.quantity, 0);
@@ -166,6 +226,7 @@ export async function consumeLocationReservations(tx: Prisma.TransactionClient, 
   for (const row of rows) {
     const changed = await tx.inventoryLocationBalance.updateMany({ where: { locationId: row.locationId, productId: row.productId, quantity: { gte: row.quantity }, reserved: { gte: row.quantity } }, data: { quantity: { decrement: row.quantity }, reserved: { decrement: row.quantity } } });
     if (changed.count !== 1) throw new BadRequestException('Reservasi lokasi berubah saat fulfillment.');
+    await decrementAvailableCondition(tx, { locationId: row.locationId, productId: row.productId, quantity: row.quantity });
     await tx.inventoryReservation.update({ where: { id: row.id }, data: { status: 'CONSUMED' } });
   }
   return rows.map((row) => ({ locationId: row.locationId, quantity: row.quantity }));
@@ -182,6 +243,7 @@ export async function adjustLocationStock(tx: Prisma.TransactionClient, input: {
   const qty = Math.abs(input.difference);
   const changed = await tx.inventoryLocationBalance.updateMany({ where: { locationId: location.id, productId: input.productId, quantity: { gte: qty }, available: { gte: qty } }, data: { quantity: { decrement: qty }, available: { decrement: qty } } });
   if (changed.count !== 1) throw new BadRequestException('Stok bebas pada lokasi opname tidak mencukupi untuk adjustment negatif.');
+  await decrementAvailableCondition(tx, { locationId: location.id, productId: input.productId, quantity: qty });
   return { locationId: location.id };
 }
 
@@ -189,9 +251,12 @@ export async function relocateLocationStock(tx: Prisma.TransactionClient, input:
   if (input.sourceLocationId === input.destinationLocationId) throw new BadRequestException('Lokasi asal dan tujuan harus berbeda.');
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new BadRequestException('Jumlah relokasi harus integer positif.');
   await prepareLocationInventory(tx, input.warehouseId, input.productId);
+  await prepareConditionInventory(tx, input.warehouseId, input.productId);
   await assertLocation(tx, input.warehouseId, input.sourceLocationId);
   await assertLocation(tx, input.warehouseId, input.destinationLocationId);
   const moved = await tx.inventoryLocationBalance.updateMany({ where: { locationId: input.sourceLocationId, productId: input.productId, quantity: { gte: input.quantity }, available: { gte: input.quantity } }, data: { quantity: { decrement: input.quantity }, available: { decrement: input.quantity } } });
   if (moved.count !== 1) throw new BadRequestException('Stok bebas lokasi asal tidak mencukupi untuk relokasi.');
+  await decrementAvailableCondition(tx, { locationId: input.sourceLocationId, productId: input.productId, quantity: input.quantity });
   await tx.inventoryLocationBalance.upsert({ where: { locationId_productId: { locationId: input.destinationLocationId, productId: input.productId } }, create: { warehouseId: input.warehouseId, locationId: input.destinationLocationId, productId: input.productId, quantity: input.quantity, available: input.quantity }, update: { quantity: { increment: input.quantity }, available: { increment: input.quantity } } });
+  await incrementAvailableCondition(tx, { warehouseId: input.warehouseId, locationId: input.destinationLocationId, productId: input.productId, quantity: input.quantity });
 }

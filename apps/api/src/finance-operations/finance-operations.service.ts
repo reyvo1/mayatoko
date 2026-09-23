@@ -403,6 +403,38 @@ export class FinanceOperationsService {
     return { run, rootRunId, chainRunIds, recognized, paid, pending, outstanding, available };
   }
 
+  private parseAsOf(value?: string) {
+    const date = value ? new Date(`${value}T23:59:59.999Z`) : new Date();
+    if (Number.isNaN(date.getTime())) throw new BadRequestException('Tanggal asOf tidak valid.');
+    return date;
+  }
+
+  private agingDays(documentDate: Date, asOf: Date) {
+    return Math.max(0, Math.floor((asOf.getTime() - documentDate.getTime()) / 86400000));
+  }
+
+  private agingBucket(days: number) {
+    if (days <= 0) return 'CURRENT';
+    if (days <= 30) return '1_30';
+    if (days <= 60) return '31_60';
+    if (days <= 90) return '61_90';
+    return '90_PLUS';
+  }
+
+  private summarizeAging(rows: Array<{ outstandingAmount: string | number; agingBucket: string }>) {
+    const buckets: Record<string, { count: number; amount: string }> = {};
+    const values = new Map<string, Prisma.Decimal>();
+    for (const key of ['CURRENT','1_30','31_60','61_90','90_PLUS']) { values.set(key, new Prisma.Decimal(0)); buckets[key] = { count: 0, amount: '0.00' }; }
+    for (const row of rows) {
+      const key = row.agingBucket;
+      const amount = new Prisma.Decimal(row.outstandingAmount);
+      values.set(key, (values.get(key) ?? new Prisma.Decimal(0)).add(amount));
+      buckets[key] = { count: (buckets[key]?.count ?? 0) + 1, amount: values.get(key)!.toFixed(2) };
+    }
+    const total = [...values.values()].reduce((sum, amount) => sum.add(amount), new Prisma.Decimal(0));
+    return { asOfBuckets: buckets, totalOutstanding: total.toFixed(2), openDocuments: rows.length };
+  }
+
   async listCustomerReceivables(user: AuthUser) {
     const scope = this.requireTenantScope(user);
     const orders = await this.prisma.order.findMany({
@@ -426,6 +458,7 @@ export class FinanceOperationsService {
         pendingAmount: snapshot.pending.toFixed(2),
         outstandingAmount: snapshot.outstanding.toFixed(2),
         availableToReceive: snapshot.available.toFixed(2),
+        documentDate: snapshot.payment.createdAt,
         orderStatus: order.status,
       });
     }
@@ -492,7 +525,7 @@ export class FinanceOperationsService {
         referenceType: 'GoodsReceipt', referenceId: receipt.id, documentNumber: receipt.number,
         goodsReceiptId: receipt.id, goodsReceiptNumber: receipt.number,
         purchaseOrderId: receipt.purchaseOrderId, purchaseOrderNumber: receipt.purchaseOrder.number,
-        supplierId: receipt.supplierId, supplierName: receipt.supplier.name, transactionDate: receipt.receivedAt, receivedAt: receipt.receivedAt,
+        supplierId: receipt.supplierId, supplierName: receipt.supplier.name, paymentTermDays: receipt.supplier.paymentTermDays, transactionDate: receipt.receivedAt, receivedAt: receipt.receivedAt,
         grossAmount: gross.toFixed(2), returnedAmount: returned.toFixed(2), paidAmount: paid.toFixed(2), pendingPaymentAmount: pending.toFixed(2),
         outstandingAmount: outstanding.toFixed(2), availableToPay: available.toFixed(2),
       };
@@ -514,8 +547,8 @@ export class FinanceOperationsService {
       ...maintenanceRows.map((row) => row.vendorId),
       ...fuelRows.map((row) => row.supplierId),
     ].filter(Boolean) as string[])];
-    const suppliers = supplierIds.length ? await this.prisma.supplier.findMany({ where: { id: { in: supplierIds }, companyId: scope.companyId }, select: { id: true, name: true } }) : [];
-    const supplierMap = new Map(suppliers.map((row) => [row.id, row.name]));
+    const suppliers = supplierIds.length ? await this.prisma.supplier.findMany({ where: { id: { in: supplierIds }, companyId: scope.companyId }, select: { id: true, name: true, paymentTermDays: true } }) : [];
+    const supplierMap = new Map(suppliers.map((row) => [row.id, row]));
     for (const event of creditEvents) {
       const referenceType = event.sourceType as 'Asset'|'MaintenanceWorkOrder'|'FuelTransaction';
       let sourceSupplierId: string | null | undefined;
@@ -539,7 +572,7 @@ export class FinanceOperationsService {
         assetId: referenceType === 'Asset' ? event.sourceId : undefined,
         assetCode: referenceType === 'Asset' ? documentNumber : undefined,
         assetName: referenceType === 'Asset' ? sourceName : undefined,
-        supplierId: sourceSupplierId, supplierName: supplierMap.get(sourceSupplierId) ?? 'Supplier', transactionDate,
+        supplierId: sourceSupplierId, supplierName: supplierMap.get(sourceSupplierId)?.name ?? 'Supplier', paymentTermDays: supplierMap.get(sourceSupplierId)?.paymentTermDays ?? 0, transactionDate,
         grossAmount: snapshot.gross.toFixed(2), returnedAmount: '0.00', paidAmount: snapshot.paid.toFixed(2), pendingPaymentAmount: snapshot.pending.toFixed(2),
         outstandingAmount: snapshot.outstanding.toFixed(2), availableToPay: snapshot.available.toFixed(2),
       });
@@ -586,6 +619,70 @@ export class FinanceOperationsService {
       });
     }
     return result;
+  }
+
+  async customerReceivableAging(user: AuthUser, asOfValue?: string) {
+    const asOf = this.parseAsOf(asOfValue);
+    const rows = (await this.listCustomerReceivables(user))
+      .filter((row) => new Prisma.Decimal(row.outstandingAmount).greaterThan(0))
+      .map((row) => {
+        const documentDate = new Date(row.documentDate);
+        const ageDays = this.agingDays(documentDate, asOf);
+        return { ...row, ageDays, agingBucket: this.agingBucket(ageDays) };
+      });
+    return { asOf: asOf.toISOString(), ...this.summarizeAging(rows), rows };
+  }
+
+  async supplierPayableAging(user: AuthUser, asOfValue?: string, supplierId?: string) {
+    const asOf = this.parseAsOf(asOfValue);
+    const rows = (await this.listSupplierPayables(user, supplierId))
+      .filter((row) => new Prisma.Decimal(String(row.outstandingAmount ?? 0)).greaterThan(0))
+      .map((row) => {
+        const documentDate = new Date(String(row.transactionDate));
+        const paymentTermDays = Number(row.paymentTermDays ?? 0);
+        const dueDate = new Date(documentDate.getTime() + paymentTermDays * 86400000);
+        const ageDays = this.agingDays(dueDate, asOf);
+        return { ...row, outstandingAmount: String(row.outstandingAmount ?? 0), dueDate: dueDate.toISOString(), ageDays, agingBucket: this.agingBucket(ageDays) };
+      });
+    return { asOf: asOf.toISOString(), ...this.summarizeAging(rows), rows };
+  }
+
+  async cashBankPosition(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const [statements, transactions] = await Promise.all([
+      this.prisma.bankStatement.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId, bankAccountId: { not: null } }, select: { bankAccountId: true, closingBalance: true, periodEnd: true, importedAt: true }, orderBy: { importedAt: 'desc' } }),
+      this.prisma.operationalFinanceTransaction.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId, status: { not: 'CANCELLED' } }, select: { debitAccountCode: true, creditAccountCode: true, type: true }, take: 5000 }),
+    ]);
+    const settlementCodes = new Set<string>(['1101','1102']);
+    for (const row of transactions) {
+      if (['CUSTOMER_RECEIPT','SUPPLIER_PAYMENT','SUPPLIER_REFUND','TAX_PAYMENT','PAYROLL_LIABILITY_PAYMENT','CASH_TRANSFER','BANK_TRANSFER','OPERATING_EXPENSE','OTHER_INCOME'].includes(row.type)) {
+        settlementCodes.add(row.debitAccountCode); settlementCodes.add(row.creditAccountCode);
+      }
+    }
+    const statementAccountIds = [...new Set(statements.map((row) => row.bankAccountId).filter((value): value is string => Boolean(value)))];
+    const accounts = await this.prisma.account.findMany({ where: { branchId: scope.branchId, type: 'ASSET', isActive: true, branch: { companyId: scope.companyId }, OR: [{ code: { in: [...settlementCodes] } }, ...(statementAccountIds.length ? [{ id: { in: statementAccountIds } }] : [])] }, orderBy: { code: 'asc' } });
+    const result = [];
+    for (const account of accounts) {
+      const lines = await this.prisma.journalLine.findMany({ where: { accountId: account.id }, select: { debit: true, credit: true } });
+      const bookBalance = lines.reduce((sum, row) => sum.add(row.debit).sub(row.credit), new Prisma.Decimal(0));
+      const latestStatement = statements.find((row) => row.bankAccountId === account.id);
+      result.push({ accountId: account.id, code: account.code, name: account.name, bookBalance: bookBalance.toFixed(2), latestStatementBalance: latestStatement?.closingBalance?.toFixed(2) ?? null, latestStatementAt: latestStatement?.periodEnd ?? latestStatement?.importedAt ?? null, statementDelta: latestStatement?.closingBalance ? latestStatement.closingBalance.sub(bookBalance).toFixed(2) : null });
+    }
+    return result;
+  }
+
+  async settlementTrace(user: AuthUser, referenceType?: string, referenceId?: string) {
+    const scope = this.requireTenantScope(user);
+    if (!referenceType || !referenceId) throw new BadRequestException('referenceType dan referenceId wajib diisi.');
+    const transactions = await this.prisma.operationalFinanceTransaction.findMany({
+      where: { companyId: scope.companyId, branchId: scope.branchId, referenceType, referenceId },
+      orderBy: [{ transactionDate: 'asc' }, { id: 'asc' }],
+    });
+    const eventIds = transactions.map((row) => row.accountingEventId).filter((value): value is string => Boolean(value));
+    const events = eventIds.length ? await this.prisma.accountingEvent.findMany({ where: { id: { in: eventIds }, companyId: scope.companyId, branchId: scope.branchId }, include: { postings: true }, orderBy: { businessDate: 'asc' } }) : [];
+    const journalIds = [...new Set(events.flatMap((event) => event.postings.map((posting) => posting.journalEntryId)))];
+    const journals = journalIds.length ? await this.prisma.journalEntry.findMany({ where: { id: { in: journalIds } }, include: { lines: { include: { account: true } } }, orderBy: { date: 'asc' } }) : [];
+    return { reference: { type: referenceType, id: referenceId }, transactions, accountingEvents: events, journals };
   }
 
   async list(

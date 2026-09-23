@@ -124,12 +124,15 @@ export class ProductsService {
     search?: string,
     limitValue?: string,
     cursorValue?: string,
+    includeInactiveValue?: string,
   ) {
     const scope = await this.resolveScope(user, branchCode, requestedCompanyId, requestedBranchId);
     const limit = parsePageLimit(limitValue);
     const cursor = decodeCursor<ProductCursor>(cursorValue);
     const filters: Prisma.ProductWhereInput[] = [];
     const query = search?.trim();
+    const canManageProducts = Boolean(user?.roles.some((role) => ['SUPER_ADMIN', 'OWNER', 'ADMIN'].includes(role)));
+    const includeInactive = includeInactiveValue === 'true' && canManageProducts;
 
     if (query) {
       filters.push({
@@ -138,6 +141,7 @@ export class ProductsService {
           { sku: query },
           { sku: { startsWith: query } },
           { name: { contains: query } },
+          { variants: { some: { OR: [{ sku: query }, { code: query }, { name: { contains: query } }], isActive: true } } },
           { barcodes: { some: { code: query } } },
         ],
       });
@@ -150,12 +154,14 @@ export class ProductsService {
     const rows = await this.prisma.product.findMany({
       where: {
         companyId: scope.companyId,
-        isActive: true,
+        ...(includeInactive ? {} : { isActive: true }),
         AND: filters.length ? filters : undefined,
       },
       include: {
         category: true,
-        barcodes: { orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }] },
+        variants: { where: { isActive: true }, orderBy: [{ isDefault: 'desc' }, { name: 'asc' }] },
+        units: { where: { isActive: true }, orderBy: [{ variantId: 'asc' }, { isDefaultSale: 'desc' }, { quantityFactor: 'asc' }], include: { variant: true } },
+        barcodes: { orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }], include: { variant: true, productUnit: true } },
         inventories: {
           where: this.inventoryScope(scope),
           select: {
@@ -184,6 +190,7 @@ export class ProductsService {
 
   async create(dto: CreateProductDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
+    if (dto.trackExpiry && !dto.trackBatch) throw new BadRequestException('Pelacakan expiry membutuhkan pelacakan batch.');
     return this.prisma.$transaction(async (tx) => {
       if (dto.categoryId) {
         const category = await tx.category.findFirst({ where: { id: dto.categoryId, companyId: scope.companyId }, select: { id: true } });
@@ -227,15 +234,27 @@ export class ProductsService {
         const category = await tx.category.findFirst({ where: { id: dto.categoryId, companyId: scope.companyId }, select: { id: true } });
         if (!category) throw new BadRequestException('Kategori produk tidak ditemukan pada perusahaan ini.');
       }
+      const nextTrackBatch = dto.trackBatch ?? product.trackBatch;
+      const nextTrackExpiry = dto.trackExpiry ?? product.trackExpiry;
+      if (nextTrackExpiry && !nextTrackBatch) throw new BadRequestException('Pelacakan expiry membutuhkan pelacakan batch.');
       const updated = await tx.product.update({
         where: { id: product.id },
         data: {
+          ...(dto.sku != null ? { sku: dto.sku.trim() } : {}),
           ...(dto.name != null ? { name: dto.name } : {}),
-          ...(dto.description !== undefined ? { description: dto.description } : {}),
+          ...(dto.description !== undefined ? { description: dto.description || null } : {}),
           ...(dto.unit != null ? { unit: dto.unit.trim().toUpperCase() } : {}),
-          ...(dto.barcode !== undefined ? { barcode: dto.barcode } : {}),
-          ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+          ...(dto.barcode !== undefined ? { barcode: dto.barcode || null } : {}),
+          ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId || null } : {}),
           ...(dto.brandCode !== undefined ? { brandCode: dto.brandCode?.trim().toUpperCase() || null } : {}),
+          ...(dto.productType !== undefined ? { productType: dto.productType } : {}),
+          ...(dto.taxCategoryCode !== undefined ? { taxCategoryCode: dto.taxCategoryCode?.trim().toUpperCase() || null } : {}),
+          ...(dto.salesTaxCodeId !== undefined ? { salesTaxCodeId: dto.salesTaxCodeId || null } : {}),
+          ...(dto.purchaseTaxCodeId !== undefined ? { purchaseTaxCodeId: dto.purchaseTaxCodeId || null } : {}),
+          ...(dto.trackBatch !== undefined ? { trackBatch: dto.trackBatch } : {}),
+          ...(dto.trackExpiry !== undefined ? { trackExpiry: dto.trackExpiry } : {}),
+          ...(dto.trackSerial !== undefined ? { trackSerial: dto.trackSerial } : {}),
+          ...(dto.allowNegativeStock !== undefined ? { allowNegativeStock: dto.allowNegativeStock } : {}),
           ...(dto.minStock != null ? { minStock: dto.minStock } : {}),
           ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
           ...(dto.costPrice != null ? { costPrice: new Prisma.Decimal(dto.costPrice) } : {}),
@@ -305,7 +324,9 @@ export class ProductsService {
       where: { id, companyId: scope.companyId, isActive: true },
       include: {
         category: true,
-        barcodes: { orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }] },
+        variants: { where: { isActive: true }, orderBy: [{ isDefault: 'desc' }, { name: 'asc' }] },
+        units: { where: { isActive: true }, orderBy: [{ variantId: 'asc' }, { isDefaultSale: 'desc' }, { quantityFactor: 'asc' }], include: { variant: true } },
+        barcodes: { orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }], include: { variant: true, productUnit: true } },
         inventories: {
           where: this.inventoryScope(scope),
           include: { warehouse: true },

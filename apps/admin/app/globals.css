@@ -463,3 +463,44 @@ body { background: var(--bg); font-family: Inter, Geist, 'Segoe UI', system-ui, 
   .topRight{flex-wrap:wrap;justify-content:flex-end}
   .workspaceRail,.domainTabs{scrollbar-width:thin}
 }
+
+
+/* ===== F12 FINAL UI/UX POLISH ===== */
+html{color-scheme:dark;scrollbar-color:#30384b transparent}
+body{line-height:1.5;text-rendering:optimizeLegibility}
+.content{width:min(100%,1440px)}
+.panel,.statCard,.domainCard,.domainContext,.receipt{border-color:rgba(255,255,255,.075)}
+.panel{padding:20px;overflow:clip}
+.panelTitle{min-height:34px;margin-bottom:16px}
+.panelTitle h2{letter-spacing:-.015em}
+.sectionHelp{max-width:920px}
+.table{border:1px solid var(--border);border-radius:10px;overflow:auto;background:var(--panel)}
+.table>.tr{min-width:680px;border-radius:0;padding:11px 12px}
+.table>.tr.th{position:sticky;top:0;z-index:2;background:#171c28;border-bottom:1px solid var(--border)}
+.table>.tr:not(.th):nth-child(odd){background:rgba(255,255,255,.012)}
+.table>.tr:not(.th):hover{background:rgba(99,102,241,.07)}
+input,select,textarea{min-height:38px;background:#181d29;border-color:rgba(255,255,255,.095);border-radius:8px}
+textarea{width:100%;padding:10px 12px;color:var(--text);font:inherit;resize:vertical;outline:none}
+textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.14)}
+button,.btnGhost,.btnPrimarySm{min-height:36px;border-radius:8px}
+button.secondary{background:#191e2b;color:#d7dce7}
+button.secondary:hover:not(:disabled){background:#202637;filter:none}
+.notice{border-radius:8px;line-height:1.5}
+.notice.success{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.28);color:#86efac}
+.notice.error{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.28);color:#fca5a5}
+.statusChip{min-height:25px}
+.modalOverlay{padding:16px}
+.modalCard{max-height:min(760px,calc(100vh - 32px));overflow:auto;border-radius:12px}
+.domainTabs{padding:6px 0;background:rgba(11,14,20,.94);backdrop-filter:blur(10px)}
+.domainCard{border-radius:10px;min-height:80px}
+.domainCard:hover{transform:none;box-shadow:none;background:#161b27}
+.workspaceRail{scroll-snap-type:x proximity}
+.workspaceRail button{scroll-snap-align:start}
+@media(max-width:760px){
+  .pageHeader{align-items:flex-start}.pageHeader h1{font-size:24px}
+  .content{gap:14px}.panel{padding:14px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .table{margin-inline:-2px}.table>.tr{min-width:620px}
+  .workspaceRail{margin-inline:-14px;padding-inline:14px}
+  .domainTabs{margin-inline:-14px;padding-inline:14px}
+}
+@media(max-width:460px){.stats{grid-template-columns:1fr}.modalCard{padding:18px}}

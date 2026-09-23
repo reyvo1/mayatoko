@@ -79,6 +79,16 @@ export class CreateBusinessRuleDto {
   @ApiPropertyOptional() @IsOptional() @IsInt() priority?: number;
 }
 
+
+export class UpdateBusinessRuleDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() trigger?: string;
+  @ApiPropertyOptional() @IsOptional() @Allow() conditions?: unknown;
+  @ApiPropertyOptional() @IsOptional() @Allow() actions?: unknown;
+  @ApiPropertyOptional() @IsOptional() @IsInt() priority?: number;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
 export class CreateApprovalPolicyDto {
   @ApiPropertyOptional({ description: 'Kompatibilitas lama; company tetap berasal dari token.' }) @IsOptional() @IsString() companyId?: string;
   @ApiProperty() @IsString() code!: string;

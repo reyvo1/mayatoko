@@ -157,6 +157,26 @@ jobs:
           echo "Build gate failed. Independent dependency/UAT-coverage/container diagnostics were still collected; artifact-dependent stages are intentionally skipped." >&2
           exit 1
 
+      - name: Rehearse expand migrations from previous source baseline
+        id: migration_rehearsal
+        shell: bash
+        env:
+          PGPASSWORD: toko360_ci_password
+          T360_MIGRATION_DATABASE_URL: postgresql://toko360:toko360_ci_password@localhost:5432/toko360_migration_rehearsal?schema=public
+        run: |
+          set -euo pipefail
+          BASE_REF="${{ github.event.before }}"
+          if [ -z "$BASE_REF" ] || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE_REF^{commit}" 2>/dev/null; then
+            BASE_REF="$(git rev-parse HEAD^)"
+          fi
+          echo "Migration rehearsal baseline: $BASE_REF"
+          psql -h localhost -U toko360 -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='toko360_migration_rehearsal' AND pid <> pg_backend_pid();
+          DROP DATABASE IF EXISTS toko360_migration_rehearsal;
+          CREATE DATABASE toko360_migration_rehearsal OWNER toko360;
+          SQL
+          T360_MIGRATION_BASE_REF="$BASE_REF" npm run db:migrations:rehearse:postgres
+
       - name: Prepare PostgreSQL staging schema and bootstrap seed without regenerating exact artifact client
         run: |
           npm run db:postgres:prepare:artifact

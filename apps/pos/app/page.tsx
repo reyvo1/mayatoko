@@ -7,18 +7,18 @@ import { PosShell, PosWorkspace } from './pos-shell';
 import { calculateOfflineQuote, getOrCreateDeviceCode, loadOfflineQueue, loadOfflineSnapshot, nextOfflineSequence, OfflineQueueItem, OfflineTaxCode, reservedOfflineQuantity, saveOfflineQueue, saveOfflineSnapshot } from '../lib/offline';
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
-type Product = { id: string; sku: string; barcode?: string | null; barcodes?: Array<{ code: string; unitCode?: string | null; quantityFactor?: string | number }>; name: string; unit: string; salePrice: string | number; effectiveSalePrice?: string | number; salesTaxCodeId?: string | null; categoryName?: string; inventories: Array<{ warehouseId: string; available: number }> };
+type Product = { id: string; sku: string; barcode?: string | null; units?: Array<{ id: string; variantId?: string | null; unitCode: string; quantityFactor: number; isDefaultSale: boolean; variant?: { id: string; code: string; name: string } | null }>; barcodes?: Array<{ code: string; variantId?: string | null; productUnitId?: string | null; unitCode?: string | null; quantityFactor?: string | number }>; name: string; unit: string; salePrice: string | number; effectiveSalePrice?: string | number; salesTaxCodeId?: string | null; categoryName?: string; inventories: Array<{ warehouseId: string; available: number }> };
 type Warehouse = { id: string; name: string; code: string };
 type CursorPage<T> = { items: T[]; pageInfo: { limit: number; nextCursor: string | null; hasMore: boolean } };
 type RuntimeManifest = { features: Record<string, { enabled: boolean }> };
-type CartItem = { product: Product; quantity: number; unitCode: string; quantityFactor: number; barcodeCode?: string };
+type CartItem = { product: Product; quantity: number; unitCode: string; quantityFactor: number; productUnitId?: string; variantId?: string; barcodeCode?: string };
 type CustomerOption = { id: string; name: string; phone?: string | null };
 type CashierShift = { id: string; openingCash: string | number; openedAt: string; status: 'OPEN' | 'CLOSED'; expectedCash?: string | number; closingCash?: string | number | null; difference?: string | number | null };
 type SaleQuote = { subtotal: string | number; discount: string | number; promoDiscount?: string | number; appliedPromo?: { id: string; code: string; name: string; type: string } | null; loyaltyDiscount: string | number; totalDiscount: string | number; net: string | number; tax: string | number; total: string | number; redeemPoints: number; items?: Array<{ productId: string; barcodeCode?: string | null; unitCode: string; unitQuantity: number; quantityFactor: number; baseQuantity: number; sellingUnitPrice: string | number; baseUnitPrice: string | number; lineSubtotal: string | number }> };
 type SplitPayment = { method: 'CASH' | 'QRIS' | 'TRANSFER' | 'CARD'; amount: number };
 type RecentSale = { id: string; number: string; warehouseId: string; total: string | number; createdAt: string; items: Array<{ id: string; productId: string; quantity: number; product: { name: string; sku?: string } }> };
 type SaleReturnRow = { id: string; number: string; saleId: string; status: string; refundMethod?: string | null; refundAmount: string | number; inspectionId?: string | null; createdAt: string };
-type HeldSale = { id: string; cashierSub: string; label: string; createdAt: string; warehouseId: string; customerId: string; discount: number; redeemPoints: number; promoCode: string; paymentMethod: string; items: Array<{ productId: string; quantity: number; barcodeCode?: string }> };
+type HeldSale = { id: string; cashierSub: string; label: string; createdAt: string; warehouseId: string; customerId: string; discount: number; redeemPoints: number; promoCode: string; paymentMethod: string; items: Array<{ productId: string; quantity: number; productUnitId?: string; variantId?: string; barcodeCode?: string }> };
 type OfflineConfig = { serverTime: string; branchId: string; shift: CashierShift | null; taxCodes: OfflineTaxCode[]; policy: { paymentMethods: string[]; loyaltyRedeemAllowed: boolean; maxOfflineAgeMinutes: number; note: string } };
 type OfflineReplayResult = { localId: string; sequence: number; status: 'APPLIED' | 'CONFLICT' | 'FAILED' | 'PENDING'; reason?: string; number?: string; saleId?: string };
 type OfflineReplayResponse = { deviceId: string | null; applied: number; conflicts: number; failed: number; remaining: number; results: OfflineReplayResult[] };
@@ -272,7 +272,7 @@ export default function PosPage() {
       promoCode: promoCode.trim() || undefined,
       customerId: customerId || undefined,
       redeemPoints: customerId && redeemPoints > 0 ? redeemPoints : undefined,
-      items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, ...(item.barcodeCode ? { barcodeCode: item.barcodeCode } : {}) })),
+      items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, ...(item.variantId ? { variantId: item.variantId } : {}), ...(item.productUnitId ? { productUnitId: item.productUnitId } : {}), ...(item.barcodeCode ? { barcodeCode: item.barcodeCode } : {}) })),
     };
   }
 
@@ -401,13 +401,15 @@ export default function PosPage() {
     const serverAvailable = product.inventories.find((inventory) => inventory.warehouseId === warehouseId)?.available ?? 0;
     return Math.max(0, serverAvailable - reservedOfflineQuantity(offlineQueue, warehouseId, product.id));
   }
-  function cartLineKey(item: Pick<CartItem, 'product' | 'barcodeCode'>) { return `${item.product.id}:${item.barcodeCode ?? 'BASE'}`; }
-  function add(product: Product, quantity = 1, conversion?: { unitCode?: string | null; quantityFactor?: string | number; barcodeCode?: string }) {
+  function cartLineKey(item: Pick<CartItem, 'product' | 'barcodeCode' | 'productUnitId' | 'variantId'>) { return `${item.product.id}:${item.productUnitId ?? item.barcodeCode ?? item.variantId ?? 'BASE'}`; }
+  function add(product: Product, quantity = 1, conversion?: { unitCode?: string | null; quantityFactor?: string | number; productUnitId?: string; variantId?: string; barcodeCode?: string }) {
     const factor = Number(conversion?.quantityFactor ?? 1);
     if (!Number.isSafeInteger(factor) || factor < 1) { setMessage('Konversi unit produk tidak valid.'); return; }
     const unitCode = (conversion?.unitCode || product.unit || 'PCS').trim().toUpperCase();
     const barcodeCode = conversion?.barcodeCode;
-    const lineKey = `${product.id}:${barcodeCode ?? 'BASE'}`;
+    const productUnitId = conversion?.productUnitId;
+    const variantId = conversion?.variantId;
+    const lineKey = `${product.id}:${productUnitId ?? barcodeCode ?? variantId ?? 'BASE'}`;
     const delta = Math.max(1, Math.trunc(quantity));
     const stock = available(product);
     setCart((current) => {
@@ -418,7 +420,7 @@ export default function PosPage() {
       if (nextQuantity <= 0 || nextQuantity === existing?.quantity) return current;
       return existing
         ? current.map((item) => cartLineKey(item) === lineKey ? { ...item, quantity: nextQuantity } : item)
-        : [...current, { product, quantity: nextQuantity, unitCode, quantityFactor: factor, ...(barcodeCode ? { barcodeCode } : {}) }];
+        : [...current, { product, quantity: nextQuantity, unitCode, quantityFactor: factor, ...(productUnitId ? { productUnitId } : {}), ...(variantId ? { variantId } : {}), ...(barcodeCode ? { barcodeCode } : {}) }];
     });
   }
   function scanExactBarcode(raw: string) {
@@ -436,7 +438,7 @@ export default function PosPage() {
         setMessage('Scan barcode unit/kemasan membutuhkan server online agar konversi dan harga diverifikasi. Gunakan produk base unit saat offline.');
         return true;
       }
-      add(product, 1, { unitCode: alternate?.unitCode ?? product.unit, quantityFactor: factor, barcodeCode: code });
+      add(product, 1, { unitCode: alternate?.unitCode ?? product.unit, quantityFactor: factor, productUnitId: alternate?.productUnitId ?? undefined, variantId: alternate?.variantId ?? undefined, barcodeCode: code });
       setSearch('');
       setMessage(factor > 1 ? `${product.name}: 1 ${alternate?.unitCode ?? 'kemasan'} = ${factor} ${product.unit}. Harga dikonfirmasi server.` : '');
       return true;
@@ -470,7 +472,7 @@ export default function PosPage() {
     const next: HeldSale = {
       id, cashierSub, label: `Hold ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`, createdAt: new Date().toISOString(),
       warehouseId, customerId, discount, redeemPoints, promoCode, paymentMethod,
-      items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, ...(item.barcodeCode ? { barcodeCode: item.barcodeCode } : {}) })),
+      items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, ...(item.variantId ? { variantId: item.variantId } : {}), ...(item.productUnitId ? { productUnitId: item.productUnitId } : {}), ...(item.barcodeCode ? { barcodeCode: item.barcodeCode } : {}) })),
     };
     if (!persistHeldSales([next, ...heldSales])) return;
     setCart([]); setCustomerId(''); setDiscount(0); setRedeemPoints(0); setPromoCode(''); setSplitEnabled(false);
@@ -488,10 +490,11 @@ export default function PosPage() {
       const serverAvailable = product.inventories.find((inventory) => inventory.warehouseId === targetWarehouseId)?.available ?? 0;
       const safeAvailable = Math.max(0, serverAvailable - reservedOfflineQuantity(offlineQueue, targetWarehouseId, product.id));
       const barcode = line.barcodeCode ? product.barcodes?.find((item) => item.code === line.barcodeCode) : undefined;
-      const factor = Number(barcode?.quantityFactor ?? 1);
+      const directUnit = line.productUnitId ? product.units?.find((item) => item.id === line.productUnitId) : undefined;
+      const factor = Number(directUnit?.quantityFactor ?? barcode?.quantityFactor ?? 1);
       if (!Number.isSafeInteger(factor) || factor < 1) return [];
       const safeUnitQuantity = Math.min(line.quantity, Math.floor(safeAvailable / factor));
-      return safeUnitQuantity > 0 ? [{ product, quantity: safeUnitQuantity, unitCode: (barcode?.unitCode || product.unit || 'PCS').toUpperCase(), quantityFactor: factor, ...(line.barcodeCode ? { barcodeCode: line.barcodeCode } : {}) }] : [];
+      return safeUnitQuantity > 0 ? [{ product, quantity: safeUnitQuantity, unitCode: (directUnit?.unitCode || barcode?.unitCode || product.unit || 'PCS').toUpperCase(), quantityFactor: factor, ...(line.productUnitId ? { productUnitId: line.productUnitId } : {}), ...(line.variantId ? { variantId: line.variantId } : {}), ...(line.barcodeCode ? { barcodeCode: line.barcodeCode } : {}) }] : [];
     }).filter((item) => item.quantity > 0);
     setWarehouseId(targetWarehouseId); setCart(restored); setCustomerId(held.customerId); setDiscount(held.discount); setRedeemPoints(held.redeemPoints); setPromoCode(held.promoCode); setPaymentMethod(held.paymentMethod || 'CASH'); setSplitEnabled(false);
     persistHeldSales(heldSales.filter((item) => item.id !== id));
@@ -653,7 +656,7 @@ export default function PosPage() {
           {!catalogReady && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>Memuat katalog…</h4><p>Menyiapkan produk dan stok terminal.</p></div>}
           {catalogReady && !products.length && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>Katalog belum tersedia</h4><p>Belum ada produk aktif untuk terminal ini atau data gagal dimuat.</p></div>}
           {products.length > 0 && !visibleProducts.length && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>Tidak ada produk cocok</h4><p>Coba kata kunci lain atau ganti kategori.</p></div>}
-          {visibleProducts.map((product) => <button className="product" key={product.id} onClick={() => add(product)} disabled={available(product) <= 0}><div className="productIcon">{product.name.charAt(0)}</div><strong>{product.name}</strong><small>{product.sku} · stok {available(product)}</small><span>{money(productPrice(product))}</span></button>)}
+          {visibleProducts.map((product) => <div className="product" key={product.id}><button className="productMain" onClick={() => add(product)} disabled={available(product) <= 0}><div className="productIcon">{product.name.charAt(0)}</div><strong>{product.name}</strong><small>{product.sku} · stok {available(product)} {product.unit}</small><span>{money(productPrice(product))}</span></button>{apiOnline && (product.units?.length ?? 0) > 0 && <div className="unitActions">{product.units!.filter((unit) => !unit.variantId || unit.variantId === product.units?.find((item) => item.isDefaultSale)?.variantId).slice(0,4).map((unit) => <button type="button" key={unit.id} onClick={() => add(product,1,{unitCode:unit.unitCode,quantityFactor:unit.quantityFactor,productUnitId:unit.id,variantId:unit.variantId??undefined})}>{unit.unitCode} × {unit.quantityFactor}</button>)}</div>}</div>)}
         </div>
       </section>
       <aside className="cart"><div className="cartTitle"><div><span>TRANSAKSI</span><h2><ShoppingCart size={17} style={{verticalAlign:'-3px'}} /> Keranjang kasir</h2></div><div className="rowActions"><button className="clear" disabled={!cart.length} onClick={holdCart}>HOLD</button><button className="clear" onClick={() => setCart([])}><Trash2 size={14} /> Kosongkan</button></div></div>

@@ -78,7 +78,7 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
   {
     key: 'master-data', route: '/master-data', label: 'Master Data', group: 'Operasional', Icon: Boxes,
     eyebrow: 'FOUNDATION', title: 'Master data operasional',
-    description: 'Kelola kategori, pelanggan, cabang, gudang, reference master, barcode multipel, dan pricing per cabang/segmen.',
+    description: 'Kelola katalog, customer, produk, multi-UOM/kemasan, barcode, pricing retail-grosir, cabang, gudang, dan reference master.',
     moduleCodes: ['catalog', 'suppliers', 'inventory'],
   },
   {
@@ -112,7 +112,7 @@ export const ADMIN_WORKSPACES: AdminWorkspace[] = [
   {
     key: 'finance', route: '/finance', label: 'Akuntansi & Kas', group: 'Keuangan & SDM', Icon: BookOpen,
     eyebrow: 'FINANCE', title: 'Akuntansi, kas, dan settlement',
-    description: 'Pantau jurnal, pajak, utang supplier, piutang pelanggan, refund, serta transaksi kas dan bank.',
+    description: 'Kelola chart of accounts, jurnal, pajak, periode fiskal, AP/AR, kas-bank, rekonsiliasi, serta laporan keuangan dan export.',
     moduleCodes: ['accounting', 'accounting-core', 'finance-operations', 'bank-reconciliation', 'system-tax'],
     permissionPrefixes: ['finance', 'accounting', 'tax'],
   },

@@ -24,8 +24,9 @@ import { ProductsService } from './products.service';
     @Query('search') search?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
+    @Query('includeInactive') includeInactive?: string,
   ) {
-    return this.products.list(user, branchCode, companyId, branchId, search, limit, cursor);
+    return this.products.list(user, branchCode, companyId, branchId, search, limit, cursor, includeInactive);
   }
 
   @Public()

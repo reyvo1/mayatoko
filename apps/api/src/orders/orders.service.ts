@@ -723,10 +723,16 @@ export class OrdersService {
 
   private async consumeBatches(tx: Prisma.TransactionClient, warehouseId: string, productId: string, quantity: number) {
     let remaining = quantity;
-    const batches = await tx.inventoryBatch.findMany({
-      where: { warehouseId, productId, quantity: { gt: 0 } },
+    const now = new Date();
+    const expiringBatches = await tx.inventoryBatch.findMany({
+      where: { warehouseId, productId, quantity: { gt: 0 }, expiryDate: { gt: now } },
       orderBy: [{ expiryDate: 'asc' }, { createdAt: 'asc' }],
     });
+    const nonExpiringBatches = await tx.inventoryBatch.findMany({
+      where: { warehouseId, productId, quantity: { gt: 0 }, expiryDate: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    const batches = [...expiringBatches, ...nonExpiringBatches];
     for (const batch of batches) {
       if (remaining <= 0) break;
       const free = Math.max(0, batch.quantity - batch.reserved);

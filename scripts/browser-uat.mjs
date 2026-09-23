@@ -249,6 +249,40 @@ async function main() {
     if (payrollBodyText.includes('Gagal memuat HR/Payroll') || payrollBodyText.includes('Gagal memuat detail payroll')) throw new Error('Payroll Lifecycle dirender tetapi read model gagal dimuat dari API.');
     evidence.checks.push({ id: 'ADMIN_PAYROLL_LIFECYCLE', status: 'PASS', assertions: ['PAYROLL LIFECYCLE', 'Riwayat Payroll Runs', 'PPh / BPJS / Potongan', 'read model tanpa error'] });
 
+    const clickEmployees = `(() => { const nodes=[...document.querySelectorAll('button,a')]; const el=nodes.find(x=>x.textContent?.trim()==='Employees'); if(!el)return false; el.click(); return true; })()`;
+    await waitExpression(cdp, clickEmployees, 'Domain Employees');
+    await waitExpression(cdp, `document.body && document.body.innerText.includes('EMPLOYEE MASTER') && document.body.innerText.includes('Tambah karyawan') && document.body.innerText.includes('Daftar Karyawan')`, 'Employee Master Admin', 45000);
+    evidence.checks.push({ id: 'ADMIN_EMPLOYEE_MASTER', status: 'PASS', assertions: ['EMPLOYEE MASTER', 'Tambah karyawan', 'Daftar Karyawan'] });
+
+    if (String(process.env.T360_UAT_HR_MUTATIONS || '').toLowerCase() === 'true') {
+      const employeeNumber = `UAT-${Date.now()}`;
+      const fullName = `Browser UAT ${employeeNumber}`;
+      const fillEmployee = `(() => {
+        const set=(labelText,value)=>{ const label=[...document.querySelectorAll('label')].find(x=>x.textContent?.includes(labelText)); const input=label?.querySelector('input'); if(!input)return false; const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set; setter?.call(input,value); input.dispatchEvent(new Event('input',{bubbles:true})); return true; };
+        const ok=set('NIP / Employee Number', ${JSON.stringify(employeeNumber)}) && set('Nama lengkap', ${JSON.stringify(fullName)});
+        const button=[...document.querySelectorAll('button')].find(x=>x.textContent?.trim()==='Tambah karyawan'); if(!ok||!button)return false; button.click(); return true;
+      })()`;
+      await waitExpression(cdp, fillEmployee, 'Isi dan submit employee master');
+      await waitExpression(cdp, `document.body && document.body.innerText.includes(${JSON.stringify(employeeNumber)}) && document.body.innerText.includes('Karyawan berhasil dibuat.')`, 'Employee create operator action', 45000);
+
+      const editEmployee = `(() => { const row=[...document.querySelectorAll('.tr')].find(x=>x.textContent?.includes(${JSON.stringify(employeeNumber)})); const button=[...(row?.querySelectorAll('button')||[])].find(x=>x.textContent?.trim()==='Edit'); if(!button)return false; button.click(); return true; })()`;
+      await waitExpression(cdp, editEmployee, 'Edit employee operator action');
+      await waitExpression(cdp, `document.body && document.body.innerText.includes('Edit karyawan') && [...document.querySelectorAll('button')].some(x=>x.textContent?.trim()==='Simpan perubahan')`, 'Employee edit form');
+      const updatedName = `${fullName} Updated`;
+      const saveEmployee = `(() => { const label=[...document.querySelectorAll('label')].find(x=>x.textContent?.includes('Nama lengkap')); const input=label?.querySelector('input'); const button=[...document.querySelectorAll('button')].find(x=>x.textContent?.trim()==='Simpan perubahan'); if(!input||!button)return false; const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set; setter?.call(input,${JSON.stringify(updatedName)}); input.dispatchEvent(new Event('input',{bubbles:true})); button.click(); return true; })()`;
+      await waitExpression(cdp, saveEmployee, 'Simpan edit employee');
+      await waitExpression(cdp, `document.body && document.body.innerText.includes(${JSON.stringify(updatedName)}) && document.body.innerText.includes('Data karyawan berhasil diperbarui.')`, 'Employee edit persisted', 45000);
+
+      const deactivateEmployee = `(() => { const row=[...document.querySelectorAll('.tr')].find(x=>x.textContent?.includes(${JSON.stringify(employeeNumber)})); const button=[...(row?.querySelectorAll('button')||[])].find(x=>x.textContent?.trim()==='Nonaktifkan'); if(!button)return false; button.click(); return true; })()`;
+      await waitExpression(cdp, deactivateEmployee, 'Deactivate employee operator action');
+      await waitExpression(cdp, `(() => { const row=[...document.querySelectorAll('.tr')].find(x=>x.textContent?.includes(${JSON.stringify(employeeNumber)})); return !!row && row.textContent.includes('NONAKTIF') && [...row.querySelectorAll('button')].some(x=>x.textContent?.trim()==='Aktifkan'); })()`, 'Employee inactive state', 45000);
+
+      const activateEmployee = `(() => { const row=[...document.querySelectorAll('.tr')].find(x=>x.textContent?.includes(${JSON.stringify(employeeNumber)})); const button=[...(row?.querySelectorAll('button')||[])].find(x=>x.textContent?.trim()==='Aktifkan'); if(!button)return false; button.click(); return true; })()`;
+      await waitExpression(cdp, activateEmployee, 'Reactivate employee operator action');
+      await waitExpression(cdp, `(() => { const row=[...document.querySelectorAll('.tr')].find(x=>x.textContent?.includes(${JSON.stringify(employeeNumber)})); return !!row && [...row.querySelectorAll('button')].some(x=>x.textContent?.trim()==='Nonaktifkan'); })()`, 'Employee active state restored', 45000);
+      evidence.checks.push({ id: 'ADMIN_EMPLOYEE_MASTER_MUTATIONS', status: 'PASS', employeeNumber, assertions: ['create', 'edit', 'deactivate', 'reactivate'] });
+    }
+
     await navigateAndAssert(cdp, storefrontUrl, `document.body && document.body.innerText.includes('TOKO360 OFFICIAL STORE') && document.body.innerText.includes('Belanja langsung dari toko')`, 'Storefront browser render');
     evidence.checks.push({ id: 'STOREFRONT_BROWSER_RENDER', status: 'PASS', url: storefrontUrl });
 

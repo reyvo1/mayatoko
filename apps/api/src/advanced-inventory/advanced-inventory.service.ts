@@ -5,8 +5,8 @@ import { AuthUser } from '../auth/auth.types';
 import { nextDocumentNumber } from '../common/numbering';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'node:crypto';
-import { adjustLocationStock, consumeAvailableLocationStock, depositLocationStock, prepareLocationInventory, relocateLocationStock } from '../common/location-inventory';
-import { CountStockOpnameDto, CreateStockOpnameDto, CreateStockTransferDto, ReceiveStockTransferDto, RelocateInventoryDto } from './dto/advanced-inventory.dto';
+import { adjustLocationStock, consumeAvailableLocationStock, depositLocationStock, prepareConditionInventory, prepareLocationInventory, relocateLocationStock } from '../common/location-inventory';
+import { CountStockOpnameDto, CreateStockOpnameDto, CreateStockTransferDto, MoveInventoryConditionDto, ReceiveStockTransferDto, RelocateInventoryDto } from './dto/advanced-inventory.dto';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 type TenantScope = { companyId: string; branchId: string };
@@ -98,6 +98,41 @@ export class AdvancedInventoryService {
     });
   }
 
+  async listTransitBalances(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const branchWarehouseIds = await this.branchWarehouseIds(this.prisma, scope);
+    const companyWarehouseIds = await this.companyWarehouseIds(this.prisma, scope);
+    const transfers = await this.prisma.stockTransfer.findMany({
+      where: {
+        status: { in: ['SHIPPED','PARTIALLY_RECEIVED'] },
+        sourceWarehouseId: { in: companyWarehouseIds },
+        destinationWarehouseId: { in: companyWarehouseIds },
+        OR: [{ sourceWarehouseId: { in: branchWarehouseIds } }, { destinationWarehouseId: { in: branchWarehouseIds } }],
+      },
+      include: { items: true }, orderBy: { shippedAt: 'asc' }, take: 500,
+    });
+    return transfers.flatMap((transfer) => transfer.items.map((item) => {
+      const quantity = Math.max(0, item.shippedQty - item.receivedQty);
+      const serialNumbers = Array.isArray(item.serialNumbers) ? item.serialNumbers.filter((value): value is string => typeof value === 'string') : [];
+      return { transferId: transfer.id, number: transfer.number, sourceWarehouseId: transfer.sourceWarehouseId, destinationWarehouseId: transfer.destinationWarehouseId, productId: item.productId, condition: 'IN_TRANSIT' as const, quantity, batchNumber: item.batchNumber, serialCount: serialNumbers.length, shippedAt: transfer.shippedAt };
+    })).filter((row) => row.quantity > 0);
+  }
+
+  async listReorderVisibility(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const warehouseIds = await this.branchWarehouseIds(this.prisma, scope);
+    const [inventories, transit] = await Promise.all([
+      this.prisma.inventory.findMany({ where: { warehouseId: { in: warehouseIds } }, include: { warehouse: { select: { id: true, code: true, name: true } }, product: { select: { id: true, sku: true, name: true, minStock: true, isActive: true } } }, orderBy: [{ warehouseId: 'asc' }, { productId: 'asc' }], take: 5000 }),
+      this.listTransitBalances(user),
+    ]);
+    return inventories.filter((row) => row.product.isActive && row.product.minStock > 0).map((row) => {
+      const inboundInTransit = transit.filter((item) => item.destinationWarehouseId === row.warehouseId && item.productId === row.productId).reduce((sum, item) => sum + item.quantity, 0);
+      const outboundInTransit = transit.filter((item) => item.sourceWarehouseId === row.warehouseId && item.productId === row.productId).reduce((sum, item) => sum + item.quantity, 0);
+      const projectedAvailable = row.available + inboundInTransit;
+      return { warehouseId: row.warehouseId, warehouse: row.warehouse, productId: row.productId, product: row.product, available: row.available, minStock: row.product.minStock, inboundInTransit, outboundInTransit, projectedAvailable, shortage: Math.max(0, row.product.minStock - projectedAvailable), lowStock: row.available <= row.product.minStock };
+    }).filter((row) => row.lowStock || row.inboundInTransit > 0).sort((a, b) => b.shortage - a.shortage || a.product.sku.localeCompare(b.product.sku));
+  }
+
   async createTransfer(dto: CreateStockTransferDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
     if (dto.sourceWarehouseId === dto.destinationWarehouseId) throw new BadRequestException('Gudang asal dan tujuan harus berbeda.');
@@ -107,7 +142,7 @@ export class AdvancedInventoryService {
     const productIds = [...new Set(dto.items.map((item) => item.productId))];
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds }, companyId: scope.companyId, isActive: true },
-      select: { id: true },
+      select: { id: true, name: true, trackBatch: true, trackExpiry: true, trackSerial: true },
     });
     if (products.length !== productIds.length) {
       const accepted = new Set(products.map((product) => product.id));
@@ -116,11 +151,22 @@ export class AdvancedInventoryService {
       if (crossTenant) return this.denyTenantAccess(this.prisma, user, scope, 'Product', crossTenant.id);
       throw new BadRequestException('Satu atau lebih produk tidak ditemukan.');
     }
+    const productMap = new Map(products.map((product) => [product.id, product]));
+    for (const item of dto.items) {
+      const product = productMap.get(item.productId)!;
+      const batchNumber = item.batchNumber?.trim() || undefined;
+      const serialNumbers = (item.serialNumbers ?? []).map((value) => value.trim()).filter(Boolean);
+      if (product.trackBatch && !batchNumber) throw new BadRequestException(`Batch wajib untuk transfer produk ${product.name}.`);
+      if (!product.trackBatch && batchNumber) throw new BadRequestException(`Produk ${product.name} tidak memakai batch.`);
+      if (product.trackSerial && serialNumbers.length !== item.quantity) throw new BadRequestException(`Jumlah serial transfer ${product.name} harus sama dengan quantity (${item.quantity}).`);
+      if (!product.trackSerial && serialNumbers.length) throw new BadRequestException(`Produk ${product.name} tidak memakai serial.`);
+      if (new Set(serialNumbers).size !== serialNumbers.length) throw new BadRequestException(`Serial transfer ${product.name} tidak boleh duplikat.`);
+    }
     return this.prisma.$transaction(async (tx) => {
       const row = await tx.stockTransfer.create({ data: {
         number: await nextDocumentNumber(tx, { companyId: scope.companyId, branchId: scope.branchId, documentType: 'STOCK_TRANSFER', prefix: 'TRF' }), sourceWarehouseId: source.id, destinationWarehouseId: destination.id, requestedById: user.sub,
         status: 'REQUESTED', requestedAt: new Date(), notes: dto.notes,
-        items: { create: dto.items.map((item) => ({ productId: item.productId, quantity: item.quantity, batchNumber: item.batchNumber })) },
+        items: { create: dto.items.map((item) => ({ productId: item.productId, quantity: item.quantity, batchNumber: item.batchNumber?.trim() || undefined, serialNumbers: (item.serialNumbers ?? []).map((value) => value.trim()).filter(Boolean) })) },
       }, include: { items: true } });
       await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_STOCK_TRANSFER', entityType: 'StockTransfer', entityId: row.id, payload: { branchId: scope.branchId, sourceWarehouseId: source.id, destinationWarehouseId: destination.id, destinationBranchId: destination.branchId } } });
       return row;
@@ -146,6 +192,20 @@ export class AdvancedInventoryService {
       for (const item of transfer.items) {
         const inventory = await tx.inventory.findUnique({ where: { warehouseId_productId: { warehouseId: source.id, productId: item.productId } } });
         if (!inventory || inventory.available < item.quantity) throw new BadRequestException(`Stok produk ${item.productId} tidak mencukupi.`);
+        if (item.batchNumber) {
+          const batch = await tx.inventoryBatch.findUnique({ where: { warehouseId_productId_batchNumber: { warehouseId: source.id, productId: item.productId, batchNumber: item.batchNumber } } });
+          if (!batch || batch.quantity - batch.reserved < item.quantity) throw new BadRequestException(`Stok batch ${item.batchNumber} tidak mencukupi untuk transfer.`);
+          if (batch.expiryDate && batch.expiryDate <= new Date()) throw new BadRequestException(`Batch ${item.batchNumber} sudah kedaluwarsa dan tidak boleh dikirim sebagai stok AVAILABLE.`);
+          const changedBatch = await tx.inventoryBatch.updateMany({ where: { id: batch.id, quantity: { gte: item.quantity + batch.reserved } }, data: { quantity: { decrement: item.quantity } } });
+          if (changedBatch.count !== 1) throw new BadRequestException(`Saldo batch ${item.batchNumber} berubah saat transfer diproses.`);
+        }
+        const serialNumbers = Array.isArray(item.serialNumbers) ? item.serialNumbers.filter((value): value is string => typeof value === 'string').map((value) => value.trim()).filter(Boolean) : [];
+        if (serialNumbers.length) {
+          const serials = await tx.inventorySerial.findMany({ where: { serialNumber: { in: serialNumbers }, warehouseId: source.id, productId: item.productId, status: 'AVAILABLE' }, select: { id: true } });
+          if (serials.length !== serialNumbers.length) throw new BadRequestException('Satu atau lebih serial transfer tidak tersedia pada gudang asal.');
+          const claimed = await tx.inventorySerial.updateMany({ where: { id: { in: serials.map((row) => row.id) }, status: 'AVAILABLE' }, data: { status: 'IN_TRANSIT', referenceType: 'StockTransfer', referenceId: transfer.id } });
+          if (claimed.count !== serialNumbers.length) throw new BadRequestException('Status serial berubah saat transfer dikirim. Ulangi proses.');
+        }
         const allocations = await consumeAvailableLocationStock(tx, { warehouseId: source.id, productId: item.productId, quantity: item.quantity });
         const updated = await tx.inventory.update({ where: { id: inventory.id }, data: { quantity: { decrement: item.quantity }, available: { decrement: item.quantity } } });
         for (const allocation of allocations) await tx.inventoryMovement.create({ data: { warehouseId: source.id, productId: item.productId, locationId: allocation.locationId, type: 'TRANSFER_OUT', quantity: -allocation.quantity, balanceAfter: updated.quantity, referenceType: 'StockTransfer', referenceId: transfer.id } });
@@ -178,6 +238,31 @@ export class AdvancedInventoryService {
         const remaining = item.shippedQty - item.receivedQty;
         if (input.receivedQty > remaining) throw new BadRequestException('Jumlah diterima melebihi jumlah dalam perjalanan.');
         if (input.receivedQty === 0) continue;
+        if (item.batchNumber) {
+          const sourceBatch = await tx.inventoryBatch.findUnique({ where: { warehouseId_productId_batchNumber: { warehouseId: source.id, productId: item.productId, batchNumber: item.batchNumber } } });
+          if (!sourceBatch) throw new BadRequestException(`Metadata batch ${item.batchNumber} tidak ditemukan pada gudang asal.`);
+          await tx.inventoryBatch.upsert({
+            where: { warehouseId_productId_batchNumber: { warehouseId: destination.id, productId: item.productId, batchNumber: item.batchNumber } },
+            create: { warehouseId: destination.id, productId: item.productId, batchNumber: item.batchNumber, producedAt: sourceBatch.producedAt, expiryDate: sourceBatch.expiryDate, quantity: input.receivedQty },
+            update: { quantity: { increment: input.receivedQty } },
+          });
+        }
+        const manifest = Array.isArray(item.serialNumbers) ? item.serialNumbers.filter((value): value is string => typeof value === 'string').map((value) => value.trim()).filter(Boolean) : [];
+        if (manifest.length) {
+          const requestedSerials = (input.serialNumbers ?? []).map((value) => value.trim()).filter(Boolean);
+          let receiveSerials = requestedSerials;
+          if (!receiveSerials.length && input.receivedQty === remaining) {
+            const rows = await tx.inventorySerial.findMany({ where: { serialNumber: { in: manifest }, warehouseId: source.id, productId: item.productId, status: 'IN_TRANSIT', referenceType: 'StockTransfer', referenceId: transfer.id }, orderBy: { serialNumber: 'asc' }, take: input.receivedQty });
+            receiveSerials = rows.map((row) => row.serialNumber);
+          }
+          if (receiveSerials.length !== input.receivedQty) throw new BadRequestException('Penerimaan parsial produk serial wajib menyebut serialNumbers tepat sejumlah receivedQty.');
+          if (receiveSerials.some((serialNumber) => !manifest.includes(serialNumber))) throw new BadRequestException('Serial penerimaan bukan bagian dari manifest transfer.');
+          const movedSerials = await tx.inventorySerial.updateMany({
+            where: { serialNumber: { in: receiveSerials }, warehouseId: source.id, productId: item.productId, status: 'IN_TRANSIT', referenceType: 'StockTransfer', referenceId: transfer.id },
+            data: { warehouseId: destination.id, status: 'AVAILABLE', referenceType: 'StockTransferReceipt', referenceId: `${transfer.id}:${item.id}` },
+          });
+          if (movedSerials.count !== input.receivedQty) throw new BadRequestException('Serial in-transit tidak lengkap atau sudah diterima sebelumnya.');
+        }
         const locationStock = await depositLocationStock(tx, { warehouseId: destination.id, productId: item.productId, quantity: input.receivedQty });
         const inventory = await tx.inventory.upsert({
           where: { warehouseId_productId: { warehouseId: destination.id, productId: item.productId } },
@@ -257,6 +342,79 @@ export class AdvancedInventoryService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
+  async listConditionBalances(user: AuthUser, warehouseId: string, productId: string) {
+    const scope = this.requireTenantScope(user);
+    if (!warehouseId || !productId) throw new BadRequestException('warehouseId dan productId wajib diisi.');
+    await this.warehouse(this.prisma, user, scope, warehouseId, 'branch');
+    const product = await this.prisma.product.findFirst({ where: { id: productId, companyId: scope.companyId }, select: { id: true } });
+    if (!product) throw new BadRequestException('Produk tidak ditemukan dalam company aktif.');
+    return this.prisma.$transaction(async (tx) => {
+      await prepareConditionInventory(tx, warehouseId, productId);
+      const [balances, locations] = await Promise.all([
+        tx.inventoryConditionBalance.findMany({ where: { warehouseId, productId, quantity: { gt: 0 } }, orderBy: [{ locationId: 'asc' }, { condition: 'asc' }] }),
+        tx.warehouseLocation.findMany({ where: { warehouseId }, select: { id: true, code: true, name: true, isActive: true } }),
+      ]);
+      const locationMap = new Map(locations.map((row) => [row.id, row]));
+      return balances.map((row) => ({ ...row, location: locationMap.get(row.locationId) ?? null }));
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async moveCondition(dto: MoveInventoryConditionDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    if (dto.fromCondition === dto.toCondition) throw new BadRequestException('Kondisi asal dan tujuan harus berbeda.');
+    await this.warehouse(this.prisma, user, scope, dto.warehouseId, 'branch', true);
+    const product = await this.prisma.product.findFirst({ where: { id: dto.productId, companyId: scope.companyId, isActive: true }, select: { id: true } });
+    if (!product) throw new BadRequestException('Produk tidak ditemukan atau tidak aktif.');
+    const referenceId = randomUUID();
+    return this.prisma.$transaction(async (tx) => {
+      await prepareConditionInventory(tx, dto.warehouseId, dto.productId);
+      const location = await tx.warehouseLocation.findFirst({ where: { id: dto.locationId, warehouseId: dto.warehouseId, isActive: true }, select: { id: true } });
+      if (!location) throw new BadRequestException('Lokasi inventory tidak aktif atau tidak berada pada gudang yang dipilih.');
+      const source = await tx.inventoryConditionBalance.findUnique({
+        where: { locationId_productId_condition: { locationId: dto.locationId, productId: dto.productId, condition: dto.fromCondition } },
+      });
+      if (!source || source.quantity < dto.quantity) throw new BadRequestException(`Saldo kondisi ${dto.fromCondition} tidak mencukupi.`);
+
+      if (dto.fromCondition === 'AVAILABLE') {
+        const free = await tx.inventoryLocationBalance.findUnique({ where: { locationId_productId: { locationId: dto.locationId, productId: dto.productId } }, select: { available: true } });
+        if (!free || free.available < dto.quantity) throw new BadRequestException('Stok AVAILABLE yang bebas reservasi tidak mencukupi untuk perubahan kondisi.');
+      }
+
+      const reduced = await tx.inventoryConditionBalance.updateMany({
+        where: { id: source.id, quantity: { gte: dto.quantity } },
+        data: { quantity: { decrement: dto.quantity } },
+      });
+      if (reduced.count !== 1) throw new BadRequestException('Saldo kondisi berubah saat diproses. Ulangi transaksi.');
+      await tx.inventoryConditionBalance.upsert({
+        where: { locationId_productId_condition: { locationId: dto.locationId, productId: dto.productId, condition: dto.toCondition } },
+        create: { warehouseId: dto.warehouseId, locationId: dto.locationId, productId: dto.productId, condition: dto.toCondition, quantity: dto.quantity },
+        update: { quantity: { increment: dto.quantity } },
+      });
+
+      if (dto.fromCondition === 'AVAILABLE') {
+        const [locationChanged, inventoryChanged] = await Promise.all([
+          tx.inventoryLocationBalance.updateMany({ where: { locationId: dto.locationId, productId: dto.productId, available: { gte: dto.quantity } }, data: { available: { decrement: dto.quantity } } }),
+          tx.inventory.updateMany({ where: { warehouseId: dto.warehouseId, productId: dto.productId, available: { gte: dto.quantity } }, data: { available: { decrement: dto.quantity } } }),
+        ]);
+        if (locationChanged.count !== 1 || inventoryChanged.count !== 1) throw new BadRequestException('Saldo sellable berubah saat perubahan kondisi. Ulangi transaksi.');
+      } else if (dto.toCondition === 'AVAILABLE') {
+        await Promise.all([
+          tx.inventoryLocationBalance.update({ where: { locationId_productId: { locationId: dto.locationId, productId: dto.productId } }, data: { available: { increment: dto.quantity } } }),
+          tx.inventory.update({ where: { warehouseId_productId: { warehouseId: dto.warehouseId, productId: dto.productId } }, data: { available: { increment: dto.quantity } } }),
+        ]);
+      }
+
+      const movement = await tx.inventoryConditionMovement.create({ data: {
+        id: referenceId, warehouseId: dto.warehouseId, locationId: dto.locationId, productId: dto.productId,
+        fromCondition: dto.fromCondition, toCondition: dto.toCondition, quantity: dto.quantity, notes: dto.notes,
+        referenceType: 'MANUAL_CONDITION_CHANGE', referenceId, createdById: user.sub,
+      } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'MOVE_INVENTORY_CONDITION', entityType: 'InventoryConditionMovement', entityId: movement.id, payload: { branchId: scope.branchId, warehouseId: dto.warehouseId, locationId: dto.locationId, productId: dto.productId, fromCondition: dto.fromCondition, toCondition: dto.toCondition, quantity: dto.quantity } } });
+      await tx.eventOutbox.create({ data: { companyId: scope.companyId, eventType: 'inventory.condition.moved', aggregateType: 'InventoryConditionMovement', aggregateId: movement.id, payload: { companyId: scope.companyId, branchId: scope.branchId, warehouseId: dto.warehouseId, locationId: dto.locationId, productId: dto.productId, fromCondition: dto.fromCondition, toCondition: dto.toCondition, quantity: dto.quantity } } });
+      return movement;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
   async listOpnames(user: AuthUser) {
     const scope = this.requireTenantScope(user);
     const warehouseIds = await this.branchWarehouseIds(this.prisma, scope);
@@ -271,14 +429,27 @@ export class AdvancedInventoryService {
       if (!location) return this.denyTenantAccess(this.prisma, user, scope, 'WarehouseLocation', dto.locationId);
     }
     return this.prisma.$transaction(async (tx) => {
-      const warehouseInventories = await tx.inventory.findMany({ where: { warehouseId: warehouse.id } });
+      const warehouseInventories = await tx.inventory.findMany({ where: { warehouseId: warehouse.id }, include: { product: { select: { trackBatch: true } } } });
       for (const inventory of warehouseInventories) await prepareLocationInventory(tx, warehouse.id, inventory.productId);
-      const snapshot = dto.locationId
-        ? await tx.inventoryLocationBalance.findMany({ where: { warehouseId: warehouse.id, locationId: dto.locationId } })
-        : warehouseInventories;
+      const snapshotItems: Array<{ productId: string; batchNumber?: string; systemQty: number }> = [];
+      if (dto.locationId) {
+        const locationSnapshot = await tx.inventoryLocationBalance.findMany({ where: { warehouseId: warehouse.id, locationId: dto.locationId } });
+        snapshotItems.push(...locationSnapshot.map((inventory) => ({ productId: inventory.productId, systemQty: inventory.quantity })));
+      } else {
+        for (const inventory of warehouseInventories) {
+          if (!inventory.product.trackBatch) {
+            snapshotItems.push({ productId: inventory.productId, systemQty: inventory.quantity });
+            continue;
+          }
+          const batches = await tx.inventoryBatch.findMany({ where: { warehouseId: warehouse.id, productId: inventory.productId }, orderBy: [{ expiryDate: 'asc' }, { batchNumber: 'asc' }] });
+          const batchTotal = batches.reduce((sum, batch) => sum + batch.quantity, 0);
+          if (batchTotal !== inventory.quantity) throw new BadRequestException(`BATCH_INVENTORY_DRIFT:${warehouse.id}:${inventory.productId}; aggregate=${inventory.quantity}; batches=${batchTotal}`);
+          snapshotItems.push(...batches.map((batch) => ({ productId: inventory.productId, batchNumber: batch.batchNumber, systemQty: batch.quantity })));
+        }
+      }
       const row = await tx.stockOpname.create({ data: {
         number: await nextDocumentNumber(tx, { companyId: scope.companyId, branchId: scope.branchId, documentType: 'STOCK_OPNAME', prefix: 'SO' }), warehouseId: warehouse.id, locationId: dto.locationId, status: 'COUNTING', createdById: user.sub, notes: dto.notes, startedAt: new Date(),
-        items: { create: snapshot.map((inventory) => ({ productId: inventory.productId, systemQty: inventory.quantity })) },
+        items: { create: snapshotItems },
       }, include: { items: true } });
       await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_STOCK_OPNAME', entityType: 'StockOpname', entityId: row.id, payload: { branchId: scope.branchId, warehouseId: warehouse.id, ...(dto.locationId ? { locationId: dto.locationId } : {}) } } });
       return row;
@@ -326,6 +497,12 @@ export class AdvancedInventoryService {
         if (difference === 0) continue;
         const adjustmentValue = (costMap.get(item.productId) ?? new Prisma.Decimal(0)).mul(Math.abs(difference));
         if (difference > 0) gainValue = gainValue.add(adjustmentValue); else lossValue = lossValue.add(adjustmentValue);
+        if (item.batchNumber) {
+          const batch = await tx.inventoryBatch.findUnique({ where: { warehouseId_productId_batchNumber: { warehouseId: warehouse.id, productId: item.productId, batchNumber: item.batchNumber } } });
+          if (!batch) throw new BadRequestException(`Batch ${item.batchNumber} pada opname tidak ditemukan.`);
+          if (difference < 0 && batch.quantity - batch.reserved < Math.abs(difference)) throw new BadRequestException(`Stok bebas batch ${item.batchNumber} tidak cukup untuk adjustment opname.`);
+          await tx.inventoryBatch.update({ where: { id: batch.id }, data: { quantity: difference > 0 ? { increment: difference } : { decrement: Math.abs(difference) } } });
+        }
         let locationChanges: Array<{ locationId: string; quantity: number }> = [];
         if (opname.locationId) {
           const locationChange = await adjustLocationStock(tx, { warehouseId: warehouse.id, productId: item.productId, difference, locationId: opname.locationId });

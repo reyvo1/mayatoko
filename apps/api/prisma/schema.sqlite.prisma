@@ -91,6 +91,8 @@ model ReportJob {
   companyId     String
   branchId      String?
   requestedById String?
+  scheduleId    String?
+  scheduledFor  DateTime?
   reportType    String
   format        String   @default("CSV")
   filters       Json?
@@ -103,8 +105,39 @@ model ReportJob {
   finishedAt    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  schedule      ReportSchedule? @relation(fields: [scheduleId], references: [id])
+  @@unique([scheduleId, scheduledFor])
   @@index([companyId, status, createdAt])
   @@index([status, createdAt])
+  @@index([scheduleId, createdAt])
+}
+
+/// First-class scheduled report definition. Worker materializes due schedules into ReportJob.
+model ReportSchedule {
+  id            String   @id @default(uuid())
+  companyId     String
+  branchId      String
+  requestedById String?
+  name          String
+  reportType    String
+  format        String   @default("CSV")
+  filters       Json?
+  frequency     String
+  localTime     String
+  dayOfWeek     Int?
+  dayOfMonth    Int?
+  timezone      String
+  isActive      Boolean  @default(true)
+  nextRunAt     DateTime
+  lastRunAt     DateTime?
+  lastJobId     String?
+  lastError     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  jobs          ReportJob[]
+  @@unique([companyId, branchId, name])
+  @@index([isActive, nextRunAt])
+  @@index([companyId, branchId, isActive])
 }
 
 model DataRetentionPolicy {
@@ -161,6 +194,13 @@ enum InventoryMovementType {
   ADJUSTMENT_OUT
   LOCATION_MOVE_IN
   LOCATION_MOVE_OUT
+}
+
+enum InventoryCondition {
+  AVAILABLE
+  DAMAGED
+  QUARANTINE
+  LOST
 }
 
 enum SaleChannel {
@@ -359,15 +399,21 @@ model RolePermission {
 }
 
 model Category {
-  id        String    @id @default(uuid())
+  id        String     @id @default(uuid())
   companyId String?
-  name      String    @unique
-  slug      String    @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  company   Company?  @relation(fields: [companyId], references: [id])
+  parentId  String?
+  name      String
+  slug      String
+  sortOrder Int        @default(0)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  company   Company?   @relation(fields: [companyId], references: [id])
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
   products  Product[]
-  @@index([companyId, name])
+  @@unique([companyId, slug])
+  @@index([companyId, parentId, isActive, sortOrder, name])
 }
 
 model Product {
@@ -388,6 +434,7 @@ model Product {
   salesTaxCodeId    String?
   purchaseTaxCodeId String?
   trackBatch        Boolean               @default(false)
+  trackExpiry       Boolean               @default(false)
   trackSerial       Boolean               @default(false)
   allowNegativeStock Boolean              @default(false)
   metadata          Json?
@@ -402,6 +449,8 @@ model Product {
   goodsReceiptItems  GoodsReceiptItem[]
   saleItems          SaleItem[]
   orderItems         OrderItem[]
+  variants           ProductVariant[]
+  units              ProductUnit[]
   barcodes           ProductBarcode[]
   prices             ProductPrice[]
   purchaseRequestItems PurchaseRequestItem[]
@@ -477,6 +526,37 @@ model InventoryMovement {
   @@index([createdAt, id])
 }
 
+model InventoryConditionBalance {
+  id          String             @id @default(uuid())
+  warehouseId String
+  locationId  String
+  productId   String
+  condition   InventoryCondition
+  quantity    Int                @default(0)
+  updatedAt   DateTime           @updatedAt
+  @@unique([locationId, productId, condition])
+  @@index([warehouseId, productId, condition])
+  @@index([warehouseId, locationId, condition])
+}
+
+model InventoryConditionMovement {
+  id            String              @id @default(uuid())
+  warehouseId   String
+  locationId    String
+  productId     String
+  fromCondition InventoryCondition
+  toCondition   InventoryCondition
+  quantity      Int
+  referenceType String?
+  referenceId   String?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime            @default(now())
+  @@index([warehouseId, productId, createdAt])
+  @@index([locationId, productId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
 model PurchaseRequest {
   id                String   @id @default(uuid())
   number            String   @unique
@@ -549,9 +629,15 @@ model PurchaseOrderItem {
   id              String        @id @default(uuid())
   purchaseOrderId String
   productId       String
+  variantId       String?
+  productUnitId   String?
+  unitCode        String?
+  unitQuantity    Int?
+  quantityFactor  Int           @default(1)
   orderedQty      Int
   receivedQty     Int           @default(0)
   unitCost        Decimal
+  purchaseUnitCost Decimal?
   subtotal        Decimal
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product         Product       @relation(fields: [productId], references: [id])
@@ -594,6 +680,12 @@ model GoodsReceiptItem {
   goodsReceiptId      String
   purchaseOrderItemId String
   productId           String
+  variantId           String?
+  productUnitId       String?
+  unitCode            String?
+  unitQuantity        Int?
+  damagedUnitQuantity Int?
+  quantityFactor      Int               @default(1)
   quantityReceived    Int
   quantityDamaged     Int               @default(0)
   acceptedQty         Int
@@ -604,6 +696,7 @@ model GoodsReceiptItem {
   grossSubtotal       Decimal           @default(0)
   batchNumber         String?
   expiryDate          DateTime?
+  serialNumbers       Json?
   goodsReceipt        GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
   purchaseOrderItem   PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id])
   product             Product           @relation(fields: [productId], references: [id])
@@ -799,6 +892,8 @@ model SaleItem {
   id        String  @id @default(uuid())
   saleId    String
   productId String
+  variantId String?
+  productUnitId String?
   quantity  Int
   unitPrice Decimal
   unitCost  Decimal
@@ -1070,6 +1165,7 @@ enum ReturnStatus {
 
 enum SerialStatus {
   AVAILABLE
+  IN_TRANSIT
   RESERVED
   SOLD
   RETURNED
@@ -1462,8 +1558,9 @@ model StockTransferItem {
   quantity    Int
   shippedQty  Int           @default(0)
   receivedQty Int           @default(0)
-  batchNumber String?
-  metadata    Json?
+  batchNumber   String?
+  serialNumbers Json?
+  metadata      Json?
   transfer    StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
   @@index([productId])
 }
@@ -1887,6 +1984,50 @@ model ReorderSuggestion {
   updatedAt      DateTime    @updatedAt
   forecastRun    ForecastRun @relation(fields: [forecastRunId], references: [id], onDelete: Cascade)
   @@index([warehouseId, productId, status])
+}
+
+
+
+/// Grounded operator insight. Sources and recommendations are explicit JSON; no autonomous mutation.
+model OperatorInsight {
+  id               String   @id @default(uuid())
+  companyId        String
+  branchId         String
+  fingerprint      String
+  category         String
+  severity         String   @default("INFO")
+  title            String
+  summary          String
+  explanation      Json
+  sourceLinks      Json
+  recommendedAction Json?
+  status           String   @default("OPEN")
+  createdByRunId   String?
+  firstObservedAt  DateTime @default(now())
+  lastObservedAt   DateTime @default(now())
+  acknowledgedAt   DateTime?
+  acknowledgedById String?
+  dismissedAt      DateTime?
+  dismissedById    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@index([companyId, branchId, status, severity])
+  @@index([companyId, branchId, fingerprint, status])
+}
+
+/// Auditable assistant interaction. Response remains grounded in permission-scoped source links.
+model AssistantInteraction {
+  id          String   @id @default(uuid())
+  companyId   String
+  branchId    String
+  userId      String
+  question    String
+  intent      String
+  response    Json
+  sourceLinks Json
+  confidence  Decimal  @default(0)
+  createdAt   DateTime @default(now())
+  @@index([companyId, branchId, userId, createdAt])
 }
 
 model Shipment {
@@ -3117,6 +3258,7 @@ model TaxCode {
   id                    String    @id @default(uuid())
   companyId             String
   code                  String
+  version               Int       @default(1)
   name                  String
   scope                 TaxScope
   rate                  Decimal   @default(0)
@@ -3132,7 +3274,8 @@ model TaxCode {
   legalReference        String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
-  @@unique([companyId, code])
+  @@unique([companyId, code, version])
+  @@index([companyId, code, status, effectiveFrom])
   @@index([companyId, scope, status])
 }
 
@@ -3880,9 +4023,55 @@ model MasterReference {
   @@index([branchId, type, isActive])
 }
 
+model ProductVariant {
+  id          String   @id @default(uuid())
+  productId   String
+  code        String
+  sku         String?  @unique
+  name        String
+  attributes  Json?
+  costPrice   Decimal?
+  salePrice   Decimal?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  units       ProductUnit[]
+  barcodes    ProductBarcode[]
+  prices      ProductPrice[]
+
+  @@unique([productId, code])
+  @@index([productId, isActive, name])
+}
+
+model ProductUnit {
+  id                String   @id @default(uuid())
+  productId         String
+  variantId         String?
+  scopeKey          String   @default("BASE")
+  unitCode          String
+  quantityFactor    Int
+  isDefaultSale     Boolean  @default(false)
+  isDefaultPurchase Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant           ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  barcodes          ProductBarcode[]
+  prices            ProductPrice[]
+
+  @@unique([productId, scopeKey, unitCode])
+  @@index([productId, variantId, isActive, unitCode])
+}
+
 model ProductBarcode {
   id             String   @id @default(uuid())
   productId      String
+  variantId      String?
+  productUnitId  String?
   code           String   @unique
   unitCode       String?
   quantityFactor Decimal  @default(1)
@@ -3891,12 +4080,17 @@ model ProductBarcode {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  @@index([productId, isPrimary])
+  variant        ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  productUnit    ProductUnit? @relation(fields: [productUnitId], references: [id], onDelete: SetNull)
+  @@index([productId, variantId, isPrimary])
+  @@index([productUnitId])
 }
 
 model ProductPrice {
   id            String   @id @default(uuid())
   productId     String
+  variantId     String?
+  productUnitId String?
   branchId      String?
   segmentCode   String   @default("RETAIL")
   unitCode      String?
@@ -3908,7 +4102,10 @@ model ProductPrice {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  productUnit   ProductUnit? @relation(fields: [productUnitId], references: [id], onDelete: SetNull)
   branch        Branch?  @relation(fields: [branchId], references: [id])
-  @@index([productId, branchId, segmentCode, isActive, minQty])
+  @@index([productId, variantId, branchId, segmentCode, isActive, minQty])
+  @@index([productUnitId])
   @@index([branchId, segmentCode, effectiveFrom, effectiveTo])
 }

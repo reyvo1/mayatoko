@@ -1,0 +1,164 @@
+{
+  "plans": [
+    {
+      "key": "product_list",
+      "table": "Product",
+      "budgetMs": 300,
+      "planningTimeMs": 0.152,
+      "executionTimeMs": 0.051,
+      "actualRows": 3,
+      "nodeTypes": [
+        "Limit",
+        "Index Scan"
+      ],
+      "indexNames": [
+        "Product_companyId_isActive_name_id_idx"
+      ],
+      "passed": true
+    },
+    {
+      "key": "inventory_list",
+      "table": "Inventory",
+      "budgetMs": 500,
+      "planningTimeMs": 5.635,
+      "executionTimeMs": 0.068,
+      "actualRows": 3,
+      "nodeTypes": [
+        "Limit",
+        "Sort",
+        "Seq Scan"
+      ],
+      "indexNames": [],
+      "passed": true
+    },
+    {
+      "key": "accounting_event_list",
+      "table": "AccountingEvent",
+      "budgetMs": 500,
+      "planningTimeMs": 5.545,
+      "executionTimeMs": 0.114,
+      "actualRows": 7,
+      "nodeTypes": [
+        "Limit",
+        "Index Scan"
+      ],
+      "indexNames": [
+        "AccountingEvent_companyId_branchId_createdAt_id_idx"
+      ],
+      "passed": true
+    },
+    {
+      "key": "payroll_run_list",
+      "table": "PayrollRun",
+      "budgetMs": 1000,
+      "planningTimeMs": 7.097,
+      "executionTimeMs": 0.05,
+      "actualRows": 0,
+      "nodeTypes": [
+        "Limit",
+        "Index Scan"
+      ],
+      "indexNames": [
+        "PayrollRun_companyId_branchId_createdAt_idx"
+      ],
+      "passed": true
+    },
+    {
+      "key": "finance_transaction_list",
+      "table": "OperationalFinanceTransaction",
+      "budgetMs": 500,
+      "planningTimeMs": 8.91,
+      "executionTimeMs": 0.062,
+      "actualRows": 0,
+      "nodeTypes": [
+        "Limit",
+        "Incremental Sort",
+        "Index Scan"
+      ],
+      "indexNames": [
+        "OperationalFinanceTransaction_companyId_branchId_transactio_idx"
+      ],
+      "passed": true
+    }
+  ],
+  "indexCoverage": [
+    {
+      "key": "product_list",
+      "table": "Product",
+      "columns": [
+        "companyId",
+        "isActive",
+        "name",
+        "id"
+      ],
+      "passed": true,
+      "indexes": [
+        "Product_companyId_isActive_name_id_idx"
+      ]
+    },
+    {
+      "key": "warehouse_branch_lookup",
+      "table": "Warehouse",
+      "columns": [
+        "branchId"
+      ],
+      "passed": true,
+      "indexes": [
+        "Warehouse_branchId_idx"
+      ]
+    },
+    {
+      "key": "inventory_list",
+      "table": "Inventory",
+      "columns": [
+        "warehouseId",
+        "updatedAt",
+        "id"
+      ],
+      "passed": true,
+      "indexes": [
+        "Inventory_warehouseId_updatedAt_id_idx"
+      ]
+    },
+    {
+      "key": "accounting_event_list",
+      "table": "AccountingEvent",
+      "columns": [
+        "companyId",
+        "branchId",
+        "createdAt",
+        "id"
+      ],
+      "passed": true,
+      "indexes": [
+        "AccountingEvent_companyId_branchId_createdAt_id_idx"
+      ]
+    },
+    {
+      "key": "payroll_run_list",
+      "table": "PayrollRun",
+      "columns": [
+        "companyId",
+        "branchId",
+        "createdAt"
+      ],
+      "passed": true,
+      "indexes": [
+        "PayrollRun_companyId_branchId_createdAt_idx"
+      ]
+    },
+    {
+      "key": "finance_transaction_list",
+      "table": "OperationalFinanceTransaction",
+      "columns": [
+        "companyId",
+        "branchId",
+        "transactionDate"
+      ],
+      "passed": true,
+      "indexes": [
+        "OperationalFinanceTransaction_companyId_branchId_transactio_idx"
+      ]
+    }
+  ]
+}

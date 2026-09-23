@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { Allow, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { Allow, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
 
 export class CreateBatchDto {
   @ApiProperty() @IsString() warehouseId!: string;
@@ -184,4 +184,15 @@ export class QueueNotificationDto {
   @ApiPropertyOptional({ description: 'Boleh kosong bila templateCode diberikan.' }) @IsOptional() @IsString() body?: string;
   @ApiPropertyOptional({ description: 'Data untuk render {{variable}} dan metadata delivery.' }) @IsOptional() @Allow() data?: unknown;
   @ApiPropertyOptional() @IsOptional() @IsDateString() scheduledAt?: string;
+}
+
+export class UpdateOperatorInsightStatusDto {
+  @ApiProperty({ enum: ['ACKNOWLEDGED','DISMISSED'] })
+  @IsString() @IsIn(['ACKNOWLEDGED','DISMISSED']) status!: 'ACKNOWLEDGED'|'DISMISSED';
+}
+
+export class OperatorAssistantQueryDto {
+  @ApiProperty() @IsString() @MaxLength(500) question!: string;
+  @ApiPropertyOptional({ enum: ['AUTO','STOCK','FINANCE','AUTOMATION','REPORTING'] })
+  @IsOptional() @IsString() @IsIn(['AUTO','STOCK','FINANCE','AUTOMATION','REPORTING']) intent?: 'AUTO'|'STOCK'|'FINANCE'|'AUTOMATION'|'REPORTING';
 }

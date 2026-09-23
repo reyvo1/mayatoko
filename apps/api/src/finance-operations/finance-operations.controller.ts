@@ -27,6 +27,26 @@ import { FinanceOperationsService } from './finance-operations.service';
     return this.service.listSupplierRefundReceivables(user, supplierId);
   }
 
+  @Roles('SUPER_ADMIN','OWNER','FINANCE','AUDITOR') @Permissions('finance.view') @Get('ar-aging')
+  arAging(@CurrentUser() user: AuthUser, @Query('asOf') asOf?: string) {
+    return this.service.customerReceivableAging(user, asOf);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','FINANCE','AUDITOR') @Permissions('finance.view') @Get('ap-aging')
+  apAging(@CurrentUser() user: AuthUser, @Query('asOf') asOf?: string, @Query('supplierId') supplierId?: string) {
+    return this.service.supplierPayableAging(user, asOf, supplierId);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','FINANCE','AUDITOR') @Permissions('finance.view') @Get('cash-bank-position')
+  cashBankPosition(@CurrentUser() user: AuthUser) {
+    return this.service.cashBankPosition(user);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','FINANCE','AUDITOR') @Permissions('finance.view') @Get('settlement-trace')
+  settlementTrace(@CurrentUser() user: AuthUser, @Query('referenceType') referenceType?: string, @Query('referenceId') referenceId?: string) {
+    return this.service.settlementTrace(user, referenceType, referenceId);
+  }
+
   @Roles('SUPER_ADMIN','OWNER','FINANCE','AUDITOR') @Permissions('finance.view') @Get()
   list(
     @CurrentUser() user: AuthUser,

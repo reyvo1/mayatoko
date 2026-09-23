@@ -33,7 +33,7 @@ test('barcode conversion is integer-base-stock safe and primary barcode remains 
 
 test('sale DTO sends barcode identity and server resolves conversion authoritatively', () => {
   assert.match(dto, /barcodeCode\?: string/);
-  assert.match(sales, /productBarcode\.findUnique\(\{ where: \{ code: sourceBarcode \}/);
+  assert.match(sales, /productBarcode\.findUnique\(\{[\s\S]*where: \{ code: sourceBarcode \}/);
   assert.match(sales, /barcode\.productId !== product\.id/);
   assert.match(sales, /baseQuantity = unitQuantity \* quantityFactor/);
   assert.match(sales, /quantity: item\.conversion\.baseQuantity/);
@@ -44,12 +44,12 @@ test('unit-specific pricing falls back to factor-scaled base price instead of un
   assert.match(pricing, /unitFactor\?: number/);
   assert.match(pricing, /!rows\[0\]\.unitCode && unit/);
   assert.match(pricing, /return selected\.mul\(factor\)/);
-  assert.match(sales, /packageFallback = new Prisma\.Decimal\(product\.salePrice\)\.mul\(quantityFactor\)/);
+  assert.match(sales, /packageFallback = new Prisma\.Decimal\(variantSalePrice \?\? product\.salePrice\)\.mul\(quantityFactor\)/);
   assert.match(sales, /sellingUnitPrice\.mul\(conversion\.unitQuantity\)/);
 });
 
 test('POS keeps package quantity separate from base stock and blocks unsafe offline package sales', () => {
-  assert.match(pos, /type CartItem = \{ product: Product; quantity: number; unitCode: string; quantityFactor: number; barcodeCode\?: string \}/);
+  assert.match(pos, /type CartItem = \{ product: Product; quantity: number; unitCode: string; quantityFactor: number; productUnitId\?: string; variantId\?: string; barcodeCode\?: string \}/);
   assert.match(pos, /usedOtherBase/);
   assert.match(pos, /Math\.floor\(\(stock - usedOtherBase\) \/ factor\)/);
   assert.match(pos, /barcodeCode: item\.barcodeCode/);

@@ -1,12 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsDateString, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsDateString, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 class GoodsReceiptItemDto {
   @ApiProperty() @IsString() purchaseOrderItemId!: string;
   @ApiProperty({ description: 'Total barang yang datang, termasuk barang rusak.', example: 98 }) @IsInt() @Min(1) quantityReceived!: number;
   @ApiPropertyOptional({ default: 0 }) @IsOptional() @IsInt() @Min(0) quantityDamaged?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() batchNumber?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() expiryDate?: string;
+  @ApiPropertyOptional({ type: [String], description: 'Wajib tepat sebanyak acceptedQty untuk produk dengan trackSerial.' }) @IsOptional() @IsArray() @ArrayUnique() @IsString({ each: true }) serialNumbers?: string[];
   @ApiPropertyOptional({ description: 'Override tax code produk untuk penerimaan ini.' }) @IsOptional() @IsString() taxCodeId?: string;
 }
 export class CreateGoodsReceiptDto {

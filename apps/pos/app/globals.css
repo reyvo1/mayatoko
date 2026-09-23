@@ -186,3 +186,36 @@ button,.pay{background:var(--accent)!important;box-shadow:none!important;letter-
   .posWorkspaceNav{overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}
   .posWorkspaceNav button{flex:0 0 auto;min-width:max-content}
 }
+
+
+/* ===== F12 FINAL POS POLISH ===== */
+html{color-scheme:dark;scrollbar-color:#30384b transparent}
+body{line-height:1.5;background:#0b0e14}
+.posModern{padding:12px 14px 28px;max-width:1720px}
+.posTopbar{top:10px;border-radius:12px;border:1px solid var(--border);box-shadow:none}
+.posWorkspaceNav{border-radius:10px;padding:4px;gap:4px;background:#111620}
+.posWorkspaceNav button{min-height:40px;border-radius:7px}
+.posWorkspaceNav button.active{background:#1b2638!important;border-color:rgba(59,130,246,.34)}
+.posWorkspaceSurface{gap:10px}
+.catalog,.cart,.shiftPanel,.returnPanel,.offlinePanel,.syncEmpty{border-radius:12px;background:var(--panel);box-shadow:none}
+.catalog,.cart{padding:14px}
+.search{min-height:44px;border-radius:8px;background:#181f2d}
+.products{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.product{border-radius:9px;padding:12px;min-height:142px;background:#181f2d}
+.product:hover:not(:disabled){background:#1c2535;border-color:rgba(59,130,246,.5)}
+.productIcon{height:54px;border-radius:8px;background:#20293a}
+.items{scrollbar-width:thin;scrollbar-color:#30384b transparent}
+.item{padding:12px 2px;gap:10px}
+.qty button{min-width:34px;min-height:34px;border-radius:7px}
+.summary{border-top-width:1px}
+.pay{min-height:48px;border-radius:9px!important}
+.cashMovementBar,.heldItem,.returnItems label{border-radius:9px}
+.notice,.offlinePanel{line-height:1.45}
+@media(max-width:1380px){.products{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1000px){.products{grid-template-columns:repeat(3,minmax(0,1fr))}.posModern{padding:10px}}
+@media(max-width:720px){
+  .products{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .posWorkspaceNav{display:flex}.posWorkspaceNav button{min-width:140px}
+  .posTopbar{border-radius:10px}.catalog,.cart{padding:12px}
+}
+@media(max-width:460px){.products{grid-template-columns:1fr}.product{min-height:0}.posModern{padding:8px}}

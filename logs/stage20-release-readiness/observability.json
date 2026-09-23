@@ -1,0 +1,60 @@
+{
+  "health": {
+    "samplesRequested": 30,
+    "samplesPassed": 30,
+    "errors": 0,
+    "p50Ms": 19.06,
+    "p95Ms": 25.48,
+    "maxMs": 31.09,
+    "budgetP95Ms": 1000
+  },
+  "databaseStats": {
+    "database_name": "toko360_staging",
+    "database_size_bytes": "20192279",
+    "numbackends": 2,
+    "xact_commit": "2365",
+    "xact_rollback": "9",
+    "blks_read": "1478",
+    "blks_hit": "396874",
+    "temp_files": "0",
+    "temp_bytes": "0",
+    "deadlocks": "0"
+  },
+  "activity": {
+    "connections": 2,
+    "active_connections": 1,
+    "long_running": 0
+  },
+  "ownership": {
+    "productUnresolved": 0,
+    "supplierUnresolved": 0
+  },
+  "payrollRecoveryConfiguration": {
+    "mappingReady": true,
+    "accountReady": true,
+    "postingRuleReady": true
+  },
+  "recentTenantDenials24h": 0,
+  "queues": {
+    "eventOutbox": [
+      {
+        "_count": {
+          "_all": 10
+        },
+        "status": "DISPATCHED"
+      }
+    ],
+    "webhookDelivery": [],
+    "notification": [],
+    "reportJob": [],
+    "automationJob": [],
+    "offlineTransaction": [
+      {
+        "_count": {
+          "_all": 1
+        },
+        "status": "PENDING"
+      }
+    ]
+  }
+}

@@ -135,6 +135,7 @@ function automationActionType(action: Record<string, Prisma.JsonValue>): string 
   if (type === 'approval.create') return 'CREATE_APPROVAL_REQUEST';
   if (type === 'reorder_suggestion.create') return 'CREATE_REORDER_SUGGESTION';
   if (type === 'outbox.emit') return 'EMIT_OUTBOX_EVENT';
+  if (type === 'report.enqueue') return 'CREATE_REPORT_JOB';
   if (type === 'automation.enqueue' && typeof action.actionType === 'string' && action.actionType.trim()) return action.actionType.trim();
   return `UNSUPPORTED_RULE_ACTION:${type || 'UNKNOWN'}`;
 }
@@ -398,6 +399,44 @@ function notificationSecretHeaders(encryptedSecrets?: string | null): Record<str
   return { authorization: `Bearer ${decrypted}` };
 }
 
+function notificationSecretToken(encryptedSecrets?: string | null): string | null {
+  if (!encryptedSecrets) return null;
+  const decrypted = decryptSecretText(encryptedSecrets).trim();
+  if (!decrypted) return null;
+  try {
+    const parsed = JSON.parse(decrypted) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const token = (parsed as Record<string, unknown>).token;
+      return typeof token === 'string' && token.trim() ? token.trim() : null;
+    }
+  } catch {
+    return decrypted;
+  }
+  return null;
+}
+
+async function sendTelegramNotification(
+  notification: { id: string; recipient: string; body: string },
+  integration: { provider: string; config: Prisma.JsonValue | null; encryptedSecrets: string | null },
+): Promise<{ response: Response; provider: string }> {
+  const token = notificationSecretToken(integration.encryptedSecrets);
+  if (!token) throw new Error('Secret token Telegram belum dikonfigurasi pada IntegrationConnection.');
+  const config = jsonObject(integration.config);
+  const parseMode = typeof config.parseMode === 'string' && ['HTML','MarkdownV2'].includes(config.parseMode) ? config.parseMode : undefined;
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'idempotency-key': notification.id },
+    body: JSON.stringify({
+      chat_id: notification.recipient,
+      text: notification.body,
+      disable_web_page_preview: true,
+      ...(parseMode ? { parse_mode: parseMode } : {}),
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+  return { response, provider: integration.provider };
+}
+
 function assertNotificationHeaders(headers: Record<string, string>): void {
   const blocked = Object.keys(headers).filter((key) => RESERVED_NOTIFICATION_HEADERS.has(key.toLowerCase()));
   if (blocked.length) throw new Error(`Notification integration tidak boleh menimpa header reserved: ${blocked.join(', ')}`);
@@ -475,11 +514,15 @@ async function processExternalNotifications(): Promise<void> {
     const leaseUntil = new Date(Date.now() + 5 * 60 * 1000);
     const claimed = await prisma.notification.updateMany({ where: { id: notification.id, status: 'QUEUED', scheduledAt: { lte: new Date() } }, data: { scheduledAt: leaseUntil } });
     if (!claimed.count) continue;
+    let integrationId: string | null = null;
     try {
       const integration = await findNotificationIntegration(notification);
+      integrationId = integration?.id ?? null;
       let response: Response;
       let provider: string;
-      if (integration) {
+      if (integration && notification.channel === 'TELEGRAM' && (integration.provider.toUpperCase() === 'TELEGRAM' || jsonObject(integration.config).adapter === 'TELEGRAM_BOT')) {
+        ({ response, provider } = await sendTelegramNotification(notification, integration));
+      } else if (integration) {
         ({ response, provider } = await sendGenericNotification(notification, integration));
       } else if (notification.channel === 'TELEGRAM') {
         const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -509,10 +552,12 @@ async function processExternalNotifications(): Promise<void> {
       await prisma.notification.update({ where: { id: notification.id }, data: {
         status: 'SENT', attempts: { increment: 1 }, sentAt: new Date(), externalRef: responseBody.slice(0, 250), provider, lastError: null,
       } });
+      if (integrationId) await prisma.integrationConnection.update({ where: { id: integrationId }, data: { lastHealthCheckAt: new Date(), lastError: null } });
       await prisma.employeeNotificationDelivery.updateMany({ where: { notificationId: notification.id }, data: { status: 'SENT', attempts: { increment: 1 }, sentAt: new Date(), externalReference: responseBody.slice(0, 250), lastError: null } });
     } catch (error) {
       const attempts = notification.attempts + 1; const message = error instanceof Error ? error.message : String(error);
       await prisma.notification.update({ where: { id: notification.id }, data: { status: attempts >= 8 ? 'FAILED' : 'QUEUED', attempts, lastError: message, scheduledAt: attempts >= 8 ? notification.scheduledAt : new Date(Date.now() + Math.min(3600000, 5000 * 2 ** attempts)) } });
+      if (integrationId) await prisma.integrationConnection.update({ where: { id: integrationId }, data: { status: 'DEGRADED', lastHealthCheckAt: new Date(), lastError: message.slice(0, 1000) } });
       await prisma.employeeNotificationDelivery.updateMany({ where: { notificationId: notification.id }, data: { status: attempts >= 8 ? 'FAILED' : 'QUEUED', attempts, lastError: message } });
     }
   }
@@ -642,6 +687,16 @@ async function processAutomationJobs(): Promise<void> {
               context: approvalContext,
             } });
           }
+        } else if (current.actionType === 'CREATE_REPORT_JOB') {
+          const reportType = typeof payload.reportType === 'string' ? payload.reportType.trim() : '';
+          const format = typeof payload.format === 'string' ? payload.format.toUpperCase() : 'CSV';
+          if (!reportType) throw new Error('CREATE_REPORT_JOB membutuhkan reportType.');
+          if (!['CSV','XLSX','PDF'].includes(format)) throw new Error(`Format CREATE_REPORT_JOB tidak didukung: ${format}`);
+          await tx.reportJob.create({ data: {
+            companyId: current.companyId, branchId: current.branchId, reportType, format,
+            filters: payload.filters && typeof payload.filters === 'object' && !Array.isArray(payload.filters) ? payload.filters as Prisma.InputJsonValue : undefined,
+            requestedById: typeof payload.requestedById === 'string' ? payload.requestedById : undefined,
+          } });
         } else if (current.actionType === 'CREATE_MAINTENANCE_WORK_ORDER') {
           if (current.sourceType !== 'AssetMaintenancePlan') throw new Error('CREATE_MAINTENANCE_WORK_ORDER hanya menerima source AssetMaintenancePlan.');
           const plan = await tx.assetMaintenancePlan.findFirst({ where: { id: current.sourceId, companyId: current.companyId, isActive: true } });
@@ -862,7 +917,94 @@ async function tick(): Promise<void> {
   await processConsoleNotifications();
   await processExternalNotifications();
   await processAutomationJobs();
+  await processReportSchedules();
   await processReportJobs();
+}
+
+
+type ReportFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+
+function reportScheduleZonedParts(date: Date, timeZone: string): { year: number; month: number; day: number; hour: number; minute: number } {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day), hour: Number(parts.hour), minute: Number(parts.minute) };
+}
+
+function reportScheduleLocalToUtc(year: number, month: number, day: number, hour: number, minute: number, timeZone: string): Date {
+  const localEpoch = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  let guess = new Date(localEpoch);
+  for (let i = 0; i < 3; i += 1) {
+    const actual = reportScheduleZonedParts(guess, timeZone);
+    const actualEpoch = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, 0, 0);
+    const delta = actualEpoch - localEpoch;
+    if (delta === 0) return guess;
+    guess = new Date(guess.getTime() - delta);
+  }
+  return guess;
+}
+
+function nextReportScheduleRun(after: Date, schedule: { frequency: string; localTime: string; dayOfWeek: number | null; dayOfMonth: number | null; timezone: string }): Date {
+  new Intl.DateTimeFormat('en-US', { timeZone: schedule.timezone }).format(after);
+  const frequency = schedule.frequency as ReportFrequency;
+  if (!['DAILY', 'WEEKLY', 'MONTHLY'].includes(frequency)) throw new Error(`Frequency report schedule tidak didukung: ${schedule.frequency}`);
+  const [hour, minute] = schedule.localTime.split(':').map(Number);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) throw new Error('localTime report schedule tidak valid.');
+  const current = reportScheduleZonedParts(after, schedule.timezone);
+  let localDate = new Date(Date.UTC(current.year, current.month - 1, current.day, hour, minute, 0, 0));
+  if (frequency === 'WEEKLY') {
+    if (schedule.dayOfWeek === null || schedule.dayOfWeek < 0 || schedule.dayOfWeek > 6) throw new Error('dayOfWeek report schedule tidak valid.');
+    const currentDow = new Date(Date.UTC(current.year, current.month - 1, current.day)).getUTCDay();
+    localDate.setUTCDate(localDate.getUTCDate() + ((schedule.dayOfWeek - currentDow + 7) % 7));
+  } else if (frequency === 'MONTHLY') {
+    if (schedule.dayOfMonth === null || schedule.dayOfMonth < 1 || schedule.dayOfMonth > 28) throw new Error('dayOfMonth report schedule tidak valid.');
+    localDate = new Date(Date.UTC(current.year, current.month - 1, schedule.dayOfMonth, hour, minute, 0, 0));
+  }
+  let candidate = reportScheduleLocalToUtc(localDate.getUTCFullYear(), localDate.getUTCMonth() + 1, localDate.getUTCDate(), hour, minute, schedule.timezone);
+  if (candidate <= after) {
+    if (frequency === 'DAILY') localDate.setUTCDate(localDate.getUTCDate() + 1);
+    else if (frequency === 'WEEKLY') localDate.setUTCDate(localDate.getUTCDate() + 7);
+    else localDate = new Date(Date.UTC(localDate.getUTCFullYear(), localDate.getUTCMonth() + 1, schedule.dayOfMonth!, hour, minute, 0, 0));
+    candidate = reportScheduleLocalToUtc(localDate.getUTCFullYear(), localDate.getUTCMonth() + 1, localDate.getUTCDate(), hour, minute, schedule.timezone);
+  }
+  return candidate;
+}
+
+async function processReportSchedules(): Promise<void> {
+  const now = new Date();
+  const schedules = await prisma.reportSchedule.findMany({
+    where: { isActive: true, nextRunAt: { lte: now } },
+    orderBy: { nextRunAt: 'asc' },
+    take: 20,
+  });
+  for (const schedule of schedules) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const current = await tx.reportSchedule.findUnique({ where: { id: schedule.id } });
+        if (!current || !current.isActive || current.nextRunAt > new Date()) return;
+        const scheduledFor = current.nextRunAt;
+        const nextRunAt = nextReportScheduleRun(new Date(scheduledFor.getTime() + 1000), current);
+        const claimed = await tx.reportSchedule.updateMany({
+          where: { id: current.id, isActive: true, nextRunAt: scheduledFor },
+          data: { nextRunAt, lastRunAt: scheduledFor, lastError: null },
+        });
+        if (!claimed.count) return;
+        const job = await tx.reportJob.create({ data: {
+          companyId: current.companyId, branchId: current.branchId, requestedById: current.requestedById,
+          scheduleId: current.id, scheduledFor, reportType: current.reportType, format: current.format, filters: current.filters ?? undefined,
+        } });
+        await tx.reportSchedule.update({ where: { id: current.id }, data: { lastJobId: job.id } });
+        await tx.auditLog.create({ data: {
+          companyId: current.companyId, userId: current.requestedById, action: 'MATERIALIZE_REPORT_SCHEDULE', entityType: 'ReportSchedule', entityId: current.id,
+          payload: { branchId: current.branchId, reportJobId: job.id, scheduledFor: scheduledFor.toISOString(), nextRunAt: nextRunAt.toISOString() },
+        } });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await prisma.reportSchedule.update({ where: { id: schedule.id }, data: { lastError: message, nextRunAt: new Date(Date.now() + 60 * 60 * 1000) } });
+    }
+  }
 }
 
 // T360-20260829 value pack 2 — eksekusi export CSV asinkron (ReportJob).
@@ -1005,6 +1147,84 @@ async function buildReportCsv(job: { reportType: string; companyId: string; bran
       .map((row) => [to.toISOString(), row.code, row.name, row.type, Number(row.balance)]);
     balanceRows.push([to.toISOString(), 'CURRENT_EARNINGS', 'Laba/Rugi Berjalan', 'EQUITY', Number(currentEarnings)]);
     return toCsv(['asOf', 'accountCode', 'accountName', 'type', 'amount'], balanceRows);
+  }
+
+  if (job.reportType === 'INVENTORY_VALUATION') {
+    const warehouseIds = await prisma.warehouse.findMany({
+      where: { branchId: job.branchId, branch: { companyId: job.companyId } },
+      select: { id: true, code: true },
+    });
+    const warehouseById = new Map(warehouseIds.map((row) => [row.id, row.code]));
+    const rows = await prisma.inventory.findMany({
+      where: { warehouseId: { in: warehouseIds.map((row) => row.id) } },
+      include: { product: { select: { sku: true, name: true, unit: true, costPrice: true } } },
+      orderBy: [{ warehouseId: 'asc' }, { productId: 'asc' }],
+      take: 10000,
+    });
+    return toCsv(
+      ['asOf','warehouse','sku','product','unit','quantity','reserved','available','unitCost','inventoryValue'],
+      rows.map((row) => [to.toISOString(), warehouseById.get(row.warehouseId) ?? '', row.product.sku, row.product.name, row.product.unit, row.quantity, row.reserved, row.available, Number(row.product.costPrice), Number(new Prisma.Decimal(row.product.costPrice).mul(row.quantity))]),
+    );
+  }
+
+  if (job.reportType === 'PERIOD_COMPARISON') {
+    const durationMs = to.getTime() - from.getTime() + 1;
+    const previousTo = new Date(from.getTime() - 1);
+    const previousFrom = new Date(previousTo.getTime() - durationMs + 1);
+    async function summary(rangeFrom: Date, rangeTo: Date) {
+      const grouped = await prisma.journalLine.groupBy({
+        by: ['accountId'],
+        where: { journalEntry: { date: { gte: rangeFrom, lte: rangeTo } }, account: { branchId: job.branchId!, branch: { companyId: job.companyId } } },
+        _sum: { debit: true, credit: true },
+      });
+      const ids = grouped.map((row) => row.accountId);
+      const accounts = ids.length ? await prisma.account.findMany({ where: { id: { in: ids } }, select: { id: true, type: true } }) : [];
+      const byId = new Map(accounts.map((row) => [row.id, row]));
+      let revenue = new Prisma.Decimal(0); let expenses = new Prisma.Decimal(0);
+      for (const row of grouped) {
+        const account = byId.get(row.accountId); if (!account) continue;
+        const balance = normalBalance(account.type, new Prisma.Decimal(row._sum.debit ?? 0), new Prisma.Decimal(row._sum.credit ?? 0));
+        if (account.type === 'REVENUE') revenue = revenue.add(balance);
+        if (account.type === 'EXPENSE') expenses = expenses.add(balance);
+      }
+      return { revenue, expenses, netProfit: revenue.sub(expenses) };
+    }
+    const [current, previous] = await Promise.all([summary(from, to), summary(previousFrom, previousTo)]);
+    return toCsv(['period','from','to','revenue','expenses','netProfit'], [
+      ['CURRENT', from.toISOString(), to.toISOString(), Number(current.revenue), Number(current.expenses), Number(current.netProfit)],
+      ['PREVIOUS', previousFrom.toISOString(), previousTo.toISOString(), Number(previous.revenue), Number(previous.expenses), Number(previous.netProfit)],
+    ]);
+  }
+
+  if (job.reportType === 'BRANCH_COMPARISON') {
+    const branchIds = Array.isArray(filters.branchIds) ? filters.branchIds.filter((value): value is string => typeof value === 'string') : [job.branchId];
+    const branches = await prisma.branch.findMany({ where: { companyId: job.companyId, id: { in: branchIds } }, select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } });
+    const output: Array<Array<string | number>> = [];
+    for (const branch of branches) {
+      const grouped = await prisma.journalLine.groupBy({ by: ['accountId'], where: { journalEntry: { date: { gte: from, lte: to } }, account: { branchId: branch.id, branch: { companyId: job.companyId } } }, _sum: { debit: true, credit: true } });
+      const ids = grouped.map((row) => row.accountId);
+      const accounts = ids.length ? await prisma.account.findMany({ where: { id: { in: ids } }, select: { id: true, type: true } }) : [];
+      const byId = new Map(accounts.map((row) => [row.id, row]));
+      let revenue = new Prisma.Decimal(0); let expenses = new Prisma.Decimal(0);
+      for (const row of grouped) { const account = byId.get(row.accountId); if (!account) continue; const balance = normalBalance(account.type, new Prisma.Decimal(row._sum.debit ?? 0), new Prisma.Decimal(row._sum.credit ?? 0)); if (account.type === 'REVENUE') revenue = revenue.add(balance); if (account.type === 'EXPENSE') expenses = expenses.add(balance); }
+      output.push([branch.code, branch.name, Number(revenue), Number(expenses), Number(revenue.sub(expenses))]);
+    }
+    return toCsv(['branchCode','branchName','revenue','expenses','netProfit'], output);
+  }
+
+  if (job.reportType === 'COST_CENTER') {
+    const rows = await prisma.accountingEventLine.findMany({
+      where: { event: { companyId: job.companyId, branchId: job.branchId, status: 'POSTED', businessDate: { gte: from, lte: to } } },
+      select: { netAmount: true, dimensions: true },
+      take: 10000,
+    });
+    const totals = new Map<string, Prisma.Decimal>();
+    for (const row of rows) {
+      const dimensions = row.dimensions && typeof row.dimensions === 'object' && !Array.isArray(row.dimensions) ? row.dimensions as Record<string, unknown> : {};
+      const costCenterId = typeof dimensions.costCenterId === 'string' && dimensions.costCenterId ? dimensions.costCenterId : 'UNASSIGNED';
+      totals.set(costCenterId, (totals.get(costCenterId) ?? new Prisma.Decimal(0)).add(row.netAmount));
+    }
+    return toCsv(['costCenterId','amount'], [...totals.entries()].map(([costCenterId, amount]) => [costCenterId, Number(amount)]));
   }
 
   if (job.reportType === 'GENERAL_LEDGER') {
@@ -1342,14 +1562,18 @@ async function processReportJobs(): Promise<void> {
       const filename = `${job.id}.${output.extension}`;
       if (typeof output.data === 'string') await writeFile(join(dir, filename), output.data, 'utf8');
       else await writeFile(join(dir, filename), output.data);
-      await prisma.reportJob.update({
-        where: { id: job.id },
-        data: { status: 'DONE', progress: 100, outputUrl: filename, finishedAt: new Date(), errorMessage: null },
+      await prisma.$transaction(async (tx) => {
+        await tx.reportJob.update({
+          where: { id: job.id },
+          data: { status: 'DONE', progress: 100, outputUrl: filename, finishedAt: new Date(), errorMessage: null },
+        });
+        if (job.scheduleId) await tx.reportSchedule.updateMany({ where: { id: job.scheduleId }, data: { lastJobId: job.id, lastError: null } });
       });
     } catch (error) {
-      await prisma.reportJob.update({
-        where: { id: job.id },
-        data: { status: 'FAILED', errorMessage: error instanceof Error ? error.message : String(error), finishedAt: new Date() },
+      const message = error instanceof Error ? error.message : String(error);
+      await prisma.$transaction(async (tx) => {
+        await tx.reportJob.update({ where: { id: job.id }, data: { status: 'FAILED', errorMessage: message, finishedAt: new Date() } });
+        if (job.scheduleId) await tx.reportSchedule.updateMany({ where: { id: job.scheduleId }, data: { lastJobId: job.id, lastError: message } });
       });
     }
   }

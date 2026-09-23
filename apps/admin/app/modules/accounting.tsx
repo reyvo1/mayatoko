@@ -3,10 +3,16 @@ import { authFetch } from '../auth-fetch';
 // Modul Akuntansi & Kas — W3 functional surface: operational finance, period close, bank reconciliation.
 import { useEffect, useRef, useState } from 'react';
 import { Panel, Table, StatusChip, rupiah, tanggal } from '../ui';
+import TaxWorkspace from './tax-workspace';
+import ReportingWorkspace from './reporting-workspace';
+import FinanceDepthWorkspace from './finance-depth-workspace';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
-type JournalEvent = { id: string; eventType: string; status: string; createdAt: string };
+type JournalEvent = { id: string; eventType: string; status: string; sourceType?: string; sourceId?: string; businessDate?: string; grossAmount?: string | number; createdAt: string };
+type PostingRuleLine = { accountCode?: string; accountCodeKey?: string; side: 'DEBIT'|'CREDIT'; amountKey: string; description?: string; skipIfZero?: boolean };
+type PostingRule = { id: string; code: string; version: number; name: string; eventType: string; priority: number; status: 'DRAFT'|'ACTIVE'|'INACTIVE'; effectiveFrom?: string | null; effectiveTo?: string | null; journalLines: PostingRuleLine[] };
+type AccountingEventDetail = { event: JournalEvent & { lines: Array<{ id: string; lineNumber: number; description?: string | null; netAmount: string | number; taxAmount: string | number; grossAmount: string | number }>; postings: Array<{ id: string; ruleId?: string | null; journalEntryId: string; status: string; postedAt: string; postingTrace?: unknown }>; taxTransactions: Array<{ id: string; direction: string; taxableBase: string | number; taxAmount: string | number; taxCodeId: string }> }; rules: PostingRule[]; journalEntry: null | { id: string; number: string; date: string; referenceType: string; referenceId: string; description: string; lines: Array<{ id: string; debit: string | number; credit: string | number; account: { id: string; code: string; name: string; type: string } }> }; source: { type: string; id: string } };
 type TaxCode = { id: string; code: string; name: string; rate: string | number; scope: string; status: string };
 type Account = { id: string; code: string; name: string; type: string; isActive: boolean };
 type FinanceTx = {
@@ -62,10 +68,12 @@ function parseStatementText(text: string) {
   return result;
 }
 
-export default function AccountingView({ token }: { token: string }) {
+export default function AccountingView({ token, mode }: { token: string; mode?: string | null }) {
   const [events, setEvents] = useState<JournalEvent[]>([]);
   const [taxCodes, setTaxCodes] = useState<TaxCode[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [postingRules, setPostingRules] = useState<PostingRule[]>([]);
+  const [eventDetail, setEventDetail] = useState<AccountingEventDetail | null>(null);
   const [finances, setFinances] = useState<FinanceTx[]>([]);
   const [payables, setPayables] = useState<SupplierPayable[]>([]);
   const [supplierRefunds, setSupplierRefunds] = useState<SupplierRefund[]>([]);
@@ -84,6 +92,8 @@ export default function AccountingView({ token }: { token: string }) {
     taxPayableAccount: '2201', supplierPayableKey: '', purchaseReturnId: '', customerOrderId: '', requireApproval: false,
   });
   const [periodForm, setPeriodForm] = useState({ name: '', startDate: '', endDate: '' });
+  const [accountForm, setAccountForm] = useState({ code: '', name: '', type: 'ASSET' });
+  const [ruleForm, setRuleForm] = useState({ code: '', version: 1, name: '', eventType: '', priority: 100, status: 'DRAFT', effectiveFrom: '', effectiveTo: '', journalLinesText: 'DEBIT|1101|gross|Kas/Bank\nCREDIT|4101|net|Pendapatan' });
   const [statementForm, setStatementForm] = useState({ bankAccountId: '', source: 'MANUAL', fileName: '', periodStart: '', periodEnd: '', openingBalance: '', closingBalance: '', linesText: '' });
   const [reconForm, setReconForm] = useState({ statementId: '', startDate: '', endDate: '' });
 
@@ -102,10 +112,11 @@ export default function AccountingView({ token }: { token: string }) {
 
   async function refresh() {
     try {
-      const [ev, tx, ac, fin, ap, sr, cr, fp, bs, br, rj] = await Promise.all([
+      const [ev, tx, ac, pr, fin, ap, sr, cr, fp, bs, br, rj] = await Promise.all([
         api<CursorResponse<JournalEvent>>('/accounting-core/events?limit=20'),
         api<CursorResponse<TaxCode>>('/accounting-core/tax-codes'),
         api<Account[]>('/accounting-core/accounts'),
+        api<PostingRule[]>('/accounting-core/posting-rules'),
         api<CursorResponse<FinanceTx>>('/finance-operations?limit=50'),
         api<SupplierPayable[]>('/finance-operations/supplier-payables'),
         api<SupplierRefund[]>('/finance-operations/supplier-refunds'),
@@ -115,15 +126,16 @@ export default function AccountingView({ token }: { token: string }) {
         api<BankReconciliation[]>('/finance/reconciliations'),
         api<CursorResponse<ReportJob>>('/reports/jobs?limit=50'),
       ]);
-      const accountRows = ac.filter((row) => row.isActive);
-      const assetAccounts = accountRows.filter((row) => row.type === 'ASSET');
-      setEvents(Array.isArray(ev) ? ev : ev.items ?? []); setTaxCodes(Array.isArray(tx) ? tx : tx.items ?? []); setAccounts(accountRows);
+      const accountRows = ac;
+      const activeAccountRows = ac.filter((row) => row.isActive);
+      const assetAccounts = activeAccountRows.filter((row) => row.type === 'ASSET');
+      setEvents(Array.isArray(ev) ? ev : ev.items ?? []); setTaxCodes(Array.isArray(tx) ? tx : tx.items ?? []); setAccounts(accountRows); setPostingRules(pr);
       setFinances(Array.isArray(fin) ? fin : fin.items ?? []); setPayables(ap); setSupplierRefunds(sr); setCustomerReceivables(cr);
       setPeriods(fp); setStatements(bs); setReconciliations(br); setReportJobs(Array.isArray(rj) ? rj : rj.items ?? []);
       setForm((current) => ({
         ...current,
-        settlementAccount: accountRows.some((row) => row.code === current.settlementAccount) ? current.settlementAccount : assetAccounts[0]?.code ?? current.settlementAccount,
-        transferTargetAccount: accountRows.some((row) => row.code === current.transferTargetAccount) ? current.transferTargetAccount : assetAccounts[1]?.code ?? assetAccounts[0]?.code ?? current.transferTargetAccount,
+        settlementAccount: activeAccountRows.some((row) => row.code === current.settlementAccount) ? current.settlementAccount : assetAccounts[0]?.code ?? current.settlementAccount,
+        transferTargetAccount: activeAccountRows.some((row) => row.code === current.transferTargetAccount) ? current.transferTargetAccount : assetAccounts[1]?.code ?? assetAccounts[0]?.code ?? current.transferTargetAccount,
         supplierPayableKey: current.supplierPayableKey || (() => { const row = ap.find((item) => Number(item.availableToPay) > 0); return row ? `${row.referenceType}:${row.referenceId}` : ''; })(),
         purchaseReturnId: current.purchaseReturnId || sr.find((row) => Number(row.availableToReceive) > 0)?.purchaseReturnId || '',
         customerOrderId: current.customerOrderId || cr.find((row) => Number(row.availableToReceive) > 0)?.orderId || '',
@@ -241,6 +253,58 @@ export default function AccountingView({ token }: { token: string }) {
     catch (error) { setMessage(error instanceof Error ? error.message : 'Unmatch gagal.'); }
   }
 
+  function parsePostingRuleLines(text: string): PostingRuleLine[] {
+    const rows = text.split(/\r?\n/).map((row) => row.trim()).filter(Boolean);
+    return rows.map((row, index) => {
+      const [sideRaw, accountRaw, amountKeyRaw, descriptionRaw] = row.split('|').map((value) => value.trim());
+      const side = sideRaw?.toUpperCase();
+      if (side !== 'DEBIT' && side !== 'CREDIT') throw new Error(`Baris ${index + 1}: side harus DEBIT atau CREDIT.`);
+      if (!accountRaw || !amountKeyRaw) throw new Error(`Baris ${index + 1}: akun dan amountKey wajib diisi.`);
+      return { side, accountCode: accountRaw.toUpperCase(), amountKey: amountKeyRaw, description: descriptionRaw || undefined, skipIfZero: true };
+    });
+  }
+
+  async function createAccount(event: React.FormEvent) {
+    event.preventDefault(); setMessage('');
+    try {
+      await api('/accounting-core/accounts', { method: 'POST', body: JSON.stringify(accountForm) });
+      setAccountForm({ code: '', name: '', type: 'ASSET' });
+      setMessage('Akun baru dibuat pada branch aktif.'); await refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal membuat akun.'); }
+  }
+
+  async function updateAccount(account: Account, patch: Partial<Pick<Account, 'name'|'type'|'isActive'>>) {
+    setMessage('');
+    try { await api(`/accounting-core/accounts/${account.id}`, { method: 'PATCH', body: JSON.stringify(patch) }); setMessage(`Akun ${account.code} diperbarui.`); await refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal memperbarui akun.'); }
+  }
+
+  async function createPostingRule(event: React.FormEvent) {
+    event.preventDefault(); setMessage('');
+    try {
+      const journalLines = parsePostingRuleLines(ruleForm.journalLinesText);
+      await api('/accounting-core/posting-rules', { method: 'POST', body: JSON.stringify({ ...ruleForm, version: Number(ruleForm.version), priority: Number(ruleForm.priority), effectiveFrom: ruleForm.effectiveFrom || undefined, effectiveTo: ruleForm.effectiveTo || undefined, journalLines }) });
+      setMessage(`Posting rule ${ruleForm.code} v${ruleForm.version} tersimpan.`); await refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal menyimpan posting rule.'); }
+  }
+
+  function cloneRuleVersion(rule: PostingRule) {
+    const rows = rule.journalLines.map((line) => `${line.side}|${line.accountCode ?? line.accountCodeKey ?? ''}|${line.amountKey}|${line.description ?? ''}`).join('\n');
+    setRuleForm({ code: rule.code, version: rule.version + 1, name: rule.name, eventType: rule.eventType, priority: rule.priority, status: 'DRAFT', effectiveFrom: '', effectiveTo: '', journalLinesText: rows });
+  }
+
+  async function updatePostingRuleStatus(rule: PostingRule, status: 'ACTIVE'|'INACTIVE') {
+    setMessage('');
+    try { await api(`/accounting-core/posting-rules/${rule.id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }); setMessage(`${rule.code} v${rule.version} → ${status}.`); await refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal mengubah status posting rule.'); }
+  }
+
+  async function loadEventDetail(id: string) {
+    setMessage('');
+    try { setEventDetail(await api<AccountingEventDetail>(`/accounting-core/events/${id}`)); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal membuka drill-down accounting event.'); }
+  }
+
   const payableOptions = payables.filter((row) => Number(row.availableToPay) > 0);
   const selectedPayable = payables.find((row) => `${row.referenceType}:${row.referenceId}` === form.supplierPayableKey);
   const refundOptions = supplierRefunds.filter((row) => Number(row.availableToReceive) > 0);
@@ -248,6 +312,7 @@ export default function AccountingView({ token }: { token: string }) {
   const customerOptions = customerReceivables.filter((row) => Number(row.availableToReceive) > 0);
   const selectedCustomer = customerReceivables.find((row) => row.orderId === form.customerOrderId);
   const assetAccounts = accounts.filter((row) => row.type === 'ASSET');
+  const show = (...modes: string[]) => !mode || modes.includes(mode);
 
   async function createReportJob(event: React.FormEvent) {
     event.preventDefault();
@@ -278,16 +343,54 @@ export default function AccountingView({ token }: { token: string }) {
 
   return (
     <>
+      <FinanceDepthWorkspace token={token} mode={mode} />
       <section className="grid2">
-        <Panel eyebrow="ACCOUNTING CORE" title="Accounting Events (Jurnal)" badge={`${events.length} event`}>
-          <Table head={['Event', 'Status', 'Tanggal']} rows={events.slice(0, 12).map((e) => [<strong>{e.eventType}</strong>, <StatusChip status={e.status} />, tanggal(e.createdAt)])} empty="Belum ada jurnal." />
-        </Panel>
-        <Panel eyebrow="PAJAK" title="Kode Pajak Aktif" badge={`${taxCodes.length} kode`}>
-          <Table head={['Kode', 'Nama', 'Tarif', 'Scope']} rows={taxCodes.map((t) => [<strong>{t.code}</strong>, t.name, `${(Number(t.rate) * 100).toFixed(0)}%`, t.scope])} empty="Belum ada kode pajak." />
-        </Panel>
+        {show('ledger') && <Panel eyebrow="ACCOUNTING CORE" title="Accounting Events (Jurnal)" badge={`${events.length} event`}>
+          <Table head={['Event / Source', 'Status', 'Tanggal', 'Aksi']} rows={events.slice(0, 20).map((e) => [<><strong>{e.eventType}</strong><small style={{ display: 'block', color: 'var(--muted)' }}>{e.sourceType ?? '-'} · {e.sourceId ?? '-'}</small></>, <StatusChip status={e.status} />, tanggal(e.businessDate ?? e.createdAt), <button type="button" className="secondary" onClick={() => void loadEventDetail(e.id)}>Drill-down</button>])} empty="Belum ada jurnal." />
+        </Panel>}
+        {show('ledger') && <Panel eyebrow="CHART OF ACCOUNTS" title="Akun Branch" badge={`${accounts.length} akun`}>
+          <form onSubmit={createAccount} style={{ display: 'grid', gridTemplateColumns: '120px minmax(180px, 1fr) 150px auto', gap: 8, alignItems: 'end', marginBottom: 14 }}>
+            <label>Kode<input required value={accountForm.code} onChange={(e) => setAccountForm({ ...accountForm, code: e.target.value.toUpperCase() })} /></label>
+            <label>Nama<input required value={accountForm.name} onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })} /></label>
+            <label>Tipe<select value={accountForm.type} onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value })}><option>ASSET</option><option>LIABILITY</option><option>EQUITY</option><option>REVENUE</option><option>EXPENSE</option></select></label>
+            <button>Tambah akun</button>
+          </form>
+          <Table head={['Kode', 'Nama', 'Tipe', 'Status', 'Aksi']} rows={accounts.slice(0, 80).map((a) => [<strong>{a.code}</strong>, a.name, a.type, <StatusChip status={a.isActive ? 'ACTIVE' : 'INACTIVE'} />, <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}><button type="button" className="secondary" onClick={() => { const name = window.prompt('Nama akun:', a.name); if (name?.trim()) void updateAccount(a, { name: name.trim() }); }}>Edit nama</button><button type="button" className="secondary" onClick={() => void updateAccount(a, { isActive: !a.isActive })}>{a.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button></span>])} empty="Belum ada chart of accounts." />
+        </Panel>}
       </section>
 
-      <Panel eyebrow="PERIODE FISKAL" title="Open → Soft Close → Final Close" badge={`${periods.length} periode`}>
+      {show('tax') && <TaxWorkspace token={token} onOpenAccountingEvent={(id) => void loadEventDetail(id)} />}
+
+      {show('ledger') && <Panel eyebrow="POSTING RULES" title="Versioned Account Mapping" badge={`${postingRules.length} rule`}>
+        <form onSubmit={createPostingRule} style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+          <section className="grid2">
+            <label>Kode rule<input required value={ruleForm.code} onChange={(e) => setRuleForm({ ...ruleForm, code: e.target.value.toUpperCase() })} placeholder="SALE-CASH" /></label>
+            <label>Nama<input required value={ruleForm.name} onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })} /></label>
+            <label>Event type<input required value={ruleForm.eventType} onChange={(e) => setRuleForm({ ...ruleForm, eventType: e.target.value.toUpperCase() })} placeholder="SALE_CASH" /></label>
+            <label>Version<input type="number" min="1" required value={ruleForm.version} onChange={(e) => setRuleForm({ ...ruleForm, version: Number(e.target.value) })} /></label>
+            <label>Priority<input type="number" required value={ruleForm.priority} onChange={(e) => setRuleForm({ ...ruleForm, priority: Number(e.target.value) })} /></label>
+            <label>Status<select value={ruleForm.status} onChange={(e) => setRuleForm({ ...ruleForm, status: e.target.value })}><option>DRAFT</option><option>ACTIVE</option></select></label>
+            <label>Efektif dari<input type="date" value={ruleForm.effectiveFrom} onChange={(e) => setRuleForm({ ...ruleForm, effectiveFrom: e.target.value })} /></label>
+            <label>Efektif sampai<input type="date" value={ruleForm.effectiveTo} onChange={(e) => setRuleForm({ ...ruleForm, effectiveTo: e.target.value })} /></label>
+          </section>
+          <label>Journal mapping <small>(SIDE|ACCOUNT_CODE|AMOUNT_KEY|DESCRIPTION)</small><textarea rows={5} required value={ruleForm.journalLinesText} onChange={(e) => setRuleForm({ ...ruleForm, journalLinesText: e.target.value })} /></label>
+          <div><button>Simpan version</button></div>
+        </form>
+        <Table head={['Rule', 'Event', 'Version', 'Priority', 'Efektif', 'Status', 'Aksi']} rows={postingRules.map((rule) => [<><strong>{rule.code}</strong><small style={{ display: 'block', color: 'var(--muted)' }}>{rule.name}</small></>, rule.eventType, `v${rule.version}`, String(rule.priority), `${isoDate(rule.effectiveFrom) || '∞'} → ${isoDate(rule.effectiveTo) || '∞'}`, <StatusChip status={rule.status} />, <span style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}><button type="button" className="secondary" onClick={() => cloneRuleVersion(rule)}>Buat v{rule.version + 1}</button>{rule.status !== 'ACTIVE' && <button type="button" onClick={() => void updatePostingRuleStatus(rule, 'ACTIVE')}>Aktifkan</button>}{rule.status === 'ACTIVE' && <button type="button" className="secondary" onClick={() => void updatePostingRuleStatus(rule, 'INACTIVE')}>Nonaktifkan</button>}</span>])} empty="Belum ada posting rule." />
+        <p className="sectionHelp">Rule yang pernah ACTIVE atau sudah dipakai posting tidak dapat ditimpa. Koreksi mapping dilakukan dengan version baru agar histori journal tetap reproducible.</p>
+      </Panel>}
+
+      {show('ledger') && eventDetail && <Panel eyebrow="ACCOUNTING DRILL-DOWN" title={`${eventDetail.event.eventType} · ${eventDetail.source.type}:${eventDetail.source.id}`} badge={eventDetail.event.status}>
+        <section className="grid2">
+          <div><strong>Rule</strong><p>{eventDetail.rules.map((rule) => `${rule.code} v${rule.version}`).join(', ') || '-'}</p></div>
+          <div><strong>Journal</strong><p>{eventDetail.journalEntry ? `${eventDetail.journalEntry.number} · ${tanggal(eventDetail.journalEntry.date)}` : '-'}</p></div>
+        </section>
+        <Table head={['Akun', 'Nama', 'Debit', 'Kredit']} rows={(eventDetail.journalEntry?.lines ?? []).map((line) => [<strong>{line.account.code}</strong>, line.account.name, rupiah(Number(line.debit)), rupiah(Number(line.credit))])} empty="Journal line belum tersedia." />
+        <Table head={['Event line', 'Net', 'Tax', 'Gross']} rows={eventDetail.event.lines.map((line) => [line.description ?? `Line ${line.lineNumber}`, rupiah(Number(line.netAmount)), rupiah(Number(line.taxAmount)), rupiah(Number(line.grossAmount))])} empty="Event line belum tersedia." />
+        <button type="button" className="secondary" onClick={() => setEventDetail(null)}>Tutup detail</button>
+      </Panel>}
+
+      {show('fiscal') && <Panel eyebrow="PERIODE FISKAL" title="Open → Soft Close → Final Close" badge={`${periods.length} periode`}>
         <form onSubmit={createPeriod} style={{ display: 'grid', gridTemplateColumns: '1fr 160px 160px auto', gap: 10, alignItems: 'end', marginBottom: 16 }}>
           <label>Nama<input required value={periodForm.name} onChange={(e) => setPeriodForm({ ...periodForm, name: e.target.value })} placeholder="September 2026" /></label>
           <label>Mulai<input required type="date" value={periodForm.startDate} onChange={(e) => setPeriodForm({ ...periodForm, startDate: e.target.value })} /></label>
@@ -302,26 +405,26 @@ export default function AccountingView({ token }: { token: string }) {
             {period.status === 'CLOSED' && <small>Final</small>}
           </span>,
         ])} empty="Belum ada periode fiskal." />
-      </Panel>
+      </Panel>}
 
-      <Panel eyebrow="UTANG USAHA" title="Utang Supplier per Dokumen" badge={`${payables.filter((row) => Number(row.outstandingAmount) > 0).length} terbuka`}>
+      {show('payables') && <Panel eyebrow="UTANG USAHA" title="Utang Supplier per Dokumen" badge={`${payables.filter((row) => Number(row.outstandingAmount) > 0).length} terbuka`}>
         <Table head={['Supplier / Dokumen', 'Sumber', 'Tagihan', 'Retur', 'Sudah Dibayar', 'Pending', 'Sisa']} rows={payables.filter((row) => Number(row.outstandingAmount) > 0).map((row) => [
           <><strong>{row.supplierName}</strong><small style={{ display: 'block', color: 'var(--muted)' }}>{row.documentNumber}</small></>,
           row.referenceType === 'Asset' ? `Aset · ${row.assetName ?? row.assetCode ?? '-'}` : row.referenceType === 'MaintenanceWorkOrder' ? `Maintenance · ${row.sourceName ?? row.documentNumber}` : row.referenceType === 'FuelTransaction' ? `BBM · ${row.sourceName ?? row.documentNumber}` : `GR · ${row.purchaseOrderNumber ?? '-'}`,
           rupiah(Number(row.grossAmount)), rupiah(Number(row.returnedAmount)), rupiah(Number(row.paidAmount)), rupiah(Number(row.pendingPaymentAmount)), <strong>{rupiah(Number(row.outstandingAmount))}</strong>,
         ])} empty="Tidak ada utang supplier terbuka." />
-      </Panel>
+      </Panel>}
 
-      <section className="grid2">
+      {show('receivables') && <section className="grid2">
         <Panel eyebrow="REFUND SUPPLIER" title="Piutang Refund Supplier" badge={`${supplierRefunds.filter((row) => Number(row.outstandingAmount) > 0).length} terbuka`}>
           <Table head={['Supplier / Retur', 'Credit Note', 'Piutang', 'Diterima', 'Pending', 'Sisa']} rows={supplierRefunds.filter((row) => Number(row.outstandingAmount) > 0).map((row) => [<><strong>{row.supplierName}</strong><small style={{ display: 'block', color: 'var(--muted)' }}>{row.purchaseReturnNumber}</small></>, row.creditNoteNumber ?? '-', rupiah(Number(row.receivableAmount)), rupiah(Number(row.receivedAmount)), rupiah(Number(row.pendingAmount)), <strong>{rupiah(Number(row.outstandingAmount))}</strong>])} empty="Tidak ada refund supplier terbuka." />
         </Panel>
         <Panel eyebrow="PIUTANG PELANGGAN" title="COD / Invoice" badge={`${customerReceivables.filter((row) => Number(row.outstandingAmount) > 0).length} terbuka`}>
           <Table head={['Order', 'Pelanggan', 'Metode', 'Piutang', 'Diterima', 'Sisa']} rows={customerReceivables.filter((row) => Number(row.outstandingAmount) > 0).map((row) => [<strong>{row.orderNumber}</strong>, row.customerName, row.paymentMethod, rupiah(Number(row.grossAmount)), rupiah(Number(row.receivedAmount)), <strong>{rupiah(Number(row.outstandingAmount))}</strong>])} empty="Tidak ada piutang pelanggan terbuka." />
         </Panel>
-      </section>
+      </section>}
 
-      <Panel eyebrow="KAS & BANK" title="Transaksi Keuangan Operasional" badge={`${finances.length} transaksi`}>
+      {show('banking') && <Panel eyebrow="KAS & BANK" title="Transaksi Keuangan Operasional" badge={`${finances.length} transaksi`}>
         <form onSubmit={addFinance} style={{ display: 'grid', gridTemplateColumns: '170px minmax(220px, 1fr) 150px 150px auto', gap: 10, alignItems: 'end', marginBottom: 16 }}>
           <label>Jenis<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as FinanceType })}><option value="OPERATING_EXPENSE">Beban operasional</option><option value="OTHER_INCOME">Pendapatan lain</option><option value="TAX_PAYMENT">Bayar pajak</option><option value="SUPPLIER_PAYMENT">Bayar supplier</option><option value="SUPPLIER_REFUND">Terima refund supplier</option><option value="CUSTOMER_RECEIPT">Terima piutang pelanggan</option><option value="CASH_TRANSFER">Transfer kas/bank</option></select></label>
           {form.type === 'TAX_PAYMENT' ? <label>Utang pajak<select value={form.taxPayableAccount} onChange={(e) => setForm({ ...form, taxPayableAccount: e.target.value })}><option value="2201">Pajak Keluaran (2201)</option><option value="2202">Utang Pajak Lainnya (2202)</option><option value="2103">Pajak Payroll (2103)</option></select></label>
@@ -340,9 +443,9 @@ export default function AccountingView({ token }: { token: string }) {
           {['DRAFT', 'APPROVED'].includes(f.status) && <button type="button" className="secondary" onClick={() => void financeAction(f, 'post')}>Posting</button>}
           {['DRAFT', 'WAITING_APPROVAL', 'APPROVED'].includes(f.status) && <button type="button" className="secondary" onClick={() => void financeAction(f, 'cancel')}>Batal</button>}
         </span>])} empty="Belum ada transaksi kas." />
-      </Panel>
+      </Panel>}
 
-      <Panel eyebrow="BANK STATEMENT" title="Import Statement untuk Rekonsiliasi" badge={`${statements.length} file`}>
+      {show('banking') && <Panel eyebrow="BANK STATEMENT" title="Import Statement untuk Rekonsiliasi" badge={`${statements.length} file`}>
         <form onSubmit={importStatement} style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
           <section className="grid2">
             <label>Akun bank<select required value={statementForm.bankAccountId} onChange={(e) => setStatementForm({ ...statementForm, bankAccountId: e.target.value })}><option value="">Pilih akun bank</option>{assetAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}</select></label>
@@ -358,9 +461,9 @@ export default function AccountingView({ token }: { token: string }) {
           <button>Import bank statement</button>
         </form>
         <Table head={['File', 'Sumber', 'Periode', 'Baris']} rows={statements.map((row) => [<strong>{row.fileName ?? row.id}</strong>, row.source, `${isoDate(row.periodStart)} – ${isoDate(row.periodEnd)}`, String(row.lines.length)])} empty="Belum ada bank statement." />
-      </Panel>
+      </Panel>}
 
-      <Panel eyebrow="REKONSILIASI BANK" title="Statement ↔ Journal" badge={`${reconciliations.length} rekonsiliasi`}>
+      {show('banking') && <Panel eyebrow="REKONSILIASI BANK" title="Statement ↔ Journal" badge={`${reconciliations.length} rekonsiliasi`}>
         <form onSubmit={createReconciliation} style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 1fr) 160px 160px auto', gap: 10, alignItems: 'end', marginBottom: 16 }}>
           <label>Statement<select required value={reconForm.statementId} onChange={(e) => chooseStatement(e.target.value)}><option value="">Pilih statement</option>{statements.map((row) => <option key={row.id} value={row.id}>{row.fileName ?? row.id} · {row.source}</option>)}</select></label>
           <label>Mulai<input required type="date" value={reconForm.startDate} onChange={(e) => setReconForm({ ...reconForm, startDate: e.target.value })} /></label>
@@ -379,20 +482,9 @@ export default function AccountingView({ token }: { token: string }) {
             return [tanggal(line.transactionDate), <><strong>{line.description}</strong><small style={{ display: 'block', color: 'var(--muted)' }}>{line.reference ?? '-'}</small></>, amount, line.matched ? <StatusChip status="COMPLETED" /> : <StatusChip status="PENDING" />, line.matched ? <button type="button" className="secondary" onClick={() => void unmatchLine(line.id)}>Unmatch</button> : <span style={{ display: 'flex', gap: 5 }}><select value={manualMatches[line.id] ?? ''} onChange={(e) => setManualMatches({ ...manualMatches, [line.id]: e.target.value })}><option value="">Pilih journal</option>{candidates.map((journal) => <option key={journal.id} value={journal.id}>{journal.journalEntry.number} · {tanggal(journal.journalEntry.date)} · {journal.journalEntry.description}</option>)}</select><button type="button" onClick={() => void matchLine(line.id)}>Match</button></span>];
           })} empty="Tidak ada baris statement pada rentang ini." />
         </div>}
-      </Panel>
+      </Panel>}
 
-      <Panel eyebrow="REPORT WORKER" title="Export Laporan Operasional" badge={`${reportJobs.length} job`}>
-        <form onSubmit={createReportJob} style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 140px 150px 150px 110px auto', gap: 10, alignItems: 'end', marginBottom: 16 }}>
-          <label>Jenis laporan<select value={reportForm.reportType} onChange={(e) => setReportForm({ ...reportForm, reportType: e.target.value })}>{REPORT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
-          <label>Format<select value={reportForm.format} onChange={(e) => setReportForm({ ...reportForm, format: e.target.value })}><option>CSV</option><option>XLSX</option><option>PDF</option></select></label>
-          <label>Dari<input type="date" value={reportForm.from} onChange={(e) => setReportForm({ ...reportForm, from: e.target.value })} /></label>
-          <label>Sampai<input type="date" value={reportForm.to} onChange={(e) => setReportForm({ ...reportForm, to: e.target.value })} /></label>
-          <label>Hari default<input type="number" min="1" max="3650" value={reportForm.days} onChange={(e) => setReportForm({ ...reportForm, days: Number(e.target.value) })} /></label>
-          <button>Buat export</button>
-        </form>
-        <Table head={['Dibuat', 'Laporan', 'Format', 'Progress', 'Status', 'Aksi']} rows={reportJobs.map((row) => [tanggal(row.createdAt), row.reportType, row.format, `${row.progress ?? 0}%`, <StatusChip status={row.status} />, row.status === 'DONE' ? <button type="button" className="secondary" onClick={() => void downloadReport(row)}>Download</button> : row.status === 'FAILED' ? <small>{row.errorMessage ?? 'Worker gagal.'}</small> : <span>Menunggu worker</span>])} empty="Belum ada export report." />
-        <p className="sectionHelp">Export berjalan asynchronous melalui worker dan tersedia dalam CSV, XLSX, atau PDF. Refresh halaman untuk melihat progres terbaru.</p>
-      </Panel>
+      {show('reports') && <ReportingWorkspace token={token} />}
 
       {message && <div className="notice" style={{ marginTop: 12 }}>{message}</div>}
     </>

@@ -6,6 +6,7 @@ import { AuthUser } from '../auth/auth.types';
 import { decodeCursor, parsePageLimit, toCursorPage } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReportJobDto } from './dto/create-report-job.dto';
+import { CreateReportScheduleDto, UpdateReportScheduleDto } from './dto/report-schedule.dto';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 type TenantScope = { companyId: string; branchId: string };
@@ -22,6 +23,60 @@ function parseDate(value: string | undefined, fallback: Date, endOfDay = false):
 
 function accountNormalBalance(type: string, debit: Prisma.Decimal, credit: Prisma.Decimal): Prisma.Decimal {
   return ['ASSET', 'EXPENSE'].includes(type) ? debit.sub(credit) : credit.sub(debit);
+}
+
+
+type ReportFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+
+function zonedParts(date: Date, timeZone: string): { year: number; month: number; day: number; hour: number; minute: number } {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day), hour: Number(parts.hour), minute: Number(parts.minute) };
+}
+
+function zonedLocalToUtc(year: number, month: number, day: number, hour: number, minute: number, timeZone: string): Date {
+  const localEpoch = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  let guess = new Date(localEpoch);
+  for (let i = 0; i < 3; i += 1) {
+    const actual = zonedParts(guess, timeZone);
+    const actualEpoch = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, 0, 0);
+    const delta = actualEpoch - localEpoch;
+    if (delta === 0) return guess;
+    guess = new Date(guess.getTime() - delta);
+  }
+  return guess;
+}
+
+function nextScheduledReportRun(
+  after: Date,
+  timeZone: string,
+  frequency: ReportFrequency,
+  localTime: string,
+  dayOfWeek?: number | null,
+  dayOfMonth?: number | null,
+): Date {
+  try { new Intl.DateTimeFormat('en-US', { timeZone }).format(after); } catch { throw new BadRequestException('Timezone company tidak valid.'); }
+  const [hour, minute] = localTime.split(':').map(Number);
+  const current = zonedParts(after, timeZone);
+  let localDate = new Date(Date.UTC(current.year, current.month - 1, current.day, hour, minute, 0, 0));
+  if (frequency === 'WEEKLY') {
+    if (dayOfWeek === undefined || dayOfWeek === null) throw new BadRequestException('dayOfWeek wajib untuk schedule WEEKLY.');
+    const currentDow = new Date(Date.UTC(current.year, current.month - 1, current.day)).getUTCDay();
+    localDate.setUTCDate(localDate.getUTCDate() + ((dayOfWeek - currentDow + 7) % 7));
+  } else if (frequency === 'MONTHLY') {
+    if (dayOfMonth === undefined || dayOfMonth === null) throw new BadRequestException('dayOfMonth wajib untuk schedule MONTHLY.');
+    localDate = new Date(Date.UTC(current.year, current.month - 1, dayOfMonth, hour, minute, 0, 0));
+  }
+  let candidate = zonedLocalToUtc(localDate.getUTCFullYear(), localDate.getUTCMonth() + 1, localDate.getUTCDate(), hour, minute, timeZone);
+  if (candidate <= after) {
+    if (frequency === 'DAILY') localDate.setUTCDate(localDate.getUTCDate() + 1);
+    else if (frequency === 'WEEKLY') localDate.setUTCDate(localDate.getUTCDate() + 7);
+    else localDate = new Date(Date.UTC(localDate.getUTCFullYear(), localDate.getUTCMonth() + 1, dayOfMonth!, hour, minute, 0, 0));
+    candidate = zonedLocalToUtc(localDate.getUTCFullYear(), localDate.getUTCMonth() + 1, localDate.getUTCDate(), hour, minute, timeZone);
+  }
+  return candidate;
 }
 
 @Injectable()
@@ -662,9 +717,262 @@ export class ReportsService {
     };
   }
 
+  async cashFlowReport(user: AuthUser, fromValue?: string, toValue?: string) {
+    const scope = this.requireTenantScope(user);
+    const { from, to } = this.reportRange(fromValue, toValue);
+    const lines = await this.prisma.journalLine.findMany({
+      where: {
+        journalEntry: { date: { gte: from, lte: to } },
+        account: { branchId: scope.branchId, branch: { companyId: scope.companyId }, code: { in: ['1101', '1102', '1103'] } },
+      },
+      include: {
+        account: { select: { code: true, name: true } },
+        journalEntry: { select: { id: true, number: true, date: true, description: true, referenceType: true, referenceId: true } },
+      },
+      orderBy: [{ journalEntryId: 'asc' }, { id: 'asc' }],
+    });
+    const rows = lines
+      .filter((line) => !line.journalEntry.description.startsWith('BALANCE_TRANSFER '))
+      .map((line) => ({
+        journalEntryId: line.journalEntry.id,
+        journalNumber: line.journalEntry.number,
+        date: line.journalEntry.date,
+        accountCode: line.account.code,
+        accountName: line.account.name,
+        referenceType: line.journalEntry.referenceType,
+        referenceId: line.journalEntry.referenceId,
+        description: line.journalEntry.description,
+        cashIn: Number(line.debit),
+        cashOut: Number(line.credit),
+        net: Number(new Prisma.Decimal(line.debit).sub(line.credit)),
+      }));
+    return {
+      companyId: scope.companyId,
+      branchId: scope.branchId,
+      from,
+      to,
+      cashIn: rows.reduce((sum, row) => sum + row.cashIn, 0),
+      cashOut: rows.reduce((sum, row) => sum + row.cashOut, 0),
+      netCashFlow: rows.reduce((sum, row) => sum + row.net, 0),
+      rows,
+      source: 'POSTED_JOURNAL_CASH_BANK',
+    };
+  }
+
+  async marginReport(user: AuthUser, fromValue?: string, toValue?: string, limitValue?: string) {
+    const scope = this.requireTenantScope(user);
+    const { from, to } = this.reportRange(fromValue, toValue);
+    const limit = Math.min(parsePageLimit(limitValue), 200);
+    const sales = await this.prisma.sale.findMany({
+      where: { branchId: scope.branchId, branch: { companyId: scope.companyId }, status: 'COMPLETED', createdAt: { gte: from, lte: to } },
+      select: { id: true, number: true, createdAt: true, channel: true, total: true, tax: true, discount: true, costTotal: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+    });
+    const rows = sales.map((sale) => {
+      const revenueExTax = new Prisma.Decimal(sale.total).sub(sale.tax);
+      const margin = revenueExTax.sub(sale.costTotal);
+      return {
+        id: sale.id,
+        number: sale.number,
+        date: sale.createdAt,
+        channel: sale.channel,
+        revenueExTax: Number(revenueExTax),
+        cost: Number(sale.costTotal),
+        margin: Number(margin),
+        marginPercent: revenueExTax.isZero() ? 0 : Number(margin.div(revenueExTax).mul(100)),
+      };
+    });
+    return {
+      companyId: scope.companyId,
+      branchId: scope.branchId,
+      from,
+      to,
+      revenueExTax: rows.reduce((sum, row) => sum + row.revenueExTax, 0),
+      cost: rows.reduce((sum, row) => sum + row.cost, 0),
+      grossMargin: rows.reduce((sum, row) => sum + row.margin, 0),
+      rows,
+      note: 'Margin operasional ini menggunakan snapshot Sale.costTotal; laporan P&L tetap authoritative dari posted journal.',
+    };
+  }
+
+  private activitySummary(rows: Awaited<ReturnType<ReportsService['accountActivity']>>) {
+    const revenue = rows.filter((row) => row.type === 'REVENUE').reduce((sum, row) => sum.add(row.balance), new Prisma.Decimal(0));
+    const expenses = rows.filter((row) => row.type === 'EXPENSE').reduce((sum, row) => sum.add(row.balance), new Prisma.Decimal(0));
+    return { revenue, expenses, netProfit: revenue.sub(expenses) };
+  }
+
+  async periodComparison(user: AuthUser, fromValue?: string, toValue?: string) {
+    const scope = this.requireTenantScope(user);
+    const { from, to } = this.reportRange(fromValue, toValue);
+    const durationMs = to.getTime() - from.getTime() + 1;
+    const previousTo = new Date(from.getTime() - 1);
+    const previousFrom = new Date(previousTo.getTime() - durationMs + 1);
+    const [currentRows, previousRows] = await Promise.all([
+      this.accountActivity(scope, from, to),
+      this.accountActivity(scope, previousFrom, previousTo),
+    ]);
+    const current = this.activitySummary(currentRows);
+    const previous = this.activitySummary(previousRows);
+    const pct = (now: Prisma.Decimal, old: Prisma.Decimal) => old.isZero() ? null : Number(now.sub(old).div(old.abs()).mul(100));
+    return {
+      companyId: scope.companyId,
+      branchId: scope.branchId,
+      current: { from, to, revenue: Number(current.revenue), expenses: Number(current.expenses), netProfit: Number(current.netProfit) },
+      previous: { from: previousFrom, to: previousTo, revenue: Number(previous.revenue), expenses: Number(previous.expenses), netProfit: Number(previous.netProfit) },
+      changePercent: { revenue: pct(current.revenue, previous.revenue), expenses: pct(current.expenses, previous.expenses), netProfit: pct(current.netProfit, previous.netProfit) },
+      source: 'POSTED_JOURNAL',
+    };
+  }
+
+  async dimensionComparison(user: AuthUser, fromValue?: string, toValue?: string) {
+    const scope = this.requireTenantScope(user);
+    const { from, to } = this.reportRange(fromValue, toValue);
+    const canCompareCompanyBranches = user.roles.includes('SUPER_ADMIN') || user.roles.includes('OWNER');
+    const branches = await this.prisma.branch.findMany({
+      where: { companyId: scope.companyId, ...(canCompareCompanyBranches ? {} : { id: scope.branchId }) },
+      select: { id: true, code: true, name: true },
+      orderBy: { code: 'asc' },
+    });
+    const branchIds = branches.map((branch) => branch.id);
+    const grouped = branchIds.length ? await this.prisma.journalLine.groupBy({
+      by: ['accountId'],
+      where: { journalEntry: { date: { gte: from, lte: to } }, account: { branchId: { in: branchIds }, branch: { companyId: scope.companyId } } },
+      _sum: { debit: true, credit: true },
+    }) : [];
+    const accountIds = grouped.map((row) => row.accountId);
+    const accounts = accountIds.length ? await this.prisma.account.findMany({
+      where: { id: { in: accountIds }, branchId: { in: branchIds }, branch: { companyId: scope.companyId } },
+      select: { id: true, type: true, branchId: true },
+    }) : [];
+    const accountById = new Map(accounts.map((row) => [row.id, row]));
+    const branchTotals = new Map(branches.map((branch) => [branch.id, { branch, revenue: new Prisma.Decimal(0), expenses: new Prisma.Decimal(0) }]));
+    for (const row of grouped) {
+      const account = accountById.get(row.accountId);
+      if (!account) continue;
+      const bucket = branchTotals.get(account.branchId);
+      if (!bucket) continue;
+      const balance = accountNormalBalance(account.type, new Prisma.Decimal(row._sum.debit ?? 0), new Prisma.Decimal(row._sum.credit ?? 0));
+      if (account.type === 'REVENUE') bucket.revenue = bucket.revenue.add(balance);
+      if (account.type === 'EXPENSE') bucket.expenses = bucket.expenses.add(balance);
+    }
+    const eventLines = await this.prisma.accountingEventLine.findMany({
+      where: { event: { companyId: scope.companyId, branchId: scope.branchId, status: 'POSTED', businessDate: { gte: from, lte: to } } },
+      select: { netAmount: true, dimensions: true },
+      take: 10000,
+    });
+    const costCenters = new Map<string, Prisma.Decimal>();
+    for (const line of eventLines) {
+      const dimensions = line.dimensions && typeof line.dimensions === 'object' && !Array.isArray(line.dimensions) ? line.dimensions as Record<string, unknown> : {};
+      const costCenterId = typeof dimensions.costCenterId === 'string' && dimensions.costCenterId ? dimensions.costCenterId : 'UNASSIGNED';
+      costCenters.set(costCenterId, (costCenters.get(costCenterId) ?? new Prisma.Decimal(0)).add(line.netAmount));
+    }
+    const costCenterIds = [...costCenters.keys()].filter((id) => id !== 'UNASSIGNED');
+    const departments = costCenterIds.length ? await this.prisma.department.findMany({
+      where: { companyId: scope.companyId, costCenterId: { in: costCenterIds } },
+      select: { costCenterId: true, code: true, name: true },
+    }) : [];
+    return {
+      companyId: scope.companyId,
+      branchScope: canCompareCompanyBranches ? 'COMPANY' : 'CURRENT_BRANCH',
+      from,
+      to,
+      branches: [...branchTotals.values()].map(({ branch, revenue, expenses }) => ({ ...branch, revenue: Number(revenue), expenses: Number(expenses), netProfit: Number(revenue.sub(expenses)) })),
+      costCenters: [...costCenters.entries()].map(([costCenterId, amount]) => {
+        const department = departments.find((row) => row.costCenterId === costCenterId);
+        return { costCenterId, label: department ? `${department.code} · ${department.name}` : costCenterId === 'UNASSIGNED' ? 'Tanpa cost center' : costCenterId, amount: Number(amount) };
+      }),
+      note: 'Cost center hanya tersedia bila accounting event line membawa dimensions.costCenterId; data tanpa dimensi tetap ditampilkan sebagai UNASSIGNED.',
+    };
+  }
+
+  async reportDrillDown(user: AuthUser, accountCode: string, fromValue?: string, toValue?: string, limitValue?: string) {
+    const scope = this.requireTenantScope(user);
+    if (!accountCode?.trim()) throw new BadRequestException('accountCode wajib untuk drill-down laporan.');
+    const { from, to } = this.reportRange(fromValue, toValue);
+    const limit = Math.min(parsePageLimit(limitValue), 200);
+    const account = await this.prisma.account.findFirst({
+      where: { branchId: scope.branchId, branch: { companyId: scope.companyId }, code: accountCode.trim() },
+      select: { id: true, code: true, name: true, type: true },
+    });
+    if (!account) throw new NotFoundException('Akun laporan tidak ditemukan pada branch aktif.');
+    const lines = await this.prisma.journalLine.findMany({
+      where: { accountId: account.id, journalEntry: { date: { gte: from, lte: to } } },
+      include: { journalEntry: true },
+      orderBy: [{ journalEntry: { date: 'desc' } }, { id: 'desc' }],
+      take: limit,
+    });
+    const journalEntryIds = [...new Set(lines.map((line) => line.journalEntryId))];
+    const postings = journalEntryIds.length ? await this.prisma.accountingPosting.findMany({
+      where: { journalEntryId: { in: journalEntryIds }, event: { companyId: scope.companyId, branchId: scope.branchId } },
+      include: { event: { select: { id: true, eventType: true, sourceType: true, sourceId: true, businessDate: true, status: true } } },
+    }) : [];
+    const postingByJournal = new Map(postings.map((posting) => [posting.journalEntryId, posting]));
+    let running = new Prisma.Decimal(0);
+    const chronological = [...lines].reverse().map((line) => {
+      running = running.add(accountNormalBalance(account.type, new Prisma.Decimal(line.debit), new Prisma.Decimal(line.credit)));
+      const posting = postingByJournal.get(line.journalEntryId);
+      return {
+        journalLineId: line.id,
+        journalEntryId: line.journalEntryId,
+        journalNumber: line.journalEntry.number,
+        date: line.journalEntry.date,
+        debit: Number(line.debit),
+        credit: Number(line.credit),
+        runningBalance: Number(running),
+        referenceType: line.journalEntry.referenceType,
+        referenceId: line.journalEntry.referenceId,
+        description: line.journalEntry.description,
+        accountingEvent: posting?.event ?? null,
+      };
+    });
+    return { companyId: scope.companyId, branchId: scope.branchId, from, to, account, rows: chronological.reverse() };
+  }
+
+  private async validateReportFilters(scope: TenantScope, reportType: string, filters: Record<string, unknown> | undefined) {
+    const safe: Record<string, unknown> = {};
+    if (!filters) return safe;
+    for (const key of ['from', 'to', 'asOf']) {
+      const value = filters[key];
+      if (value !== undefined) {
+        if (typeof value !== 'string') throw new BadRequestException(`Filter ${key} harus berupa tanggal.`);
+        parseDate(value, new Date(), key !== 'from');
+        safe[key] = value;
+      }
+    }
+    if (filters.days !== undefined) {
+      const days = Number(filters.days);
+      if (!Number.isInteger(days) || days < 1 || days > 3650) throw new BadRequestException('Filter days harus integer 1-3650.');
+      safe.days = days;
+    }
+    if (filters.accountCode !== undefined) {
+      if (typeof filters.accountCode !== 'string' || !filters.accountCode.trim()) throw new BadRequestException('accountCode report tidak valid.');
+      const account = await this.prisma.account.findFirst({ where: { branchId: scope.branchId, branch: { companyId: scope.companyId }, code: filters.accountCode.trim() }, select: { id: true } });
+      if (!account) throw new BadRequestException('accountCode report tidak ditemukan pada branch aktif.');
+      safe.accountCode = filters.accountCode.trim();
+    }
+    if (filters.warehouseId !== undefined) {
+      if (typeof filters.warehouseId !== 'string' || !filters.warehouseId) throw new BadRequestException('warehouseId report tidak valid.');
+      const warehouse = await this.prisma.warehouse.findFirst({ where: { id: filters.warehouseId, branchId: scope.branchId, branch: { companyId: scope.companyId } }, select: { id: true } });
+      if (!warehouse) throw new BadRequestException('warehouseId report tidak ditemukan pada branch aktif.');
+      safe.warehouseId = filters.warehouseId;
+    }
+    if (reportType === 'GENERAL_LEDGER' && !safe.accountCode && filters.accountCode !== undefined) throw new BadRequestException('General Ledger accountCode tidak valid.');
+    return safe;
+  }
+
   async createJob(dto: CreateReportJobDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
     await this.assertRequestedScope(this.prisma, user, scope, dto.companyId, dto.branchId, 'ReportJob');
+    const filters = await this.validateReportFilters(scope, dto.reportType, dto.filters);
+    if (dto.reportType === 'BRANCH_COMPARISON') {
+      const canCompareCompanyBranches = user.roles.includes('SUPER_ADMIN') || user.roles.includes('OWNER');
+      const branches = await this.prisma.branch.findMany({
+        where: { companyId: scope.companyId, ...(canCompareCompanyBranches ? {} : { id: scope.branchId }) },
+        select: { id: true },
+      });
+      filters.branchIds = branches.map((branch) => branch.id);
+    }
     return this.prisma.$transaction(async (tx) => {
       const job = await tx.reportJob.create({
         data: {
@@ -673,7 +981,7 @@ export class ReportsService {
           requestedById: user.sub,
           reportType: dto.reportType,
           format: dto.format ?? 'CSV',
-          filters: dto.filters as Prisma.InputJsonValue | undefined,
+          filters: filters as Prisma.InputJsonValue,
         },
       });
       await tx.auditLog.create({
@@ -718,6 +1026,85 @@ export class ReportsService {
       take: limit + 1,
     });
     return toCursorPage(rows, limit, (item) => ({ createdAt: item.createdAt.toISOString(), id: item.id }));
+  }
+
+  async listSchedules(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.reportSchedule.findMany({
+      where: { companyId: scope.companyId, branchId: scope.branchId },
+      orderBy: [{ isActive: 'desc' }, { nextRunAt: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  private validateScheduleShape(frequency: ReportFrequency, dayOfWeek?: number | null, dayOfMonth?: number | null) {
+    if (frequency === 'WEEKLY' && (dayOfWeek === undefined || dayOfWeek === null)) throw new BadRequestException('Schedule WEEKLY wajib memiliki dayOfWeek.');
+    if (frequency === 'MONTHLY' && (dayOfMonth === undefined || dayOfMonth === null)) throw new BadRequestException('Schedule MONTHLY wajib memiliki dayOfMonth.');
+  }
+
+  async createSchedule(dto: CreateReportScheduleDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    this.validateScheduleShape(dto.frequency, dto.dayOfWeek, dto.dayOfMonth);
+    const filters = await this.validateReportFilters(scope, dto.reportType, dto.filters);
+    const company = await this.prisma.company.findUnique({ where: { id: scope.companyId }, select: { timezone: true } });
+    if (!company) return this.denyTenantAccess(this.prisma, user, scope, 'Company', scope.companyId);
+    if (dto.reportType === 'BRANCH_COMPARISON') {
+      const canCompareCompanyBranches = user.roles.includes('SUPER_ADMIN') || user.roles.includes('OWNER');
+      const branches = await this.prisma.branch.findMany({ where: { companyId: scope.companyId, ...(canCompareCompanyBranches ? {} : { id: scope.branchId }) }, select: { id: true } });
+      filters.branchIds = branches.map((branch) => branch.id);
+    }
+    const nextRunAt = nextScheduledReportRun(new Date(), company.timezone, dto.frequency, dto.localTime, dto.dayOfWeek, dto.dayOfMonth);
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.reportSchedule.create({ data: {
+        companyId: scope.companyId, branchId: scope.branchId, requestedById: user.sub,
+        name: dto.name.trim(), reportType: dto.reportType, format: dto.format ?? 'CSV', filters: filters as Prisma.InputJsonValue,
+        frequency: dto.frequency, localTime: dto.localTime, dayOfWeek: dto.frequency === 'WEEKLY' ? dto.dayOfWeek : null,
+        dayOfMonth: dto.frequency === 'MONTHLY' ? dto.dayOfMonth : null, timezone: company.timezone,
+        isActive: dto.isActive ?? true, nextRunAt,
+      } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_REPORT_SCHEDULE', entityType: 'ReportSchedule', entityId: row.id, payload: { branchId: scope.branchId, reportType: row.reportType, frequency: row.frequency, nextRunAt: row.nextRunAt.toISOString() } } });
+      return row;
+    });
+  }
+
+  async updateSchedule(id: string, dto: UpdateReportScheduleDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const existing = await this.prisma.reportSchedule.findFirst({ where: { id, companyId: scope.companyId, branchId: scope.branchId } });
+    if (!existing) return this.denyTenantAccess(this.prisma, user, scope, 'ReportSchedule', id);
+    const frequency = (dto.frequency ?? existing.frequency) as ReportFrequency;
+    const dayOfWeek = dto.dayOfWeek !== undefined ? dto.dayOfWeek : existing.dayOfWeek;
+    const dayOfMonth = dto.dayOfMonth !== undefined ? dto.dayOfMonth : existing.dayOfMonth;
+    this.validateScheduleShape(frequency, dayOfWeek, dayOfMonth);
+    const reportType = dto.reportType ?? existing.reportType;
+    const filters = dto.filters !== undefined ? await this.validateReportFilters(scope, reportType, dto.filters) : (existing.filters ?? {}) as Record<string, unknown>;
+    const nextRunAt = nextScheduledReportRun(new Date(), existing.timezone, frequency, dto.localTime ?? existing.localTime, dayOfWeek, dayOfMonth);
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.reportSchedule.update({ where: { id }, data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}), reportType,
+        ...(dto.format !== undefined ? { format: dto.format } : {}),
+        ...(dto.filters !== undefined || dto.reportType !== undefined ? { filters: filters as Prisma.InputJsonValue } : {}),
+        frequency, localTime: dto.localTime ?? existing.localTime,
+        dayOfWeek: frequency === 'WEEKLY' ? dayOfWeek : null, dayOfMonth: frequency === 'MONTHLY' ? dayOfMonth : null,
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}), nextRunAt, lastError: null,
+      } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPDATE_REPORT_SCHEDULE', entityType: 'ReportSchedule', entityId: row.id, payload: { branchId: scope.branchId, isActive: row.isActive, nextRunAt: row.nextRunAt.toISOString() } } });
+      return row;
+    });
+  }
+
+  async runScheduleNow(id: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const schedule = await this.prisma.reportSchedule.findFirst({ where: { id, companyId: scope.companyId, branchId: scope.branchId } });
+    if (!schedule) return this.denyTenantAccess(this.prisma, user, scope, 'ReportSchedule', id);
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const job = await tx.reportJob.create({ data: {
+        companyId: scope.companyId, branchId: scope.branchId, requestedById: user.sub, scheduleId: schedule.id, scheduledFor: now,
+        reportType: schedule.reportType, format: schedule.format, filters: schedule.filters ?? undefined,
+      } });
+      await tx.reportSchedule.update({ where: { id }, data: { lastJobId: job.id, lastRunAt: now, lastError: null } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'RUN_REPORT_SCHEDULE_NOW', entityType: 'ReportSchedule', entityId: id, payload: { branchId: scope.branchId, reportJobId: job.id } } });
+      return job;
+    });
   }
 
   // T360-20260829 value pack 2 — penjualan per jam untuk deteksi jam ramai.

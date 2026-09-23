@@ -16,6 +16,8 @@ type ResolvePriceInput = {
   segmentCode?: string | null;
   unitCode?: string | null;
   unitFactor?: number;
+  variantId?: string | null;
+  variantSalePrice?: Prisma.Decimal | number | string | null;
   occurredAt?: Date;
 };
 
@@ -36,6 +38,7 @@ export async function resolveProductUnitPrice(client: DbClient, input: ResolvePr
       minQty: { lte: new Prisma.Decimal(input.quantity) },
       segmentCode: segment === 'RETAIL' ? 'RETAIL' : { in: [segment, 'RETAIL'] },
       AND: [
+        ...(input.variantId ? [{ OR: [{ variantId: input.variantId }, { variantId: null }] }] : [{ variantId: null }]),
         { OR: [{ branchId: input.branchId }, { branchId: null }] },
         { OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: at } }] },
         { OR: [{ effectiveTo: null }, { effectiveTo: { gte: at } }] },
@@ -43,10 +46,12 @@ export async function resolveProductUnitPrice(client: DbClient, input: ResolvePr
       ],
       product: { companyId: input.companyId },
     },
-    select: { branchId: true, segmentCode: true, unitCode: true, minQty: true, price: true, createdAt: true },
+    select: { variantId: true, branchId: true, segmentCode: true, unitCode: true, minQty: true, price: true, createdAt: true },
     take: 100,
   });
   rows.sort((a, b) => {
+    const variantScore = Number(Boolean(input.variantId && b.variantId === input.variantId)) - Number(Boolean(input.variantId && a.variantId === input.variantId));
+    if (variantScore) return variantScore;
     const branchScore = Number(b.branchId === input.branchId) - Number(a.branchId === input.branchId);
     if (branchScore) return branchScore;
     const segmentScore = Number(b.segmentCode === segment) - Number(a.segmentCode === segment);
@@ -63,5 +68,5 @@ export async function resolveProductUnitPrice(client: DbClient, input: ResolvePr
     if (!rows[0].unitCode && unit && Number.isSafeInteger(factor) && factor > 1) return selected.mul(factor);
     return selected;
   }
-  return new Prisma.Decimal(input.product.salePrice);
+  return new Prisma.Decimal(input.variantSalePrice ?? input.product.salePrice);
 }

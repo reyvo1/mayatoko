@@ -3,8 +3,10 @@ import { Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
 class SaleItemDto {
   @ApiProperty() @IsString() productId!: string;
-  @ApiProperty({ example: 1, description: 'Jumlah unit jual. Tanpa barcodeCode berarti base unit produk.' }) @IsInt() @Min(1) quantity!: number;
-  @ApiPropertyOptional({ description: 'Barcode unit/kemasan yang discan. Server menyelesaikan unitCode dan quantityFactor secara authoritative.' }) @IsOptional() @IsString() @MaxLength(160) barcodeCode?: string;
+  @ApiProperty({ example: 1, description: 'Jumlah unit jual. Tanpa productUnitId/barcodeCode berarti base unit produk.' }) @IsInt() @Min(1) quantity!: number;
+  @ApiPropertyOptional({ description: 'Variant produk. Server memvalidasi terhadap ProductUnit/barcode yang dipilih.' }) @IsOptional() @IsString() variantId?: string;
+  @ApiPropertyOptional({ description: 'ProductUnit authoritative untuk pemilihan UOM langsung dari POS/UI.' }) @IsOptional() @IsString() productUnitId?: string;
+  @ApiPropertyOptional({ description: 'Barcode unit/kemasan yang discan. Barcode hanya shortcut ke ProductUnit/unit snapshot authoritative.' }) @IsOptional() @IsString() @MaxLength(160) barcodeCode?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() taxCodeId?: string;
 }
 

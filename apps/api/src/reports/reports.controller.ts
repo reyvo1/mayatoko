@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { Permissions } from '../auth/permissions.decorator';
 import { CreateReportJobDto } from './dto/create-report-job.dto';
+import { CreateReportScheduleDto, UpdateReportScheduleDto } from './dto/report-schedule.dto';
 import { ReportsService } from './reports.service';
 
 @ApiTags('reports') @ApiBearerAuth() @Controller('reports') @Roles('SUPER_ADMIN','OWNER','ADMIN','FINANCE')
@@ -90,6 +91,37 @@ import { ReportsService } from './reports.service';
     return this.reports.inventoryValuation(user, warehouseId, limit, cursor);
   }
 
+  @Get('cash-flow')
+  cashFlow(@CurrentUser() user: AuthUser, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.cashFlowReport(user, from, to);
+  }
+
+  @Get('margin')
+  margin(@CurrentUser() user: AuthUser, @Query('from') from?: string, @Query('to') to?: string, @Query('limit') limit?: string) {
+    return this.reports.marginReport(user, from, to, limit);
+  }
+
+  @Get('period-comparison')
+  periodComparison(@CurrentUser() user: AuthUser, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.periodComparison(user, from, to);
+  }
+
+  @Get('dimension-comparison')
+  dimensionComparison(@CurrentUser() user: AuthUser, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.dimensionComparison(user, from, to);
+  }
+
+  @Get('drill-down')
+  drillDown(
+    @CurrentUser() user: AuthUser,
+    @Query('accountCode') accountCode: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.reports.reportDrillDown(user, accountCode, from, to, limit);
+  }
+
   @Post('jobs')
   @Permissions('report.export')
   createJob(@Body() dto: CreateReportJobDto, @CurrentUser() user: AuthUser) {
@@ -111,6 +143,30 @@ import { ReportsService } from './reports.service';
   @Permissions('report.export')
   downloadJob(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.reports.downloadJob(user, id);
+  }
+
+  @Get('schedules')
+  @Permissions('report.export')
+  listSchedules(@CurrentUser() user: AuthUser) {
+    return this.reports.listSchedules(user);
+  }
+
+  @Post('schedules')
+  @Permissions('report.export')
+  createSchedule(@Body() dto: CreateReportScheduleDto, @CurrentUser() user: AuthUser) {
+    return this.reports.createSchedule(dto, user);
+  }
+
+  @Post('schedules/:id/run-now')
+  @Permissions('report.export')
+  runScheduleNow(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.reports.runScheduleNow(id, user);
+  }
+
+  @Patch('schedules/:id')
+  @Permissions('report.export')
+  updateSchedule(@Param('id') id: string, @Body() dto: UpdateReportScheduleDto, @CurrentUser() user: AuthUser) {
+    return this.reports.updateSchedule(id, dto, user);
   }
 
   @Get('peak-hours')

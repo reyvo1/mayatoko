@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import {
-  Activity, BadgeDollarSign, Banknote, Boxes, Building2, ClipboardCheck, ClipboardList,
+  Activity, BadgeDollarSign, Banknote, Boxes, BrainCircuit, Building2, ClipboardCheck, ClipboardList,
   CreditCard, FileBarChart, FileCheck2, Gauge, KeyRound, Landmark, PackageCheck, PackageSearch,
   ReceiptText, RefreshCcw, Route, ScanLine, Settings2, ShieldCheck, ShoppingBag, Truck, UserCog,
   Users, Warehouse, Wrench,
@@ -27,9 +27,11 @@ export type AdminDomainWorkspace = {
 
 export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
   { workspaceKey: 'master-data', views: [
-    { key: 'catalog', label: 'Catalog', title: 'Catalog & customer master', description: 'Product category, customer, barcode, unit conversion, dan pricing.', Icon: ShoppingBag },
+    { key: 'catalog', label: 'Katalog & Customer', title: 'Katalog dan customer master', description: 'Kategori produk, customer, dan segmentasi pelanggan.', Icon: ShoppingBag },
+    { key: 'products', label: 'Produk & Satuan', title: 'Produk, barcode & multi-UOM', description: 'Satuan dasar, barcode alternatif, kemasan, dan faktor konversi PCS/BOTOL/PACK/LUSIN/DUS.', Icon: Boxes },
+    { key: 'pricing', label: 'Pricing', title: 'Harga retail, grosir & unit', description: 'Harga per cabang, segmen, unit kemasan, dan minimum quantity.', Icon: BadgeDollarSign },
     { key: 'organization', label: 'Organisasi', title: 'Cabang & gudang', description: 'Branch, warehouse, dan konteks organisasi operasional.', Icon: Building2 },
-    { key: 'locations', label: 'Lokasi gudang', title: 'Zone / rack / bin', description: 'Struktur lokasi gudang dan barcode location.', Icon: Warehouse },
+    { key: 'locations', label: 'Lokasi gudang', title: 'Zone / rack / bin', description: 'Struktur lokasi gudang, barcode location, dan kapasitas.', Icon: Warehouse },
     { key: 'references', label: 'Reference', title: 'Reference master', description: 'Brand, unit, bank, courier, dan payment method.', Icon: Settings2 },
   ]},
   { workspaceKey: 'procurement', views: [
@@ -57,11 +59,13 @@ export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
     { key: 'delivery', label: 'Delivery', title: 'Delivery lifecycle', description: 'Trip, manifest, loading, dispatch, POD/COD, return, dan close trip.', Icon: Truck },
   ]},
   { workspaceKey: 'finance', views: [
-    { key: 'ledger', moduleCodes: ['accounting', 'accounting-core'], permissionPrefixes: ['accounting', 'finance'], label: 'Ledger', title: 'Accounting ledger', description: 'Accounting events, journals, fiscal period, dan tax code.', Icon: Landmark },
-    { key: 'payables', moduleCodes: ['finance-operations', 'accounting'], permissionPrefixes: ['finance', 'accounting'], label: 'Payables', title: 'Supplier payables', description: 'Outstanding supplier document dan settlement lifecycle.', Icon: ReceiptText },
-    { key: 'receivables', moduleCodes: ['finance-operations', 'accounting'], permissionPrefixes: ['finance', 'accounting'], label: 'Receivables', title: 'Customer receivables', description: 'COD/invoice receivable dan supplier refund balance.', Icon: BadgeDollarSign },
-    { key: 'banking', moduleCodes: ['bank-reconciliation', 'finance-operations'], permissionPrefixes: ['finance', 'accounting'], label: 'Banking', title: 'Cash & bank reconciliation', description: 'Finance operations, statement import, dan reconciliation.', Icon: Banknote },
-    { key: 'reports', moduleCodes: ['accounting', 'finance-operations'], permissionPrefixes: ['finance', 'accounting'], label: 'Reports', title: 'Finance reports', description: 'Report worker dan export evidence dari authoritative ledger.', Icon: FileBarChart },
+    { key: 'ledger', moduleCodes: ['accounting', 'accounting-core'], permissionPrefixes: ['accounting', 'finance'], label: 'Jurnal & Ledger', title: 'Jurnal dan accounting ledger', description: 'Accounting event, jurnal authoritative, chart of accounts, dan drill-down sumber transaksi.', Icon: Landmark },
+    { key: 'tax', moduleCodes: ['accounting', 'accounting-core', 'system-tax'], permissionPrefixes: ['tax', 'accounting', 'finance'], label: 'Pajak', title: 'Tax workspace', description: 'Kode pajak, scope, tarif, tax summary, dan jalur evidence transaksi pajak.', Icon: FileCheck2 },
+    { key: 'fiscal', moduleCodes: ['accounting', 'accounting-core'], permissionPrefixes: ['accounting', 'finance'], label: 'Periode Fiskal', title: 'Fiscal period & close', description: 'Open, soft close, reopen, final close, dan kontrol periode accounting.', Icon: ClipboardCheck },
+    { key: 'payables', moduleCodes: ['finance-operations', 'accounting'], permissionPrefixes: ['finance', 'accounting'], label: 'Hutang / AP', title: 'Accounts payable', description: 'Outstanding supplier document, retur, payment, dan settlement lifecycle.', Icon: ReceiptText },
+    { key: 'receivables', moduleCodes: ['finance-operations', 'accounting'], permissionPrefixes: ['finance', 'accounting'], label: 'Piutang / AR', title: 'Accounts receivable', description: 'COD/invoice receivable, supplier refund receivable, dan collection lifecycle.', Icon: BadgeDollarSign },
+    { key: 'banking', moduleCodes: ['bank-reconciliation', 'finance-operations'], permissionPrefixes: ['finance', 'accounting'], label: 'Kas & Bank', title: 'Cash, bank & reconciliation', description: 'Transaksi kas/bank, import statement, auto/manual matching, dan rekonsiliasi.', Icon: Banknote },
+    { key: 'reports', moduleCodes: ['accounting', 'finance-operations'], permissionPrefixes: ['finance', 'accounting'], label: 'Laporan Keuangan', title: 'Financial reports & export', description: 'P&L, balance sheet, cash flow, trial balance, general ledger, tax, AR/AP, dan export worker.', Icon: FileBarChart },
   ]},
   { workspaceKey: 'people', views: [
     { key: 'employees', moduleCodes: ['hris'], permissionPrefixes: ['hr', 'employee'], label: 'Employees', title: 'Employee master', description: 'Employee identity, organization, status, dan self-service linkage.', Icon: Users },
@@ -80,12 +84,14 @@ export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
     { key: 'devices', label: 'Devices', title: 'Devices & offline nodes', description: 'Device registration, health, sync, dan offline operation.', Icon: Gauge },
     { key: 'notifications', label: 'Notifications', title: 'Notification operations', description: 'Notification queue, delivery, retry, dan channel adapter.', Icon: Activity },
     { key: 'integrations', label: 'Integrations', title: 'Integration connections', description: 'Provider connection, external mapping, dan adapter status.', Icon: RefreshCcw },
+    { key: 'ai', moduleCodes: ['forecasting'], permissionPrefixes: ['assistant', 'forecast'], label: 'AI & Forecast', title: 'Forecast & operator assistant', description: 'Forecast explainable, anomaly insight, dan assistant berbasis sumber tenant yang diizinkan.', Icon: BrainCircuit },
   ]},
   { workspaceKey: 'platform', views: [
     { key: 'features', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], label: 'Features', title: 'Runtime features', description: 'Module catalog dan feature flags untuk company aktif.', Icon: Settings2 },
     { key: 'users', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['user', 'role'], label: 'Users', title: 'Users & roles', description: 'User lifecycle, role assignment, dan branch access.', Icon: UserCog },
     { key: 'security', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['user', 'platform'], label: 'Security', title: 'Account security', description: '2FA, recovery, session security, dan protected account controls.', Icon: ShieldCheck },
     { key: 'api-keys', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['api_key', 'integration'], label: 'API keys', title: 'Integration API keys', description: 'Scoped API keys, one-time secret display, dan revoke.', Icon: KeyRound },
+    { key: 'automation', roles: ['SUPER_ADMIN', 'OWNER', 'ADMIN'], permissionPrefixes: ['automation', 'report'], label: 'Automation', title: 'Automation & scheduled reports', description: 'Business rules, execution history, retry/replay, dan jadwal report worker.', Icon: Activity },
   ]},
 ];
 

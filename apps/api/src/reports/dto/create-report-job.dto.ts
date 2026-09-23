@@ -1,6 +1,6 @@
 import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 
-const REPORT_TYPES = [
+export const REPORT_TYPES = [
   'SALES',
   'PRODUCTS',
   'PROFIT_LOSS',
@@ -26,6 +26,10 @@ const REPORT_TYPES = [
   'PAYABLES',
   'DELIVERY_COD',
   'PAYROLL',
+  'INVENTORY_VALUATION',
+  'BRANCH_COMPARISON',
+  'COST_CENTER',
+  'PERIOD_COMPARISON',
 ] as const;
 
 export class CreateReportJobDto {

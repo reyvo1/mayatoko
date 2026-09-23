@@ -1,0 +1,111 @@
+{
+  "generatedAt": "2026-09-22T15:46:13.786Z",
+  "status": "PASS",
+  "productionTouched": false,
+  "sourceIdentity": {
+    "algorithm": "sha256",
+    "value": "00621ae6604475a218fce9ece0965f32f15f98c4c818d7d41d6c63c744ecf7d4",
+    "fileCount": 518
+  },
+  "buildArtifactId": "e9f182b4227cacf97dbd9752412df2f942f87de5f28bd9a6fb01e15291c6c6c2",
+  "preserveBuildArtifact": true,
+  "migration": "database/migrations/T360-20260912-payroll-differential-adjustment/postgresql-expand.sql",
+  "migrationSha256": "ce71bea10d1ee105cd36cd5402d4d230f43886c2bb75cede2dd2d9e5b5f3a2a0",
+  "statementCount": 7,
+  "target": {
+    "mode": "STAGING",
+    "hostHash": "49960de5880e8c68",
+    "databaseHash": "d52c6f099d1f3613"
+  },
+  "before": {
+    "columns": [
+      {
+        "table_name": "PayrollPayment",
+        "column_name": "direction",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": "'OUTBOUND'::text"
+      },
+      {
+        "table_name": "PayrollRun",
+        "column_name": "adjustmentOfRunId",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "PayrollRun",
+        "column_name": "adjustmentPostingDate",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "PayrollRun",
+        "column_name": "adjustmentReason",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "PayrollRun",
+        "column_name": "adjustmentSequence",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "0"
+      }
+    ],
+    "indexes": [],
+    "invalidDirection": 0
+  },
+  "after": {
+    "columns": [
+      {
+        "table_name": "PayrollPayment",
+        "column_name": "direction",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": "'OUTBOUND'::text"
+      },
+      {
+        "table_name": "PayrollRun",
+        "column_name": "adjustmentOfRunId",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "PayrollRun",
+        "column_name": "adjustmentPostingDate",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "PayrollRun",
+        "column_name": "adjustmentReason",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "PayrollRun",
+        "column_name": "adjustmentSequence",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "0"
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "PayrollRun_companyId_branchId_adjustmentOfRunId_adjustmentSeque",
+        "indexdef": "CREATE UNIQUE INDEX \"PayrollRun_companyId_branchId_adjustmentOfRunId_adjustmentSeque\" ON public.\"PayrollRun\" USING btree (\"companyId\", \"branchId\", \"adjustmentOfRunId\", \"adjustmentSequence\")"
+      }
+    ],
+    "invalidDirection": 0
+  },
+  "gate": {
+    "passed": true
+  },
+  "error": null
+}

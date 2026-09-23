@@ -1,11 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { ApprovalStatus, IntegrationStatus, IntegrationType, Prisma } from '@prisma/client';
+import { ApprovalStatus, AutomationJobStatus, IntegrationStatus, IntegrationType, Prisma } from '@prisma/client';
 import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateApprovalPolicyDto, CreateApprovalRequestDto, CreateBusinessRuleDto, CreateCustomFieldDto,
-  CreateIntegrationDto, CreateUiSchemaDto, CreateWebhookDto, DecideApprovalDto, DelegateApprovalDto, UpdateIntegrationDto,
+  CreateIntegrationDto, CreateUiSchemaDto, CreateWebhookDto, DecideApprovalDto, DelegateApprovalDto, UpdateBusinessRuleDto, UpdateIntegrationDto,
   SetCustomFieldValueDto, UpsertFeatureFlagDto, UpsertSettingDto,
 } from './dto/platform.dto';
 import { PluginRegistryService } from './plugin-registry.service';
@@ -412,15 +412,92 @@ export class PlatformService {
     return this.prisma.businessRule.findMany({ where: { companyId: scope.companyId }, orderBy: [{ priority: 'asc' }, { name: 'asc' }] });
   }
 
+  private validateBusinessRuleDefinition(conditions: unknown, actions: unknown) {
+    if (conditions !== undefined && conditions !== null && (typeof conditions !== 'object' || Array.isArray(conditions))) {
+      throw new BadRequestException('conditions business rule harus berupa object JSON.');
+    }
+    if (!Array.isArray(actions) || actions.length === 0) throw new BadRequestException('Business rule wajib memiliki minimal satu action.');
+    const supported = new Set(['notification.enqueue', 'approval.create', 'reorder_suggestion.create', 'outbox.emit', 'report.enqueue', 'automation.enqueue']);
+    for (const [index, action] of actions.entries()) {
+      if (!action || typeof action !== 'object' || Array.isArray(action)) throw new BadRequestException(`Action business rule ${index + 1} tidak valid.`);
+      const type = (action as Record<string, unknown>).type;
+      if (typeof type !== 'string' || !supported.has(type)) throw new BadRequestException(`Action business rule ${index + 1} belum didukung: ${String(type ?? '')}`);
+      if (type === 'automation.enqueue') {
+        const actionType = (action as Record<string, unknown>).actionType;
+        if (actionType !== 'CREATE_MAINTENANCE_WORK_ORDER') throw new BadRequestException('automation.enqueue hanya menerima actionType yang didukung worker.');
+      }
+      if (type === 'report.enqueue') {
+        const reportType = (action as Record<string, unknown>).reportType;
+        const format = (action as Record<string, unknown>).format;
+        if (typeof reportType !== 'string' || !reportType.trim()) throw new BadRequestException('report.enqueue wajib memiliki reportType.');
+        if (format !== undefined && !['CSV','XLSX','PDF'].includes(String(format))) throw new BadRequestException('Format report.enqueue tidak didukung.');
+      }
+    }
+  }
+
   async createRule(dto: CreateBusinessRuleDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
     await this.assertRequestedScope(this.prisma, user, scope, dto.companyId, undefined, 'BusinessRule');
+    this.validateBusinessRuleDefinition(dto.conditions, dto.actions);
     return this.prisma.$transaction(async (tx) => {
       const row = await tx.businessRule.create({ data: {
         companyId: scope.companyId, code: dto.code, name: dto.name, trigger: dto.trigger,
         conditions: dto.conditions === undefined ? undefined : json(dto.conditions), actions: json(dto.actions), priority: dto.priority,
       } });
       await this.auditMutation(tx, user, scope, 'CREATE_BUSINESS_RULE', 'BusinessRule', row.id, { branchId: scope.branchId, code: dto.code, trigger: dto.trigger });
+      return row;
+    });
+  }
+
+  async updateRule(id: string, dto: UpdateBusinessRuleDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const existing = await this.prisma.businessRule.findFirst({ where: { id, companyId: scope.companyId } });
+    if (!existing) return this.denyTenantAccess(this.prisma, user, scope, 'BusinessRule', id);
+    const conditions = dto.conditions !== undefined ? dto.conditions : existing.conditions;
+    const actions = dto.actions !== undefined ? dto.actions : existing.actions;
+    this.validateBusinessRuleDefinition(conditions, actions);
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.businessRule.update({ where: { id }, data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.trigger !== undefined ? { trigger: dto.trigger.trim() } : {}),
+        ...(dto.conditions !== undefined ? { conditions: dto.conditions === null ? Prisma.JsonNull : json(dto.conditions) } : {}),
+        ...(dto.actions !== undefined ? { actions: json(dto.actions) } : {}),
+        ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+      } });
+      await this.auditMutation(tx, user, scope, 'UPDATE_BUSINESS_RULE', 'BusinessRule', row.id, { branchId: scope.branchId, code: row.code, trigger: row.trigger, isActive: row.isActive });
+      return row;
+    });
+  }
+
+  async listAutomationJobs(user: AuthUser, status?: string, ruleCode?: string, limitValue = 100) {
+    const scope = this.requireTenantScope(user);
+    const allowedStatuses = ['PENDING','PROCESSING','SUCCEEDED','RETRYING','FAILED','CANCELLED'];
+    if (status && !allowedStatuses.includes(status)) throw new BadRequestException('Status automation job tidak valid.');
+    const limit = Math.min(Math.max(Number(limitValue) || 100, 1), 200);
+    return this.prisma.automationJob.findMany({
+      where: { companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }], ...(status ? { status: status as AutomationJobStatus } : {}), ...(ruleCode ? { ruleCode } : {}) },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+    });
+  }
+
+  async automationJobDetail(id: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const job = await this.prisma.automationJob.findFirst({ where: { id, companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }] } });
+    if (!job) return this.denyTenantAccess(this.prisma, user, scope, 'AutomationJob', id);
+    const audit = await this.prisma.auditLog.findMany({ where: { companyId: scope.companyId, entityType: 'AutomationJob', entityId: id }, orderBy: { createdAt: 'asc' }, take: 100 });
+    return { ...job, audit };
+  }
+
+  async cancelAutomationJob(id: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const job = await tx.automationJob.findFirst({ where: { id, companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }] } });
+      if (!job) return this.denyTenantAccess(tx, user, scope, 'AutomationJob', id);
+      if (!['PENDING','RETRYING'].includes(job.status)) throw new BadRequestException('Hanya automation job PENDING/RETRYING yang dapat dibatalkan.');
+      const row = await tx.automationJob.update({ where: { id }, data: { status: 'CANCELLED', lockedAt: null, lockedBy: null, completedAt: new Date(), lastError: 'Dibatalkan operator.' } });
+      await this.auditMutation(tx, user, scope, 'CANCEL_AUTOMATION_JOB', 'AutomationJob', id, { branchId: job.branchId, ruleCode: job.ruleCode, actionType: job.actionType });
       return row;
     });
   }
@@ -612,10 +689,26 @@ export class PlatformService {
       if (!notification) return this.denyTenantAccess(tx, user, scope, 'Notification', id);
       const data = notification.data && typeof notification.data === 'object' && !Array.isArray(notification.data) ? notification.data as Record<string, unknown> : {};
       if (data.branchId && data.branchId !== scope.branchId) return this.denyTenantAccess(tx, user, scope, 'Notification', id);
-      if (notification.status !== 'FAILED') throw new BadRequestException('Hanya notification FAILED yang dapat direplay.');
-      const row = await tx.notification.update({ where: { id }, data: { status: 'QUEUED', attempts: 0, scheduledAt: new Date(), sentAt: null, deliveredAt: null, lastError: null } });
+      if (!['FAILED','CANCELLED'].includes(notification.status)) throw new BadRequestException('Hanya notification FAILED/CANCELLED yang dapat direplay.');
+      const row = await tx.notification.update({ where: { id }, data: { status: 'QUEUED', attempts: 0, scheduledAt: new Date(), sentAt: null, deliveredAt: null, externalRef: null, provider: null, lastError: null } });
       await tx.employeeNotificationDelivery.updateMany({ where: { notificationId: id }, data: { status: 'QUEUED', attempts: 0, sentAt: null, deliveredAt: null, externalReference: null, lastError: null } });
       await this.auditMutation(tx, user, scope, 'REPLAY_NOTIFICATION', 'Notification', id, { branchId: scope.branchId, channel: notification.channel });
+      return row;
+    });
+  }
+
+
+  async cancelNotification(id: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const notification = await tx.notification.findFirst({ where: { id, companyId: scope.companyId } });
+      if (!notification) return this.denyTenantAccess(tx, user, scope, 'Notification', id);
+      const data = notification.data && typeof notification.data === 'object' && !Array.isArray(notification.data) ? notification.data as Record<string, unknown> : {};
+      if (data.branchId && data.branchId !== scope.branchId) return this.denyTenantAccess(tx, user, scope, 'Notification', id);
+      if (notification.status !== 'QUEUED') throw new BadRequestException('Hanya notification QUEUED yang dapat dibatalkan.');
+      const row = await tx.notification.update({ where: { id }, data: { status: 'CANCELLED', lastError: null } });
+      await tx.employeeNotificationDelivery.updateMany({ where: { notificationId: id }, data: { status: 'CANCELLED', lastError: null } });
+      await this.auditMutation(tx, user, scope, 'CANCEL_NOTIFICATION', 'Notification', id, { branchId: scope.branchId, channel: notification.channel });
       return row;
     });
   }

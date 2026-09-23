@@ -8,7 +8,8 @@ import {
   CreateBatchDto, CreateFiscalPeriodDto, CreateLoyaltyProgramDto, CreatePurchaseReturnDto, CreateReconciliationDto,
   CreateSaleReturnDto, CreateSerialDto, CreateShipmentDto, ImportBankStatementDto, ImportMarketplaceOrderDto,
   LoyaltyTransactionDto, MatchBankReconciliationDto, QueueNotificationDto, RegisterDeviceDto, RunForecastDto, UpsertNotificationTemplateDto,
-  AcknowledgeSyncReceiptDto, RotateDeviceCredentialDto, SetDeviceStatusDto, SubmitOfflineTransactionsDto, UnmatchBankReconciliationDto,
+  AcknowledgeSyncReceiptDto, OperatorAssistantQueryDto, RotateDeviceCredentialDto, SetDeviceStatusDto, SubmitOfflineTransactionsDto, UnmatchBankReconciliationDto,
+  UpdateOperatorInsightStatusDto,
 } from './dto/extensions.dto';
 import { ExtensionsService } from './extensions.service';
 
@@ -246,6 +247,7 @@ import { ExtensionsService } from './extensions.service';
   ) { return this.service.submitOfflineTransactions(id, dto, user); }
 
   @Get('forecasts')
+  @Permissions('forecast.view')
   forecasts(@CurrentUser() user: AuthUser) { return this.service.forecasts(user); }
 
   @Roles('SUPER_ADMIN','OWNER','ADMIN','PURCHASING') @Post('forecasts/run')
@@ -253,6 +255,32 @@ import { ExtensionsService } from './extensions.service';
   runForecast(@Body() dto: RunForecastDto, @CurrentUser() user: AuthUser) {
     return this.service.runForecast(dto, user);
   }
+
+  @Get('forecasts/:id')
+  @Permissions('forecast.view')
+  forecastDetail(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.service.forecastDetail(id, user); }
+
+  @Get('operator-insights')
+  @Permissions('assistant.use')
+  operatorInsights(@CurrentUser() user: AuthUser) { return this.service.operatorInsights(user); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('operator-insights/refresh')
+  @Permissions('assistant.manage')
+  refreshOperatorInsights(@CurrentUser() user: AuthUser) { return this.service.refreshOperatorInsights(user); }
+
+  @Patch('operator-insights/:id/status')
+  @Permissions('assistant.use')
+  updateOperatorInsight(@Param('id') id: string, @Body() dto: UpdateOperatorInsightStatusDto, @CurrentUser() user: AuthUser) {
+    return this.service.updateOperatorInsightStatus(id, dto.status, user);
+  }
+
+  @Get('operator-assistant/history')
+  @Permissions('assistant.use')
+  assistantHistory(@CurrentUser() user: AuthUser) { return this.service.assistantHistory(user); }
+
+  @Post('operator-assistant/query')
+  @Permissions('assistant.use')
+  assistantQuery(@Body() dto: OperatorAssistantQueryDto, @CurrentUser() user: AuthUser) { return this.service.operatorAssistantQuery(dto, user); }
 
   @Get('shipments')
   shipments(@CurrentUser() user: AuthUser) { return this.service.shipments(user); }
@@ -272,6 +300,9 @@ import { ExtensionsService } from './extensions.service';
     return this.service.importMarketplaceOrder(dto, user);
   }
 
+  @Get('notifications/providers')
+  notificationProviders(@CurrentUser() user: AuthUser) { return this.service.notificationProviders(user); }
+
   @Get('notifications/templates')
   notificationTemplates(@CurrentUser() user: AuthUser) { return this.service.notificationTemplates(user); }
 
@@ -282,7 +313,12 @@ import { ExtensionsService } from './extensions.service';
   }
 
   @Get('notifications')
-  notifications(@CurrentUser() user: AuthUser) { return this.service.notifications(user); }
+  notifications(
+    @CurrentUser() user: AuthUser,
+    @Query('channel') channel?: string,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ) { return this.service.notifications(user, channel, status, limit ? Number(limit) : 200); }
 
   @Post('notifications')
   @Permissions('notification.manage')

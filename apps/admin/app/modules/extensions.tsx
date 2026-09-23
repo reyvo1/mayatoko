@@ -8,9 +8,10 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 type LoyaltyProgram = { id: string; name: string; isActive?: boolean; pointsPerAmount?: number | string };
 type Device = { id: string; code: string; name: string; platform?: string; appVersion?: string | null; lastSeenAt?: string | null; isActive?: boolean };
-type NotificationTemplate = { id: string; code: string; channel: string; subject?: string | null; body: string; isActive?: boolean };
+type NotificationTemplate = { id: string; code: string; channel: string; subject?: string | null; body: string; variables?: string[] | null; isActive?: boolean };
 type DeviceCredentialResult = { deviceId: string; keyId: string; secret: string; expiresAt?: string | null; note?: string };
-type Notification = { id: string; channel: string; templateCode?: string; recipient: string; status: string; createdAt: string };
+type Notification = { id: string; channel: string; templateCode?: string; recipient: string; status: string; provider?: string | null; attempts: number; scheduledAt?: string; sentAt?: string | null; lastError?: string | null; createdAt: string };
+type NotificationProvider = { id: string; type: string; provider: string; name: string; status: string; config?: Record<string, unknown> | null; hasSecrets?: boolean; branchId?: string | null; lastHealthCheckAt?: string | null; lastError?: string | null };
 type Shipment = { id: string; number: string; orderId?: string | null; status?: string; createdAt: string };
 type StoreOrder = { id: string; number: string; status: string; customerName: string; total: string | number; fulfillmentType?: 'DELIVERY'|'PICKUP'|string; shippingMethodCode?: string|null; shippingMethodName?: string|null; payments: Array<{ method: string; status: string }> };
 type PromoRule = { id:string; code:string; name:string; type:string; value:string|number; channel:string; memberTier?:string|null; minQuantity?:number|null; buyQuantity?:number|null; getQuantity?:number|null; usageLimit?:number|null; perCustomerLimit?:number|null; isActive:boolean; startsAt:string; endsAt?:string|null };
@@ -40,9 +41,11 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
   const [devices, setDevices] = useState<Device[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
+  const [providers, setProviders] = useState<NotificationProvider[]>([]);
   const [deviceForm, setDeviceForm] = useState({ code: '', name: '', platform: 'POS_WEB', appVersion: '' });
   const [credential, setCredential] = useState<DeviceCredentialResult | null>(null);
-  const [templateForm, setTemplateForm] = useState({ code: '', channel: 'EMAIL', subject: '', body: '' });
+  const [templateForm, setTemplateForm] = useState({ code: '', channel: 'EMAIL', subject: '', body: '', isActive: true });
+  const [providerForm, setProviderForm] = useState({ channel: 'TELEGRAM', name: 'Telegram Utama', url: '', token: '' });
   const [notificationForm, setNotificationForm] = useState({ channel: 'EMAIL', recipient: '', templateCode: '', subject: '', body: '' });
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [orders, setOrders] = useState<StoreOrder[]>([]);
@@ -71,13 +74,14 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
   }
 
   async function refreshExtensions() {
-    const [lp, dv, nt, tp] = await Promise.all([
+    const [lp, dv, nt, tp, pv] = await Promise.all([
       readJson<CursorResponse<LoyaltyProgram>>(`${API}/loyalty/programs?limit=15`, token),
       readJson<CursorResponse<Device>>(`${API}/devices?limit=50`, token),
-      readJson<CursorResponse<Notification>>(`${API}/notifications?limit=50`, token),
+      readJson<CursorResponse<Notification>>(`${API}/notifications?limit=200`, token),
       readJson<NotificationTemplate[]>(`${API}/notifications/templates`, token),
+      readJson<NotificationProvider[]>(`${API}/notifications/providers`, token),
     ]);
-    setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []);
+    setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []); setProviders(pv ?? []);
   }
 
   async function registerDevice() {
@@ -114,11 +118,53 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
     setBusy(true); setMessage('');
     try {
       if (!templateForm.code.trim() || !templateForm.body.trim()) throw new Error('Kode dan body template wajib diisi.');
-      await writeJson(`${API}/notifications/templates`, token, 'POST', { code: templateForm.code.trim(), channel: templateForm.channel, subject: templateForm.subject.trim() || undefined, body: templateForm.body, isActive: true });
-      setTemplateForm({ code: '', channel: 'EMAIL', subject: '', body: '' });
+      await writeJson(`${API}/notifications/templates`, token, 'POST', { code: templateForm.code.trim(), channel: templateForm.channel, subject: templateForm.subject.trim() || undefined, body: templateForm.body, isActive: templateForm.isActive });
+      setTemplateForm({ code: '', channel: 'EMAIL', subject: '', body: '', isActive: true });
       setMessage('Template notifikasi tersimpan.');
       await refreshExtensions();
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Template gagal disimpan.'); } finally { setBusy(false); }
+  }
+
+  async function saveNotificationProvider() {
+    setBusy(true); setMessage('');
+    try {
+      const channel = providerForm.channel;
+      if (!providerForm.name.trim()) throw new Error('Nama provider wajib diisi.');
+      if (channel === 'WHATSAPP' && !providerForm.url.trim()) throw new Error('Endpoint WhatsApp wajib diisi.');
+      if (!providerForm.token.trim()) throw new Error('Token provider wajib diisi dan hanya akan disimpan terenkripsi.');
+      const config = channel === 'TELEGRAM'
+        ? { channel: 'TELEGRAM', adapter: 'TELEGRAM_BOT' }
+        : { channel: 'WHATSAPP', url: providerForm.url.trim(), method: 'POST', recipientField: 'to', bodyField: 'text' };
+      await writeJson(`${API}/platform/integrations`, token, 'POST', {
+        type: 'NOTIFICATION', provider: channel, name: providerForm.name.trim(), config,
+        encryptedSecrets: JSON.stringify({ token: providerForm.token.trim() }), capabilities: { channels: [channel] },
+      });
+      setProviderForm((current) => ({ ...current, token: '' }));
+      setMessage(`Provider ${channel} tersimpan. Aktifkan status CONNECTED sebelum worker menggunakannya.`);
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Provider notifikasi gagal disimpan.'); } finally { setBusy(false); }
+  }
+
+  async function setProviderStatus(provider: NotificationProvider, status: 'CONNECTED' | 'DISABLED') {
+    setBusy(true); setMessage('');
+    try {
+      await writeJson(`${API}/platform/integrations/${provider.id}`, token, 'PATCH', { status });
+      setMessage(`Provider ${provider.name} ${status === 'CONNECTED' ? 'diaktifkan' : 'dinonaktifkan'}.`);
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Status provider gagal diubah.'); } finally { setBusy(false); }
+  }
+
+  async function notificationAction(notification: Notification, action: 'cancel' | 'replay') {
+    setBusy(true); setMessage('');
+    try {
+      await writeJson(`${API}/platform/notifications/${notification.id}/${action}`, token, 'POST', {});
+      setMessage(action === 'cancel' ? 'Notifikasi dibatalkan.' : 'Notifikasi dimasukkan kembali ke antrean.');
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Aksi notifikasi gagal.'); } finally { setBusy(false); }
+  }
+
+  function editTemplate(template: NotificationTemplate) {
+    setTemplateForm({ code: template.code, channel: template.channel, subject: template.subject ?? '', body: template.body, isActive: template.isActive !== false });
   }
 
   async function queueNotification() {
@@ -168,9 +214,10 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
       : Promise.all([
           readJson<CursorResponse<LoyaltyProgram>>(`${API}/loyalty/programs?limit=15`, token),
           readJson<CursorResponse<Device>>(`${API}/devices?limit=50`, token),
-          readJson<CursorResponse<Notification>>(`${API}/notifications?limit=50`, token),
+          readJson<CursorResponse<Notification>>(`${API}/notifications?limit=200`, token),
           readJson<NotificationTemplate[]>(`${API}/notifications/templates`, token),
-        ]).then(([lp, dv, nt, tp]) => { if (!cancelled) { setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []); } });
+          readJson<NotificationProvider[]>(`${API}/notifications/providers`, token),
+        ]).then(([lp, dv, nt, tp, pv]) => { if (!cancelled) { setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []); setProviders(pv ?? []); } });
     task.catch((error) => { if (!cancelled) setMessage(error instanceof Error ? error.message : 'Data gagal dimuat.'); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [token, mode]);
@@ -238,29 +285,40 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
           {credential && <div className="notice success"><strong>SECRET SEKALI TAMPIL</strong><br/>Key ID: <code>{credential.keyId}</code><br/>Secret: <code>{credential.secret}</code><br/><small>Simpan pada secure store node toko. Setelah panel ini ditutup, server tidak akan menampilkan secret lagi.</small></div>}
         </Panel>
         <section className="grid2">
+          <Panel eyebrow="PROVIDER" title="WhatsApp / Telegram" badge={`${providers.length} connection`}>
+            <div className="formStack">
+              <label>Channel<select value={providerForm.channel} onChange={(e) => setProviderForm({ ...providerForm, channel: e.target.value, name: e.target.value === 'TELEGRAM' ? 'Telegram Utama' : 'WhatsApp Utama' })}>{['TELEGRAM','WHATSAPP'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+              <label>Nama<input value={providerForm.name} onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })} /></label>
+              {providerForm.channel === 'WHATSAPP' && <label>Endpoint provider<input value={providerForm.url} onChange={(e) => setProviderForm({ ...providerForm, url: e.target.value })} placeholder="https://provider.example/messages" /></label>}
+              <label>Token / secret<input type="password" value={providerForm.token} onChange={(e) => setProviderForm({ ...providerForm, token: e.target.value })} placeholder="Disimpan terenkripsi oleh server" /></label>
+              <button type="button" disabled={busy} onClick={() => void saveNotificationProvider()}>Simpan provider</button>
+            </div>
+            <Table head={['Provider', 'Channel', 'Status', 'Health', 'Aksi']} rows={providers.map((p) => [<strong>{p.name}</strong>, String((p.config as { channel?: string } | null)?.channel ?? p.provider), <StatusChip status={p.status} />, p.lastError ? <small title={p.lastError}>DEGRADED</small> : p.lastHealthCheckAt ? <small>{tanggal(p.lastHealthCheckAt)}</small> : '-', <button type="button" className="secondary" disabled={busy} onClick={() => void setProviderStatus(p, p.status === 'CONNECTED' ? 'DISABLED' : 'CONNECTED')}>{p.status === 'CONNECTED' ? 'Nonaktifkan' : 'Aktifkan'}</button>])} empty="Belum ada provider notifikasi." />
+          </Panel>
           <Panel eyebrow="NOTIFICATION TEMPLATE" title="Template provider-neutral" badge={`${templates.length} template`}>
             <div className="formStack">
               <label>Kode<input value={templateForm.code} onChange={(e) => setTemplateForm({ ...templateForm, code: e.target.value })} placeholder="ORDER_STATUS" /></label>
               <label>Channel<select value={templateForm.channel} onChange={(e) => setTemplateForm({ ...templateForm, channel: e.target.value })}>{['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
               <label>Subject<input value={templateForm.subject} onChange={(e) => setTemplateForm({ ...templateForm, subject: e.target.value })} placeholder="Opsional" /></label>
               <label>Body<textarea value={templateForm.body} onChange={(e) => setTemplateForm({ ...templateForm, body: e.target.value })} placeholder="Pesanan {{order.number}} sudah dikirim" /></label>
+              <label><input type="checkbox" checked={templateForm.isActive} onChange={(e) => setTemplateForm({ ...templateForm, isActive: e.target.checked })} /> Template aktif</label>
               <button type="button" disabled={busy} onClick={() => void saveTemplate()}>Simpan template</button>
             </div>
-            <Table head={['Kode', 'Channel', 'Status']} rows={templates.slice(0, 12).map((t) => [<strong>{t.code}</strong>, t.channel, <StatusChip status={t.isActive === false ? 'NONAKTIF' : 'AKTIF'} />])} empty="Belum ada template." />
-          </Panel>
-          <Panel eyebrow="NOTIFICATION QUEUE" title="Kirim notifikasi" badge="worker delivery">
-            <div className="formStack">
-              <label>Channel<select value={notificationForm.channel} onChange={(e) => setNotificationForm({ ...notificationForm, channel: e.target.value, templateCode: '' })}>{['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-              <label>Template<select value={notificationForm.templateCode} onChange={(e) => setNotificationForm({ ...notificationForm, templateCode: e.target.value })}><option value="">Body manual</option>{templates.filter((t) => t.channel === notificationForm.channel && t.isActive !== false).map((t) => <option key={t.id} value={t.code}>{t.code}</option>)}</select></label>
-              <label>Penerima<input value={notificationForm.recipient} onChange={(e) => setNotificationForm({ ...notificationForm, recipient: e.target.value })} placeholder="email / telepon / device token" /></label>
-              <label>Subject<input value={notificationForm.subject} onChange={(e) => setNotificationForm({ ...notificationForm, subject: e.target.value })} placeholder="Opsional" /></label>
-              <label>Body manual<textarea value={notificationForm.body} onChange={(e) => setNotificationForm({ ...notificationForm, body: e.target.value })} placeholder="Kosongkan bila memakai template tanpa variable." /></label>
-              <button type="button" disabled={busy} onClick={() => void queueNotification()}>Masukkan antrean</button>
-            </div>
+            <Table head={['Kode', 'Channel', 'Status', 'Aksi']} rows={templates.slice(0, 30).map((t) => [<strong>{t.code}</strong>, t.channel, <StatusChip status={t.isActive === false ? 'NONAKTIF' : 'AKTIF'} />, <button type="button" className="secondary" onClick={() => editTemplate(t)}>Edit</button>])} empty="Belum ada template." />
           </Panel>
         </section>
-        <Panel eyebrow="NOTIFIKASI" title="Antrian Notifikasi" badge={`${notifications.length} item`}>
-          <Table head={['Channel', 'Template', 'Penerima', 'Status']} rows={notifications.map((n) => [<strong>{n.channel}</strong>, n.templateCode ?? '-', n.recipient, <StatusChip status={n.status} />])} empty="Belum ada notifikasi." />
+        <Panel eyebrow="NOTIFICATION QUEUE" title="Kirim notifikasi" badge="worker delivery">
+          <div className="formStack">
+            <label>Channel<select value={notificationForm.channel} onChange={(e) => setNotificationForm({ ...notificationForm, channel: e.target.value, templateCode: '' })}>{['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+            <label>Template<select value={notificationForm.templateCode} onChange={(e) => setNotificationForm({ ...notificationForm, templateCode: e.target.value })}><option value="">Body manual</option>{templates.filter((t) => t.channel === notificationForm.channel && t.isActive !== false).map((t) => <option key={t.id} value={t.code}>{t.code}</option>)}</select></label>
+            <label>Penerima<input value={notificationForm.recipient} onChange={(e) => setNotificationForm({ ...notificationForm, recipient: e.target.value })} placeholder="chat id / nomor WhatsApp / email" /></label>
+            <label>Subject<input value={notificationForm.subject} onChange={(e) => setNotificationForm({ ...notificationForm, subject: e.target.value })} placeholder="Opsional" /></label>
+            <label>Body manual<textarea value={notificationForm.body} onChange={(e) => setNotificationForm({ ...notificationForm, body: e.target.value })} placeholder="Kosongkan bila memakai template tanpa variable." /></label>
+            <button type="button" disabled={busy} onClick={() => void queueNotification()}>Masukkan antrean</button>
+          </div>
+        </Panel>
+        <Panel eyebrow="DELIVERY HISTORY" title="Notification Center" badge={`${notifications.length} item`}>
+          <Table head={['Channel', 'Penerima', 'Status', 'Provider', 'Attempt', 'Error', 'Aksi']} rows={notifications.map((n) => [<strong>{n.channel}</strong>, n.recipient, <StatusChip status={n.status} />, n.provider ?? '-', String(n.attempts ?? 0), n.lastError ? <small title={n.lastError}>{n.lastError.slice(0, 70)}</small> : '-', <div className="rowActions">{n.status === 'QUEUED' && <button type="button" className="secondary" disabled={busy} onClick={() => void notificationAction(n, 'cancel')}>Batal</button>}{['FAILED','CANCELLED'].includes(n.status) && <button type="button" className="secondary" disabled={busy} onClick={() => void notificationAction(n, 'replay')}>Replay</button>}</div>])} empty="Belum ada notifikasi." />
         </Panel>
       </>}
 

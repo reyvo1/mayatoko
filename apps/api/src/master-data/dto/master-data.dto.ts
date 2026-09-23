@@ -6,6 +6,9 @@ export const MASTER_REFERENCE_TYPES = ['BRAND','UNIT','BANK','COURIER','PAYMENT_
 export class CreateCategoryDto {
   @ApiProperty() @IsString() @MaxLength(120) name!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(140) slug?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() parentId?: string;
+  @ApiPropertyOptional({ default: 0 }) @IsOptional() @IsInt() @Min(0) sortOrder?: number;
+  @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() isActive?: boolean;
 }
 export class UpdateCategoryDto extends PartialType(CreateCategoryDto) {}
 
@@ -67,8 +70,34 @@ export class UpdateReferenceDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
+
+export class CreateProductVariantDto {
+  @ApiProperty() @IsString() @MaxLength(60) code!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120) sku?: string;
+  @ApiProperty() @IsString() @MaxLength(160) name!: string;
+  @ApiPropertyOptional({ type: Object }) @IsOptional() attributes?: Record<string, unknown>;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) costPrice?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) salePrice?: number;
+  @ApiPropertyOptional({ default: false }) @IsOptional() @IsBoolean() isDefault?: boolean;
+  @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() isActive?: boolean;
+}
+export class UpdateProductVariantDto extends PartialType(CreateProductVariantDto) {}
+
+
+export class CreateProductUnitDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() variantId?: string;
+  @ApiProperty() @IsString() @MaxLength(60) unitCode!: string;
+  @ApiProperty({ description: 'Jumlah base unit integer di dalam satu unit/kemasan.' }) @IsInt() @Min(2) quantityFactor!: number;
+  @ApiPropertyOptional({ default: false }) @IsOptional() @IsBoolean() isDefaultSale?: boolean;
+  @ApiPropertyOptional({ default: false }) @IsOptional() @IsBoolean() isDefaultPurchase?: boolean;
+  @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() isActive?: boolean;
+}
+export class UpdateProductUnitDto extends PartialType(CreateProductUnitDto) {}
+
 export class CreateProductBarcodeDto {
   @ApiProperty() @IsString() @MaxLength(160) code!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() variantId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() productUnitId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(60) unitCode?: string;
   @ApiPropertyOptional({ default: 1, description: 'Jumlah base unit per barcode/unit jual. Inventory fisik Toko360 disimpan sebagai integer base unit.' }) @IsOptional() @IsInt() @Min(1) quantityFactor?: number;
   @ApiPropertyOptional({ default: false }) @IsOptional() @IsBoolean() isPrimary?: boolean;
@@ -76,6 +105,8 @@ export class CreateProductBarcodeDto {
 export class UpdateProductBarcodeDto extends PartialType(CreateProductBarcodeDto) {}
 
 export class CreateProductPriceDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() variantId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() productUnitId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() branchId?: string;
   @ApiPropertyOptional({ default: 'RETAIL' }) @IsOptional() @IsString() @MaxLength(40) segmentCode?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(60) unitCode?: string;

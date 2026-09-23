@@ -117,10 +117,44 @@ export class PurchaseOrdersService {
       throw new BadRequestException('Satu atau lebih produk tidak ditemukan.');
     }
 
-    const subtotal = dto.items.reduce(
-      (sum, item) => sum.add(new Prisma.Decimal(item.unitCost).mul(item.orderedQty)),
-      new Prisma.Decimal(0),
-    );
+    const preparedItems: Array<{
+      productId: string; variantId: string | null; productUnitId: string | null; unitCode: string | null;
+      unitQuantity: number; quantityFactor: number; orderedQty: number; unitCost: Prisma.Decimal;
+      purchaseUnitCost: Prisma.Decimal; subtotal: Prisma.Decimal;
+    }> = [];
+    for (const item of dto.items) {
+      let variantId = item.variantId?.trim() || null;
+      let productUnitId: string | null = null;
+      let unitCode: string | null = null;
+      let quantityFactor = 1;
+      if (item.productUnitId?.trim()) {
+        const unit = await this.prisma.productUnit.findFirst({
+          where: { id: item.productUnitId.trim(), productId: item.productId, isActive: true, product: { companyId: scope.companyId } },
+          select: { id: true, variantId: true, unitCode: true, quantityFactor: true, variant: { select: { isActive: true } } },
+        });
+        if (!unit) throw new BadRequestException('ProductUnit pembelian tidak valid/aktif untuk produk yang dipilih.');
+        if (variantId && unit.variantId !== variantId) throw new BadRequestException('Variant pembelian tidak cocok dengan ProductUnit.');
+        if (unit.variantId && !unit.variant?.isActive) throw new BadRequestException('Variant pembelian sudah tidak aktif.');
+        productUnitId = unit.id;
+        variantId = unit.variantId ?? variantId;
+        unitCode = unit.unitCode.trim().toUpperCase();
+        quantityFactor = Number(unit.quantityFactor);
+      } else if (variantId) {
+        const variant = await this.prisma.productVariant.findFirst({ where: { id: variantId, productId: item.productId, isActive: true }, select: { id: true } });
+        if (!variant) throw new BadRequestException('Variant pembelian tidak valid/aktif.');
+      }
+      if (!Number.isSafeInteger(quantityFactor) || quantityFactor < 1) throw new BadRequestException('Konversi UOM pembelian tidak aman.');
+      const baseQuantity = item.orderedQty * quantityFactor;
+      if (!Number.isSafeInteger(baseQuantity) || baseQuantity < 1) throw new BadRequestException('Hasil konversi quantity pembelian tidak aman.');
+      const purchaseUnitCost = new Prisma.Decimal(item.unitCost);
+      const baseUnitCost = purchaseUnitCost.div(quantityFactor).toDecimalPlaces(6);
+      preparedItems.push({
+        productId: item.productId, variantId, productUnitId, unitCode, unitQuantity: item.orderedQty,
+        quantityFactor, orderedQty: baseQuantity, unitCost: baseUnitCost, purchaseUnitCost,
+        subtotal: purchaseUnitCost.mul(item.orderedQty),
+      });
+    }
+    const subtotal = preparedItems.reduce((sum, item) => sum.add(item.subtotal), new Prisma.Decimal(0));
     const scopeKey = dto.idempotencyKey ? 'purchase-order:create' : null;
     const result = await serializableTx(this.prisma, async (tx) => {
       if (scopeKey) {
@@ -132,9 +166,10 @@ export class PurchaseOrdersService {
           number: await nextDocumentNumber(tx, { companyId: user.companyId!, branchId: user.branchId!, documentType: 'PURCHASE_ORDER', prefix: 'PO' }), supplierId: dto.supplierId, warehouseId: warehouse.id,
           status: 'APPROVED', expectedDate: dto.expectedDate ? new Date(dto.expectedDate) : undefined,
           subtotal, total: subtotal, notes: dto.notes,
-          items: { create: dto.items.map((item) => ({
-            productId: item.productId, orderedQty: item.orderedQty, unitCost: new Prisma.Decimal(item.unitCost),
-            subtotal: new Prisma.Decimal(item.unitCost).mul(item.orderedQty),
+          items: { create: preparedItems.map((item) => ({
+            productId: item.productId, variantId: item.variantId, productUnitId: item.productUnitId,
+            unitCode: item.unitCode, unitQuantity: item.unitQuantity, quantityFactor: item.quantityFactor,
+            orderedQty: item.orderedQty, unitCost: item.unitCost, purchaseUnitCost: item.purchaseUnitCost, subtotal: item.subtotal,
           })) },
         },
         include: { supplier: true, warehouse: true, items: { include: { product: true } } },

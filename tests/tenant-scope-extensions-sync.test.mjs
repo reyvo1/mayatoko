@@ -105,7 +105,9 @@ test('marketplace orders are scoped through trusted integration connections', ()
 
 test('notifications use token company and branch envelope', () => {
   assert.match(service, /notification\.findMany\(\{[\s\S]*where: \{ companyId: scope\.companyId \}/);
-  assert.match(service, /return !data\?\.branchId \|\| data\.branchId === scope\.branchId/);
+  assert.match(service, /const data = row\.data as Record<string, unknown> \| null/);
+  assert.match(service, /const branchAllowed = !data\?\.branchId \|\| data\.branchId === scope\.branchId/);
+  assert.match(service, /return branchAllowed && channelAllowed && statusAllowed/);
   assert.match(service, /assertRequestedScope\(this\.prisma, user, scope, dto\.companyId, dto\.branchId, 'Notification'\)/);
   assert.match(service, /companyId: scope\.companyId,[\s\S]*data: this\.tenantPayload\(renderData, scope\)/);
   assert.match(service, /'QUEUE_NOTIFICATION'/);

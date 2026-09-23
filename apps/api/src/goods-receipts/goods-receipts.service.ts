@@ -108,17 +108,45 @@ export class GoodsReceiptsService {
       if (['CANCELLED','RECEIVED'].includes(po.status)) throw new BadRequestException(`PO berstatus ${po.status} dan tidak dapat diterima lagi.`);
       let taxTotal = new Prisma.Decimal(0), grossTotal = new Prisma.Decimal(0);
       const requestedByPoItem = new Map<string, number>();
-      const prepared: Array<{ poItemId: string; productId: string; productName: string; quantityReceived: number; damaged: number; accepted: number; unitCost: Prisma.Decimal; net: Prisma.Decimal; tax: Prisma.Decimal; gross: Prisma.Decimal; taxCodeId?: string; batchNumber?: string; expiryDate?: Date }> = [];
+      const prepared: Array<{ poItemId: string; productId: string; productName: string; variantId: string | null; productUnitId: string | null; unitCode: string; unitQuantity: number; damagedUnitQuantity: number; quantityFactor: number; quantityReceived: number; damaged: number; accepted: number; unitCost: Prisma.Decimal; net: Prisma.Decimal; tax: Prisma.Decimal; gross: Prisma.Decimal; taxCodeId?: string; batchNumber?: string; expiryDate?: Date; serialNumbers: string[] }> = [];
       for (const input of dto.items) {
         const poItem = po.items.find((item) => item.id === input.purchaseOrderItemId);
         if (!poItem) throw new BadRequestException(`Item PO ${input.purchaseOrderItemId} tidak ditemukan.`);
-        const damaged = input.quantityDamaged ?? 0;
-        if (damaged > input.quantityReceived) throw new BadRequestException(`Jumlah rusak untuk ${poItem.product.name} melebihi jumlah diterima.`);
-        const receivedForLine = (requestedByPoItem.get(poItem.id) ?? 0) + input.quantityReceived;
+        const factor = Number(poItem.quantityFactor ?? 1);
+        if (!Number.isSafeInteger(factor) || factor < 1) throw new BadRequestException(`Konversi UOM PO ${poItem.product.name} tidak valid.`);
+        const unitQuantity = input.quantityReceived;
+        const damagedUnitQuantity = input.quantityDamaged ?? 0;
+        if (damagedUnitQuantity > unitQuantity) throw new BadRequestException(`Jumlah rusak untuk ${poItem.product.name} melebihi jumlah diterima.`);
+        const quantityReceived = unitQuantity * factor;
+        const damaged = damagedUnitQuantity * factor;
+        if (!Number.isSafeInteger(quantityReceived) || !Number.isSafeInteger(damaged)) throw new BadRequestException(`Konversi penerimaan ${poItem.product.name} tidak aman.`);
+        const receivedForLine = (requestedByPoItem.get(poItem.id) ?? 0) + quantityReceived;
         requestedByPoItem.set(poItem.id, receivedForLine);
         const remaining = poItem.orderedQty - poItem.receivedQty;
-        if (receivedForLine > remaining) throw new BadRequestException(`Penerimaan ${poItem.product.name} melebihi sisa PO (${remaining}).`);
-        const accepted = input.quantityReceived - damaged;
+        if (receivedForLine > remaining) {
+          const remainingUnits = Math.floor(remaining / factor);
+          throw new BadRequestException(`Penerimaan ${poItem.product.name} melebihi sisa PO (${remainingUnits} ${poItem.unitCode ?? poItem.product.unit}).`);
+        }
+        const accepted = quantityReceived - damaged;
+        const batchNumber = input.batchNumber?.trim();
+        const expiryDate = input.expiryDate ? new Date(input.expiryDate) : undefined;
+        if (accepted > 0 && poItem.product.trackBatch && !batchNumber) {
+          throw new BadRequestException(`Nomor batch wajib untuk ${poItem.product.name}.`);
+        }
+        if (accepted > 0 && poItem.product.trackExpiry) {
+          if (!batchNumber) throw new BadRequestException(`Produk ${poItem.product.name} dengan tracking expiry wajib memiliki batch.`);
+          if (!expiryDate) throw new BadRequestException(`Tanggal kedaluwarsa wajib untuk ${poItem.product.name}.`);
+        }
+        if (expiryDate && Number.isNaN(expiryDate.getTime())) throw new BadRequestException(`Tanggal kedaluwarsa ${poItem.product.name} tidak valid.`);
+        if (expiryDate && expiryDate <= new Date()) throw new BadRequestException(`Batch ${batchNumber ?? poItem.product.name} sudah kedaluwarsa dan tidak boleh diterima sebagai stok sellable.`);
+        const serialNumbers = (input.serialNumbers ?? []).map((value) => value.trim()).filter(Boolean);
+        if (new Set(serialNumbers).size !== serialNumbers.length) throw new BadRequestException(`Nomor serial ${poItem.product.name} tidak boleh duplikat dalam satu penerimaan.`);
+        if (poItem.product.trackSerial && serialNumbers.length !== accepted) {
+          throw new BadRequestException(`Produk ${poItem.product.name} wajib memiliki tepat ${accepted} serial untuk acceptedQty ${accepted}.`);
+        }
+        if (!poItem.product.trackSerial && serialNumbers.length) {
+          throw new BadRequestException(`Produk ${poItem.product.name} tidak memakai serial; serialNumbers tidak boleh dikirim.`);
+        }
         const base = new Prisma.Decimal(poItem.unitCost).mul(accepted);
         const tax = await this.accounting.calculateTax(
           tx,
@@ -129,7 +157,13 @@ export class GoodsReceiptsService {
           ['PURCHASE', 'OTHER'],
         );
         taxTotal = taxTotal.add(tax.tax); grossTotal = grossTotal.add(tax.gross);
-        prepared.push({ poItemId: poItem.id, productId: poItem.productId, productName: poItem.product.name, quantityReceived: input.quantityReceived, damaged, accepted, unitCost: poItem.unitCost, net: tax.net, tax: tax.tax, gross: tax.gross, taxCodeId: tax.taxCode?.id, batchNumber: input.batchNumber, expiryDate: input.expiryDate ? new Date(input.expiryDate) : undefined });
+        prepared.push({
+          poItemId: poItem.id, productId: poItem.productId, productName: poItem.product.name,
+          variantId: poItem.variantId ?? null, productUnitId: poItem.productUnitId ?? null,
+          unitCode: poItem.unitCode ?? poItem.product.unit, unitQuantity, damagedUnitQuantity, quantityFactor: factor,
+          quantityReceived, damaged, accepted, unitCost: poItem.unitCost,
+          net: tax.net, tax: tax.tax, gross: tax.gross, taxCodeId: tax.taxCode?.id, batchNumber, expiryDate, serialNumbers,
+        });
       }
       const inspectionRequired = policy?.requireInspection ?? true;
       const created = await tx.goodsReceipt.create({ data: {
@@ -138,9 +172,10 @@ export class GoodsReceiptsService {
         operationalStatus: inspectionRequired ? 'PENDING_INSPECTION' : 'READY_TO_CONFIRM', inspectionRequired,
         taxTotal, grossTotal,
         items: { create: prepared.map((item) => ({
-          purchaseOrderItemId: item.poItemId, productId: item.productId, quantityReceived: item.quantityReceived,
-          quantityDamaged: item.damaged, acceptedQty: item.accepted, unitCost: item.unitCost, subtotal: item.net,
-          taxCodeId: item.taxCodeId, taxAmount: item.tax, grossSubtotal: item.gross, batchNumber: item.batchNumber, expiryDate: item.expiryDate,
+          purchaseOrderItemId: item.poItemId, productId: item.productId, variantId: item.variantId, productUnitId: item.productUnitId,
+          unitCode: item.unitCode, unitQuantity: item.unitQuantity, damagedUnitQuantity: item.damagedUnitQuantity, quantityFactor: item.quantityFactor,
+          quantityReceived: item.quantityReceived, quantityDamaged: item.damaged, acceptedQty: item.accepted, unitCost: item.unitCost, subtotal: item.net,
+          taxCodeId: item.taxCodeId, taxAmount: item.tax, grossSubtotal: item.gross, batchNumber: item.batchNumber, expiryDate: item.expiryDate, serialNumbers: item.serialNumbers,
         })) },
       } });
       let inspectionId: string | undefined;
@@ -238,6 +273,27 @@ export class GoodsReceiptsService {
           throw new BadRequestException('Penerimaan memiliki mismatch dan harus disetujui terlebih dahulu sebelum stok/jurnal diposting.');
         }
       }
+      const serialsByItem = new Map<string, string[]>();
+      const allInboundSerials = new Set<string>();
+      for (const item of receipt.items) {
+        const raw = Array.isArray(item.serialNumbers) ? item.serialNumbers : [];
+        const serialNumbers = raw.filter((value): value is string => typeof value === 'string').map((value) => value.trim()).filter(Boolean);
+        if (item.product.trackSerial) {
+          if (serialNumbers.length !== item.acceptedQty) throw new BadRequestException(`Serial ${item.product.name} tidak lengkap: butuh ${item.acceptedQty}, tersimpan ${serialNumbers.length}.`);
+          for (const serialNumber of serialNumbers) {
+            if (allInboundSerials.has(serialNumber)) throw new BadRequestException(`Serial ${serialNumber} duplikat dalam dokumen penerimaan.`);
+            allInboundSerials.add(serialNumber);
+          }
+        } else if (serialNumbers.length) {
+          throw new BadRequestException(`Produk ${item.product.name} tidak memakai serial tetapi dokumen menyimpan serialNumbers.`);
+        }
+        serialsByItem.set(item.id, serialNumbers);
+      }
+      if (allInboundSerials.size) {
+        const existingSerials = await tx.inventorySerial.findMany({ where: { serialNumber: { in: [...allInboundSerials] } }, select: { serialNumber: true } });
+        if (existingSerials.length) throw new BadRequestException(`Serial sudah terdaftar: ${existingSerials.map((row) => row.serialNumber).join(', ')}.`);
+      }
+
       const acceptedByPoItem = new Map<string, number>();
       for (const item of receipt.items) acceptedByPoItem.set(item.purchaseOrderItemId, (acceptedByPoItem.get(item.purchaseOrderItemId) ?? 0) + item.acceptedQty);
       for (const [poItemId, acceptedQty] of acceptedByPoItem) {
@@ -263,11 +319,32 @@ export class GoodsReceiptsService {
             balanceAfter: inventory.quantity, referenceType: 'GoodsReceipt', referenceId: receipt.id,
             notes: item.quantityDamaged ? `${item.quantityDamaged} unit rusak/ditolak dan tidak masuk stok.` : dto.notes,
           } });
-          if (item.batchNumber) await tx.inventoryBatch.upsert({
-            where: { warehouseId_productId_batchNumber: { warehouseId: receipt.warehouseId, productId: item.productId, batchNumber: item.batchNumber } },
-            create: { warehouseId: receipt.warehouseId, productId: item.productId, batchNumber: item.batchNumber, expiryDate: item.expiryDate, quantity: item.acceptedQty, metadata: { goodsReceiptId: receipt.id } },
-            update: { quantity: { increment: item.acceptedQty }, expiryDate: item.expiryDate ?? undefined },
-          });
+          if (item.batchNumber) {
+            const existingBatch = await tx.inventoryBatch.findUnique({
+              where: { warehouseId_productId_batchNumber: { warehouseId: receipt.warehouseId, productId: item.productId, batchNumber: item.batchNumber } },
+            });
+            if (existingBatch?.expiryDate && item.expiryDate && existingBatch.expiryDate.getTime() !== item.expiryDate.getTime()) {
+              throw new BadRequestException(`Tanggal kedaluwarsa batch ${item.batchNumber} berbeda dari batch yang sudah terdaftar.`);
+            }
+            await tx.inventoryBatch.upsert({
+              where: { warehouseId_productId_batchNumber: { warehouseId: receipt.warehouseId, productId: item.productId, batchNumber: item.batchNumber } },
+              create: { warehouseId: receipt.warehouseId, productId: item.productId, batchNumber: item.batchNumber, expiryDate: item.expiryDate, quantity: item.acceptedQty, metadata: { goodsReceiptId: receipt.id } },
+              update: { quantity: { increment: item.acceptedQty }, ...(existingBatch?.expiryDate ? {} : item.expiryDate ? { expiryDate: item.expiryDate } : {}) },
+            });
+          }
+          if (item.product.trackSerial) {
+            for (const serialNumber of serialsByItem.get(item.id) ?? []) {
+              await tx.inventorySerial.create({ data: {
+                warehouseId: receipt.warehouseId,
+                productId: item.productId,
+                serialNumber,
+                status: 'AVAILABLE',
+                referenceType: 'GoodsReceiptItem',
+                referenceId: item.id,
+                metadata: { goodsReceiptId: receipt.id },
+              } });
+            }
+          }
         }
         if (item.taxCodeId && new Prisma.Decimal(item.taxAmount).greaterThan(0)) {
           const current = taxGroups.get(item.taxCodeId) ?? { base: new Prisma.Decimal(0), tax: new Prisma.Decimal(0) };

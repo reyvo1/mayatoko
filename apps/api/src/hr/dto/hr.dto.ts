@@ -24,9 +24,9 @@ export class CreateEmployeeDto {
 
 export class UpdateEmployeeDto {
   @ApiPropertyOptional({ description: 'Kompatibilitas lama; branch tidak dapat dipindahkan melalui endpoint ini.' }) @IsOptional() @IsUUID() branchId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUUID() userId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUUID() departmentId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUUID() positionId?: string;
+  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsUUID() userId?: string | null;
+  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsUUID() departmentId?: string | null;
+  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsUUID() positionId?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() fullName?: string;
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;

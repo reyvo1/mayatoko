@@ -16,7 +16,7 @@ import {
   CreateBatchDto, CreateFiscalPeriodDto, CreateLoyaltyProgramDto, CreatePurchaseReturnDto, CreateReconciliationDto,
   CreateSaleReturnDto, CreateSerialDto, CreateShipmentDto, ImportBankStatementDto, ImportMarketplaceOrderDto,
   LoyaltyTransactionDto, MatchBankReconciliationDto, QueueNotificationDto, RegisterDeviceDto, RunForecastDto, UpsertNotificationTemplateDto,
-  AcknowledgeSyncReceiptDto, RotateDeviceCredentialDto, SubmitOfflineTransactionsDto, UnmatchBankReconciliationDto,
+  AcknowledgeSyncReceiptDto, OperatorAssistantQueryDto, RotateDeviceCredentialDto, SubmitOfflineTransactionsDto, UnmatchBankReconciliationDto,
 } from './dto/extensions.dto';
 
 const json = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
@@ -64,6 +64,10 @@ export class ExtensionsService {
       });
     }
     return { companyId: user.companyId, branchId: user.branchId };
+  }
+
+  private hasPermission(user: AuthUser, permission: string): boolean {
+    return user.roles.includes('SUPER_ADMIN') || user.roles.includes('OWNER') || user.permissions.includes('*') || user.permissions.includes(permission);
   }
 
   private async denyTenantAccess(
@@ -118,7 +122,7 @@ export class ExtensionsService {
     scope: TenantScope,
     action: string,
     entityType: string,
-    entityId: string,
+    entityId?: string,
     payload?: Prisma.InputJsonValue,
   ) {
     await client.auditLog.create({
@@ -396,6 +400,12 @@ export class ExtensionsService {
       }
       const producedAt = dto.producedAt ? new Date(dto.producedAt) : undefined;
       const expiryDate = dto.expiryDate ? new Date(dto.expiryDate) : undefined;
+      if (inventory.product.trackExpiry && !expiryDate) {
+        throw new BadRequestException('Produk mengaktifkan pelacakan expiry; tanggal kedaluwarsa batch wajib diisi.');
+      }
+      if (expiryDate && expiryDate <= new Date()) {
+        throw new BadRequestException('Batch yang sudah kedaluwarsa tidak boleh dipraregistrasi.');
+      }
       if (producedAt && expiryDate && expiryDate < producedAt) {
         throw new BadRequestException('Tanggal kedaluwarsa batch tidak boleh sebelum tanggal produksi.');
       }
@@ -1384,13 +1394,19 @@ export class ExtensionsService {
           forecastRunId: run.id,
           warehouseId: warehouse.id,
           productId: inventory.productId,
-          currentStock: inventory.quantity,
+          currentStock: inventory.available,
           reservedStock: inventory.reserved,
           averageDailySales: new Prisma.Decimal(average),
           leadTimeDays,
           safetyStock,
-          suggestedQty: Math.max(0, target - inventory.quantity + inventory.reserved),
-          reason: { model: 'moving_average', lookbackDays, horizonDays, branchId: scope.branchId },
+          suggestedQty: Math.max(0, target - inventory.available),
+          reason: {
+            model: 'moving_average', lookbackDays, horizonDays, leadTimeDays, branchId: scope.branchId,
+            formula: 'target=ceil(avgDailySales*(horizonDays+leadTimeDays))+safetyStock; suggested=max(0,target-available)',
+            inputs: { soldUnits: sold.get(inventory.productId) ?? 0, available: inventory.available, reserved: inventory.reserved, minStock: inventory.product.minStock },
+            confidence: Math.min(0.95, 0.35 + Math.min(0.35, lookbackDays / 180) + Math.min(0.25, (sold.get(inventory.productId) ?? 0) / 100)),
+            sources: [{ type: 'SaleItem', warehouseId: warehouse.id, since: since.toISOString() }, { type: 'Inventory', warehouseId: warehouse.id, productId: inventory.productId }],
+          },
         };
       }).filter((item) => item.suggestedQty > 0);
       if (suggestions.length) await tx.reorderSuggestion.createMany({ data: suggestions });
@@ -1404,6 +1420,162 @@ export class ExtensionsService {
       });
       return completed;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async forecastDetail(id: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const warehouseIds = await this.tenantWarehouseIds(this.prisma, scope);
+    const row = await this.prisma.forecastRun.findFirst({
+      where: { id, companyId: scope.companyId, warehouseId: { in: warehouseIds } },
+      include: { suggestions: { orderBy: { suggestedQty: 'desc' } } },
+    });
+    if (!row) return this.denyTenantAccess(this.prisma, user, scope, 'ForecastRun', id);
+    return row;
+  }
+
+  async operatorInsights(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.operatorInsight.findMany({
+      where: { companyId: scope.companyId, branchId: scope.branchId },
+      orderBy: [{ status: 'asc' }, { lastObservedAt: 'desc' }],
+      take: 200,
+    });
+  }
+
+  async refreshOperatorInsights(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const warehouseIds = await this.tenantWarehouseIds(this.prisma, scope);
+    const candidates: Array<{ fingerprint: string; category: string; severity: string; title: string; summary: string; explanation: Prisma.InputJsonValue; sourceLinks: Prisma.InputJsonValue; recommendedAction?: Prisma.InputJsonValue; createdByRunId?: string }> = [];
+
+    if (this.hasPermission(user, 'forecast.view')) {
+      const latest = await this.prisma.forecastRun.findFirst({
+        where: { companyId: scope.companyId, warehouseId: { in: warehouseIds }, status: 'COMPLETED' },
+        orderBy: { createdAt: 'desc' }, include: { suggestions: { where: { status: 'OPEN' }, orderBy: { suggestedQty: 'desc' }, take: 25 } },
+      });
+      for (const item of latest?.suggestions ?? []) {
+        candidates.push({
+          fingerprint: `forecast:${item.warehouseId}:${item.productId}`,
+          category: 'STOCK', severity: item.suggestedQty >= Math.max(10, item.currentStock) ? 'HIGH' : 'MEDIUM',
+          title: 'Reorder stok disarankan',
+          summary: `Produk ${item.productId} membutuhkan estimasi tambahan ${item.suggestedQty} base unit.`,
+          explanation: json({ currentStock: item.currentStock, reservedStock: item.reservedStock, averageDailySales: item.averageDailySales.toString(), leadTimeDays: item.leadTimeDays, safetyStock: item.safetyStock, suggestedQty: item.suggestedQty, reason: item.reason }),
+          sourceLinks: json([{ type: 'ForecastRun', id: latest!.id, path: `/forecasts/${latest!.id}` }, { type: 'ReorderSuggestion', id: item.id }]),
+          recommendedAction: json({ action: 'REVIEW_REORDER', requiredPermission: 'purchase.create', deepLink: '/admin/procurement/requests', execution: 'HUMAN_CONFIRMATION_REQUIRED' }),
+          createdByRunId: latest!.id,
+        });
+      }
+    }
+
+    if (this.hasPermission(user, 'finance.view')) {
+      const failedEvents = await this.prisma.accountingEvent.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId, status: 'FAILED' }, orderBy: { createdAt: 'desc' }, take: 20 });
+      for (const event of failedEvents) candidates.push({
+        fingerprint: `accounting-failed:${event.id}`, category: 'FINANCE', severity: 'HIGH',
+        title: 'Accounting event gagal', summary: `${event.eventType} belum berhasil diposting.`,
+        explanation: json({ eventType: event.eventType, sourceType: event.sourceType, sourceId: event.sourceId, status: event.status }),
+        sourceLinks: json([{ type: 'AccountingEvent', id: event.id, path: `/accounting/events/${event.id}` }, { type: event.sourceType, id: event.sourceId }]),
+        recommendedAction: json({ action: 'REVIEW_ACCOUNTING_EVENT', requiredPermission: 'accounting.event.view', deepLink: '/admin/finance/ledger', execution: 'HUMAN_CONFIRMATION_REQUIRED' }),
+      });
+    }
+
+    if (this.hasPermission(user, 'automation.manage')) {
+      const failures = await this.prisma.automationJob.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId, status: { in: ['FAILED','RETRYING'] } }, orderBy: { updatedAt: 'desc' }, take: 20 });
+      for (const job of failures) candidates.push({
+        fingerprint: `automation:${job.id}`, category: 'AUTOMATION', severity: job.status === 'FAILED' ? 'HIGH' : 'MEDIUM',
+        title: 'Automation job perlu perhatian', summary: `${job.actionType} berstatus ${job.status} setelah ${job.attempts} attempt.`,
+        explanation: json({ eventType: job.eventType, sourceType: job.sourceType, sourceId: job.sourceId, attempts: job.attempts, maxAttempts: job.maxAttempts, lastError: job.lastError }),
+        sourceLinks: json([{ type: 'AutomationJob', id: job.id }, { type: job.sourceType, id: job.sourceId }]),
+        recommendedAction: json({ action: 'REVIEW_AUTOMATION_JOB', requiredPermission: 'automation.manage', deepLink: '/admin/platform/automation', execution: 'HUMAN_CONFIRMATION_REQUIRED' }),
+      });
+    }
+
+    if (this.hasPermission(user, 'report.view')) {
+      const failedReports = await this.prisma.reportJob.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId, status: 'FAILED' }, orderBy: { updatedAt: 'desc' }, take: 20 });
+      for (const job of failedReports) candidates.push({
+        fingerprint: `report:${job.id}`, category: 'REPORTING', severity: 'MEDIUM', title: 'Report job gagal',
+        summary: `${job.reportType} ${job.format} gagal dibuat.`, explanation: json({ reportType: job.reportType, format: job.format, errorMessage: job.errorMessage }),
+        sourceLinks: json([{ type: 'ReportJob', id: job.id }]), recommendedAction: json({ action: 'REVIEW_REPORT_JOB', requiredPermission: 'report.view', deepLink: '/admin/finance/reports', execution: 'HUMAN_CONFIRMATION_REQUIRED' }),
+      });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      let created = 0; let refreshed = 0;
+      for (const candidate of candidates) {
+        const existing = await tx.operatorInsight.findFirst({ where: { companyId: scope.companyId, branchId: scope.branchId, fingerprint: candidate.fingerprint, status: 'OPEN' } });
+        if (existing) {
+          await tx.operatorInsight.update({ where: { id: existing.id }, data: { severity: candidate.severity, title: candidate.title, summary: candidate.summary, explanation: candidate.explanation, sourceLinks: candidate.sourceLinks, recommendedAction: candidate.recommendedAction, lastObservedAt: new Date() } });
+          refreshed += 1;
+        } else {
+          await tx.operatorInsight.create({ data: { companyId: scope.companyId, branchId: scope.branchId, ...candidate } });
+          created += 1;
+        }
+      }
+      await this.audit(tx, user, scope, 'REFRESH_OPERATOR_INSIGHTS', 'OperatorInsight', undefined, { branchId: scope.branchId, candidateCount: candidates.length, created, refreshed });
+      return { candidateCount: candidates.length, created, refreshed };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async updateOperatorInsightStatus(id: string, status: 'ACKNOWLEDGED'|'DISMISSED', user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const existing = await this.prisma.operatorInsight.findFirst({ where: { id, companyId: scope.companyId, branchId: scope.branchId } });
+    if (!existing) return this.denyTenantAccess(this.prisma, user, scope, 'OperatorInsight', id);
+    if (existing.status !== 'OPEN') throw new BadRequestException('Insight sudah ditutup sebelumnya.');
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const row = await tx.operatorInsight.update({ where: { id }, data: status === 'ACKNOWLEDGED' ? { status, acknowledgedAt: now, acknowledgedById: user.sub } : { status, dismissedAt: now, dismissedById: user.sub } });
+      await this.audit(tx, user, scope, `OPERATOR_INSIGHT_${status}`, 'OperatorInsight', id, { branchId: scope.branchId, fingerprint: existing.fingerprint });
+      return row;
+    });
+  }
+
+  async assistantHistory(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.assistantInteraction.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId, userId: user.sub }, orderBy: { createdAt: 'desc' }, take: 100 });
+  }
+
+  async operatorAssistantQuery(dto: OperatorAssistantQueryDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const q = dto.question.trim();
+    if (!q) throw new BadRequestException('Pertanyaan assistant tidak boleh kosong.');
+    const lower = q.toLowerCase();
+    const inferred = dto.intent && dto.intent !== 'AUTO' ? dto.intent : /stok|stock|reorder|gudang|produk/.test(lower) ? 'STOCK' : /jurnal|finance|keuangan|akunt|account|kas|bank/.test(lower) ? 'FINANCE' : /automation|otomasi|job|rule/.test(lower) ? 'AUTOMATION' : /report|laporan/.test(lower) ? 'REPORTING' : 'AUTO';
+    const sources: Array<Record<string, unknown>> = [];
+    const facts: string[] = [];
+
+    if ((inferred === 'STOCK' || inferred === 'AUTO') && this.hasPermission(user, 'forecast.view')) {
+      const warehouseIds = await this.tenantWarehouseIds(this.prisma, scope);
+      const latest = await this.prisma.forecastRun.findFirst({ where: { companyId: scope.companyId, warehouseId: { in: warehouseIds }, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, include: { suggestions: { where: { status: 'OPEN' }, orderBy: { suggestedQty: 'desc' }, take: 5 } } });
+      if (latest) {
+        facts.push(`Forecast terbaru memiliki ${latest.suggestions.length} saran reorder teratas yang masih OPEN.`);
+        for (const item of latest.suggestions) facts.push(`Produk ${item.productId}: available ${item.currentStock}, saran reorder ${item.suggestedQty}, rata-rata jual ${item.averageDailySales}/hari.`);
+        sources.push({ type: 'ForecastRun', id: latest.id, path: `/forecasts/${latest.id}` });
+      }
+    }
+    if ((inferred === 'FINANCE' || inferred === 'AUTO') && this.hasPermission(user, 'finance.view')) {
+      const [failed, pending] = await Promise.all([
+        this.prisma.accountingEvent.count({ where: { companyId: scope.companyId, branchId: scope.branchId, status: 'FAILED' } }),
+        this.prisma.operationalFinanceTransaction.count({ where: { companyId: scope.companyId, branchId: scope.branchId, status: { in: ['DRAFT','WAITING_APPROVAL','APPROVED'] } } }),
+      ]);
+      facts.push(`Accounting event FAILED: ${failed}; finance transaction belum final: ${pending}.`);
+      sources.push({ type: 'AccountingEvent', filter: { branchId: scope.branchId, status: 'FAILED' }, path: '/admin/finance/ledger' });
+    }
+    if ((inferred === 'AUTOMATION' || inferred === 'AUTO') && this.hasPermission(user, 'automation.manage')) {
+      const failed = await this.prisma.automationJob.count({ where: { companyId: scope.companyId, branchId: scope.branchId, status: { in: ['FAILED','RETRYING'] } } });
+      facts.push(`Automation job FAILED/RETRYING: ${failed}.`); sources.push({ type: 'AutomationJob', filter: { branchId: scope.branchId }, path: '/admin/platform/automation' });
+    }
+    if ((inferred === 'REPORTING' || inferred === 'AUTO') && this.hasPermission(user, 'report.view')) {
+      const failed = await this.prisma.reportJob.count({ where: { companyId: scope.companyId, branchId: scope.branchId, status: 'FAILED' } });
+      facts.push(`Report job FAILED: ${failed}.`); sources.push({ type: 'ReportJob', filter: { branchId: scope.branchId, status: 'FAILED' }, path: '/admin/finance/reports' });
+    }
+    if (!facts.length) facts.push('Tidak ada sumber yang dapat dibaca dengan permission pengguna saat ini untuk intent tersebut.');
+    const confidence = sources.length ? Math.min(0.98, 0.55 + sources.length * 0.1) : 0.2;
+    const response = {
+      answer: facts.join(' '), intent: inferred, confidence,
+      guardrail: 'Assistant hanya merangkum sumber tenant/branch yang diizinkan dan tidak mengeksekusi mutasi bisnis.',
+      recommendedNextStep: sources.length ? { execution: 'HUMAN_CONFIRMATION_REQUIRED', deepLink: sources[0].path ?? null } : null,
+    };
+    const row = await this.prisma.assistantInteraction.create({ data: { companyId: scope.companyId, branchId: scope.branchId, userId: user.sub, question: q, intent: inferred, response: json(response), sourceLinks: json(sources), confidence: new Prisma.Decimal(confidence) } });
+    await this.audit(this.prisma, user, scope, 'QUERY_OPERATOR_ASSISTANT', 'AssistantInteraction', row.id, { branchId: scope.branchId, intent: inferred, sourceCount: sources.length });
+    return { id: row.id, ...response, sources };
   }
 
   async shipments(user: AuthUser) {
@@ -1517,17 +1689,37 @@ export class ExtensionsService {
     });
   }
 
-  async notifications(user: AuthUser) {
+  async notificationProviders(user: AuthUser) {
     const scope = this.requireTenantScope(user);
+    const rows = await this.prisma.integrationConnection.findMany({
+      where: { companyId: scope.companyId, type: 'NOTIFICATION', OR: [{ branchId: scope.branchId }, { branchId: null }] },
+      orderBy: [{ branchId: 'desc' }, { createdAt: 'asc' }],
+      take: 100,
+    });
+    return rows.map(({ encryptedSecrets, ...row }) => ({ ...row, hasSecrets: Boolean(encryptedSecrets) }));
+  }
+
+  async notifications(user: AuthUser, channel?: string, status?: string, limit = 200) {
+    const scope = this.requireTenantScope(user);
+    const take = Math.max(1, Math.min(Number.isFinite(limit) ? Math.floor(limit) : 200, 500));
+    const normalizedChannel = channel?.trim().toUpperCase();
+    const normalizedStatus = status?.trim().toUpperCase();
+    const allowedChannels = ['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'];
+    const allowedStatuses = ['QUEUED','SENT','DELIVERED','FAILED','CANCELLED'];
+    if (normalizedChannel && !allowedChannels.includes(normalizedChannel)) throw new BadRequestException('Channel notifikasi tidak valid.');
+    if (normalizedStatus && !allowedStatuses.includes(normalizedStatus)) throw new BadRequestException('Status notifikasi tidak valid.');
     const rows = await this.prisma.notification.findMany({
       where: { companyId: scope.companyId },
       orderBy: { createdAt: 'desc' },
-      take: 500,
+      take: Math.min(take * 10, 5000),
     });
     return rows.filter((row) => {
       const data = row.data as Record<string, unknown> | null;
-      return !data?.branchId || data.branchId === scope.branchId;
-    }).slice(0, 200);
+      const branchAllowed = !data?.branchId || data.branchId === scope.branchId;
+      const channelAllowed = !normalizedChannel || row.channel === normalizedChannel;
+      const statusAllowed = !normalizedStatus || row.status === normalizedStatus;
+      return branchAllowed && channelAllowed && statusAllowed;
+    }).slice(0, take);
   }
 
   async queueNotification(dto: QueueNotificationDto, user: AuthUser) {

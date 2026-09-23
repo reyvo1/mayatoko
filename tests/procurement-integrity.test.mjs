@@ -18,8 +18,9 @@ const accountingUi = read('apps/admin/app/modules/accounting.tsx');
 const operationsUi = read('apps/admin/app/modules/operations-control.tsx');
 
 test('purchase order money arithmetic uses Decimal and create is idempotent', () => {
-  assert.match(po, /sum\.add\(new Prisma\.Decimal\(item\.unitCost\)\.mul\(item\.orderedQty\)\)/);
-  assert.match(po, /subtotal: new Prisma\.Decimal\(item\.unitCost\)\.mul\(item\.orderedQty\)/);
+  assert.match(po, /purchaseUnitCost = new Prisma\.Decimal\(item\.unitCost\)/);
+  assert.match(po, /baseUnitCost = purchaseUnitCost\.div\(quantityFactor\)/);
+  assert.match(po, /subtotal: purchaseUnitCost\.mul\(item\.orderedQty\)/);
   assert.doesNotMatch(po, /item\.orderedQty \* item\.unitCost/);
   assert.match(po, /beginIdempotent\([\s\S]*scope: scopeKey/);
   assert.doesNotMatch(po, /releaseIdempotent\(this\.prisma/);

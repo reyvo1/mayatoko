@@ -48,6 +48,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -74,6 +76,27 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Rehearse expand migrations from previous source baseline
+        id: migration_rehearsal
+        shell: bash
+        env:
+          PGPASSWORD: toko360_ci_password
+          T360_MIGRATION_DATABASE_URL: postgresql://postgres:toko360_ci_password@localhost:5432/toko360_migration_rehearsal
+        run: |
+          set -euo pipefail
+          BASE_REF="${{ github.event.before }}"
+          if [ -z "$BASE_REF" ] || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE_REF^{commit}" 2>/dev/null; then
+            BASE_REF="$(git rev-parse HEAD^)"
+          fi
+          echo "Migration rehearsal baseline: $BASE_REF"
+          export PGPASSWORD=toko360_ci_password
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='toko360_migration_rehearsal' AND pid <> pg_backend_pid();
+          DROP DATABASE IF EXISTS toko360_migration_rehearsal;
+          CREATE DATABASE toko360_migration_rehearsal;
+          SQL
+          T360_MIGRATION_BASE_REF="$BASE_REF" npm run db:migrations:rehearse:postgres
 
       - name: Prepare PostgreSQL databases and exact UAT env
         id: env
@@ -201,6 +224,7 @@ jobs:
         if: always()
         shell: bash
         env:
+          STEP_MIGRATION: ${{ steps.migration_rehearsal.outcome }}
           STEP_ENV: ${{ steps.env.outcome }}
           STEP_SCHEMA: ${{ steps.schema.outcome }}
           STEP_SEED: ${{ steps.seed.outcome }}
@@ -238,6 +262,7 @@ jobs:
         if: always()
         shell: bash
         env:
+          STEP_MIGRATION: ${{ steps.migration_rehearsal.outcome }}
           STEP_ENV: ${{ steps.env.outcome }}
           STEP_SCHEMA: ${{ steps.schema.outcome }}
           STEP_SEED: ${{ steps.seed.outcome }}
@@ -260,6 +285,7 @@ jobs:
             fi
           }
 
+          check "Expand migration rehearsal" "$STEP_MIGRATION"
           check "UAT env" "$STEP_ENV"
           check "PostgreSQL schema" "$STEP_SCHEMA"
           check "PostgreSQL seed" "$STEP_SEED"

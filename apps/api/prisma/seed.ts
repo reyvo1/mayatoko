@@ -100,7 +100,7 @@ async function main() {
     'order.view','order.manage','order.cancel','shipment.manage',
     'payment.view','payment.manage','payment.refund','payment.reconcile',
     'finance.view','finance.create','finance.post','finance.journal','finance.expense','finance.approve','finance.close_period','finance.reconcile',
-    'loyalty.view','loyalty.manage','promotion.view','promotion.manage','forecast.view','forecast.run',
+    'loyalty.view','loyalty.manage','promotion.view','promotion.manage','forecast.view','forecast.run','assistant.use','assistant.manage',
     'integration.view','integration.manage','webhook.manage','notification.manage','api_key.view','api_key.manage',
     'platform.configure','approval.manage','custom_field.manage','ui_schema.manage',
     'user.manage','role.manage','report.view','report.export','audit.view',
@@ -230,7 +230,7 @@ async function main() {
 
   if (demoSeed) {
     const category = await prisma.category.upsert({
-      where: { slug: 'produk-umum' }, update: { companyId: company.id }, create: { companyId: company.id, name: 'Produk Umum', slug: 'produk-umum' },
+      where: { companyId_slug: { companyId: company.id, slug: 'produk-umum' } }, update: { name: 'Produk Umum' }, create: { companyId: company.id, name: 'Produk Umum', slug: 'produk-umum' },
     });
     const supplier = await prisma.supplier.upsert({
       where: { code: 'SUP-001' }, update: { companyId: company.id },
@@ -437,9 +437,9 @@ async function main() {
     { code: 'PAYROLL_WITHHOLDING', name: 'Pemotongan Pajak Payroll', scope: 'WITHHOLDING', rate: 0, inclusive: false, recoverable: false, status: 'ACTIVE', payableAccountCode: '2103' },
   ] as const;
   for (const item of taxCodes) await prisma.taxCode.upsert({
-    where: { companyId_code: { companyId: company.id, code: item.code } },
+    where: { companyId_code_version: { companyId: company.id, code: item.code, version: 1 } },
     update: { ...item, scope: item.scope as never, rate: new Prisma.Decimal(item.rate) },
-    create: { companyId: company.id, ...item, scope: item.scope as never, rate: new Prisma.Decimal(item.rate), legalReference: 'Isi dan verifikasi sesuai aturan perpajakan yang berlaku sebelum aktivasi.' },
+    create: { companyId: company.id, version: 1, ...item, scope: item.scope as never, rate: new Prisma.Decimal(item.rate), legalReference: 'Isi dan verifikasi sesuai aturan perpajakan yang berlaku sebelum aktivasi.' },
   });
 
   const postingRules: Array<{ code: string; eventType: string; lines: Array<Record<string, unknown>> }> = [
@@ -749,7 +749,7 @@ async function main() {
       'order.view','order.manage','order.cancel','shipment.manage',
       'payment.view','payment.manage','payment.refund','payment.reconcile',
       'finance.view','finance.create','finance.post','finance.journal','finance.expense','finance.approve','finance.close_period','finance.reconcile',
-      'loyalty.view','loyalty.manage','forecast.view','forecast.run',
+      'loyalty.view','loyalty.manage','forecast.view','forecast.run','assistant.use','assistant.manage',
       'promotion.view','promotion.manage',
       'integration.view','integration.manage','webhook.manage','notification.manage','api_key.view','api_key.manage',
       'platform.configure','approval.manage','custom_field.manage','ui_schema.manage',

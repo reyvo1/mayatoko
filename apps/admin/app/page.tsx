@@ -9,6 +9,7 @@ import AnalyticsWidgets from './analytics';
 import OwnerView from './owner';
 import AccountingView from './modules/accounting';
 import HrPayrollView from './modules/hr-payroll';
+import EmployeeMasterView from './modules/employee-master';
 import OperationsView from './modules/operations';
 import AssetsFleetView from './modules/assets-fleet';
 import ExtensionsView from './modules/extensions';
@@ -16,6 +17,8 @@ import OperationsControlView from './modules/operations-control';
 import MasterDataView from './modules/master-data';
 import ApiKeysView from './modules/api-keys';
 import SecurityView from './modules/security';
+import AutomationWorkspace from './modules/automation-workspace';
+import AiWorkspace from './modules/ai-workspace';
 import { CountUp } from './ui';
 import AdminAppShell from './app-shell';
 import { authFetch, clearLoginTokens, storeLoginTokens } from './auth-fetch';
@@ -48,10 +51,10 @@ function ToastStack({ toasts }: { toasts: ToastItem[] }) {
 }
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
-type Product = { id: string; sku: string; name: string; costPrice: string | number; salePrice: string | number };
+type Product = { id: string; sku: string; name: string; unit: string; costPrice: string | number; salePrice: string | number; trackBatch?: boolean; trackExpiry?: boolean; trackSerial?: boolean; variants?: Array<{ id: string; code: string; name: string; isDefault?: boolean }>; units?: Array<{ id: string; variantId?: string | null; unitCode: string; quantityFactor: number; isDefaultPurchase?: boolean }> };
 type Supplier = { id: string; code: string; name: string; phone?: string };
 type Warehouse = { id: string; code: string; name: string; branch: { name: string } };
-type POItem = { id: string; productId: string; orderedQty: number; receivedQty: number; unitCost: string | number; product: Product };
+type POItem = { id: string; productId: string; variantId?: string | null; productUnitId?: string | null; unitCode?: string | null; unitQuantity?: number | null; quantityFactor: number; orderedQty: number; receivedQty: number; unitCost: string | number; purchaseUnitCost?: string | number | null; product: Product };
 type PurchaseOrder = { id: string; number: string; status: string; supplier: Supplier; warehouse: Warehouse; total: string | number; items: POItem[] };
 type PurchaseRequest = { id: string; number: string; status: string; reason?: string | null; neededBy?: string | null; supplier?: Supplier | null; warehouse: Warehouse; purchaseOrderId?: string | null; items: Array<{ id: string; quantity: number; estimatedUnitCost: string | number; product: Product }> };
 type Receipt = { id: string; number: string; receivedAt: string; operationalStatus: string; inspectionId?: string | null; supplier: Supplier; purchaseOrder: { number: string }; items: Array<{ acceptedQty: number; quantityDamaged: number; product: Product }> };
@@ -100,8 +103,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [supplierForm, setSupplierForm] = useState({ code: '', name: '', phone: '' });
   const [purchaseRequestForm, setPurchaseRequestForm] = useState({ supplierId: '', warehouseId: '', productId: '', quantity: 1, estimatedUnitCost: 0, reason: '' });
-  const [poForm, setPoForm] = useState({ supplierId: '', warehouseId: '', productId: '', orderedQty: 1, unitCost: 0 });
-  const [receiptForm, setReceiptForm] = useState({ purchaseOrderId: '', purchaseOrderItemId: '', quantityReceived: 1, quantityDamaged: 0, supplierInvoice: '', deliveryNote: '' });
+  const [poForm, setPoForm] = useState({ supplierId: '', warehouseId: '', productId: '', variantId: '', productUnitId: '', orderedQty: 1, unitCost: 0 });
+  const [receiptForm, setReceiptForm] = useState({ purchaseOrderId: '', purchaseOrderItemId: '', quantityReceived: 1, quantityDamaged: 0, supplierInvoice: '', deliveryNote: '', batchNumber: '', expiryDate: '', serialNumbers: '' });
   const poRequestKey = useRef(requestKey('po'));
   const receiptRequestKey = useRef(requestKey('gr'));
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', roleName: 'CASHIER' });
@@ -257,7 +260,7 @@ export default function AdminPage() {
   async function addPO(event: FormEvent) {
     event.preventDefault();
     try {
-      await request('/purchase-orders', { method: 'POST', body: JSON.stringify({ idempotencyKey: poRequestKey.current, supplierId: poForm.supplierId, warehouseId: poForm.warehouseId, items: [{ productId: poForm.productId, orderedQty: Number(poForm.orderedQty), unitCost: Number(poForm.unitCost) }] }) });
+      await request('/purchase-orders', { method: 'POST', body: JSON.stringify({ idempotencyKey: poRequestKey.current, supplierId: poForm.supplierId, warehouseId: poForm.warehouseId, items: [{ productId: poForm.productId, variantId: poForm.variantId || undefined, productUnitId: poForm.productUnitId || undefined, orderedQty: Number(poForm.orderedQty), unitCost: Number(poForm.unitCost) }] }) });
       poRequestKey.current = requestKey('po');
       notify('Purchase order berhasil dibuat dan berstatus APPROVED.'); await loadAll(token!);
     } catch (error) { notify(error instanceof Error ? error.message : 'Gagal membuat PO.', 'error'); }
@@ -270,7 +273,14 @@ export default function AdminPage() {
         idempotencyKey: receiptRequestKey.current,
         purchaseOrderId: receiptForm.purchaseOrderId, supplierInvoice: receiptForm.supplierInvoice || undefined,
         deliveryNote: receiptForm.deliveryNote || undefined,
-        items: [{ purchaseOrderItemId: receiptForm.purchaseOrderItemId, quantityReceived: Number(receiptForm.quantityReceived), quantityDamaged: Number(receiptForm.quantityDamaged) }],
+        items: [{
+          purchaseOrderItemId: receiptForm.purchaseOrderItemId,
+          quantityReceived: Number(receiptForm.quantityReceived),
+          quantityDamaged: Number(receiptForm.quantityDamaged),
+          batchNumber: receiptForm.batchNumber.trim() || undefined,
+          expiryDate: receiptForm.expiryDate || undefined,
+          serialNumbers: receiptForm.serialNumbers.split(/[,\n]/).map((value) => value.trim()).filter(Boolean),
+        }],
       }) });
       receiptRequestKey.current = requestKey('gr');
       notify(created.operationalStatus === 'CONFIRMED' || created.operationalStatus === 'PARTIALLY_ACCEPTED'
@@ -297,9 +307,10 @@ export default function AdminPage() {
   }
 
   const selectedPO = useMemo(() => orders.find((order) => order.id === receiptForm.purchaseOrderId), [orders, receiptForm.purchaseOrderId]);
+  const selectedPOItem = useMemo(() => selectedPO?.items.find((item) => item.id === receiptForm.purchaseOrderItemId), [selectedPO, receiptForm.purchaseOrderItemId]);
   useEffect(() => {
     if (selectedPO && !selectedPO.items.some((item) => item.id === receiptForm.purchaseOrderItemId)) {
-      setReceiptForm((current) => ({ ...current, purchaseOrderItemId: selectedPO.items[0]?.id ?? '' }));
+      setReceiptForm((current) => ({ ...current, purchaseOrderItemId: selectedPO.items[0]?.id ?? '', batchNumber: '', expiryDate: '', serialNumbers: '' }));
     }
   }, [selectedPO, receiptForm.purchaseOrderItemId]);
 
@@ -366,13 +377,13 @@ export default function AdminPage() {
           </>}
 
           {activeNav === 'Owner Suite' && <OwnerView token={token} />}
-          {activeNav === 'Master Data' && <MasterDataView token={token} />}
-          {activeNav === 'Akuntansi & Kas' && <AccountingView token={token} />}
-          {activeNav === 'HRIS & Payroll' && <HrPayrollView token={token} />}
+          {activeNav === 'Master Data' && <MasterDataView token={token} mode={activeDomainView?.key} />}
+          {activeNav === 'Akuntansi & Kas' && <AccountingView token={token} mode={activeDomainView?.key} />}
+          {activeNav === 'HRIS & Payroll' && (activeDomainView?.key === 'employees' ? <EmployeeMasterView token={token} /> : <HrPayrollView token={token} />)}
           {activeNav === 'Retur & Transfer' && <OperationsView token={token} />}
           {activeNav === 'Aset & Fleet' && <AssetsFleetView token={token} />}
           {activeNav === 'Kontrol Operasional' && <OperationsControlView token={token} />}
-          {activeNav === 'Loyalty & Devices' && <ExtensionsView token={token} mode="extensions" />}
+          {activeNav === 'Loyalty & Devices' && (activeDomainView?.key === 'ai' ? <AiWorkspace token={token} /> : <ExtensionsView token={token} mode="extensions" />)}
           {activeNav === 'Storefront & Fulfillment' && <ExtensionsView token={token} mode="commerce" />}
 
           {activeNav === 'Pembelian & Stok' && <>
@@ -394,15 +405,17 @@ export default function AdminPage() {
             </section>
             <section className="grid2">
               <form className="panel" onSubmit={addSupplier}><div className="panelTitle"><div><span className="eyebrow">MASTER DATA</span><h2>Tambah supplier</h2></div></div><label>Kode<input required value={supplierForm.code} onChange={(e) => setSupplierForm({ ...supplierForm, code: e.target.value })} /></label><label>Nama<input required value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} /></label><label>Telepon<input value={supplierForm.phone} onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })} /></label><button>Simpan supplier</button></form>
-              <form className="panel" onSubmit={addPO}><div className="panelTitle"><div><span className="eyebrow">PEMBELIAN</span><h2>Buat purchase order</h2></div></div><label>Supplier<select required value={poForm.supplierId} onChange={(e) => setPoForm({ ...poForm, supplierId: e.target.value })}>{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Gudang<select required value={poForm.warehouseId} onChange={(e) => setPoForm({ ...poForm, warehouseId: e.target.value })}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Produk<select required value={poForm.productId} onChange={(e) => { const product = products.find((p) => p.id === e.target.value); setPoForm({ ...poForm, productId: e.target.value, unitCost: Number(product?.costPrice ?? 0) }); }}>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="inline"><label>Jumlah<input type="number" min="1" value={poForm.orderedQty} onChange={(e) => setPoForm({ ...poForm, orderedQty: Number(e.target.value) })} /></label><label>Harga beli<input type="number" min="0" value={poForm.unitCost} onChange={(e) => setPoForm({ ...poForm, unitCost: Number(e.target.value) })} /></label></div><button>Buat PO</button></form>
+              <form className="panel" onSubmit={addPO}><div className="panelTitle"><div><span className="eyebrow">PEMBELIAN</span><h2>Buat purchase order</h2></div></div><label>Supplier<select required value={poForm.supplierId} onChange={(e) => setPoForm({ ...poForm, supplierId: e.target.value })}>{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Gudang<select required value={poForm.warehouseId} onChange={(e) => setPoForm({ ...poForm, warehouseId: e.target.value })}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Produk<select required value={poForm.productId} onChange={(e) => { const product = products.find((p) => p.id === e.target.value); const defaultUnit = product?.units?.find((u) => u.isDefaultPurchase) ?? product?.units?.[0]; setPoForm({ ...poForm, productId: e.target.value, variantId: defaultUnit?.variantId ?? '', productUnitId: defaultUnit?.id ?? '', unitCost: Number(product?.costPrice ?? 0) * Number(defaultUnit?.quantityFactor ?? 1) }); }}>{products.map((item) => <option key={item.id} value={item.id}>{item.name} · base {item.unit}</option>)}</select></label><div className="inline"><label>Variant<select value={poForm.variantId} onChange={(e) => setPoForm({ ...poForm, variantId: e.target.value, productUnitId: '' })}><option value="">Produk dasar</option>{(products.find((p) => p.id === poForm.productId)?.variants ?? []).map((variant) => <option key={variant.id} value={variant.id}>{variant.code} · {variant.name}</option>)}</select></label><label>Unit pembelian<select value={poForm.productUnitId} onChange={(e) => { const product = products.find((p) => p.id === poForm.productId); const unit = product?.units?.find((u) => u.id === e.target.value); setPoForm({ ...poForm, productUnitId: e.target.value, variantId: unit?.variantId ?? poForm.variantId, unitCost: Number(product?.costPrice ?? 0) * Number(unit?.quantityFactor ?? 1) }); }}><option value="">{products.find((p) => p.id === poForm.productId)?.unit ?? 'BASE'} · base unit</option>{(products.find((p) => p.id === poForm.productId)?.units ?? []).filter((u) => !poForm.variantId || u.variantId === poForm.variantId).map((unit) => <option key={unit.id} value={unit.id}>{unit.unitCode} · isi {unit.quantityFactor}</option>)}</select></label></div><div className="inline"><label>Jumlah unit beli<input type="number" min="1" value={poForm.orderedQty} onChange={(e) => setPoForm({ ...poForm, orderedQty: Number(e.target.value) })} /></label><label>Harga per unit beli<input type="number" min="0" value={poForm.unitCost} onChange={(e) => setPoForm({ ...poForm, unitCost: Number(e.target.value) })} /></label></div><button>Buat PO</button></form>
             </section>
 
             <section className="panel highlight">
               <div className="panelTitle"><div><span className="eyebrow">GUDANG</span><h2>Terima barang dari supplier</h2></div><span>Posting mengikuti inspeksi server</span></div>
               <form className="receiptForm" onSubmit={addReceipt}>
                 <label>Purchase order<select required value={receiptForm.purchaseOrderId} onChange={(e) => setReceiptForm({ ...receiptForm, purchaseOrderId: e.target.value, purchaseOrderItemId: orders.find((po) => po.id === e.target.value)?.items[0]?.id ?? '' })}><option value="">Pilih PO</option>{orders.filter((po) => !['RECEIVED','CANCELLED'].includes(po.status)).map((po) => <option key={po.id} value={po.id}>{po.number} · {po.supplier.name} · {po.status}</option>)}</select></label>
-                <label>Barang<select required value={receiptForm.purchaseOrderItemId} onChange={(e) => setReceiptForm({ ...receiptForm, purchaseOrderItemId: e.target.value })}><option value="">Pilih barang</option>{selectedPO?.items.map((item) => <option key={item.id} value={item.id}>{item.product.name} · sisa {item.orderedQty - item.receivedQty}</option>)}</select></label>
+                <label>Barang<select required value={receiptForm.purchaseOrderItemId} onChange={(e) => setReceiptForm({ ...receiptForm, purchaseOrderItemId: e.target.value, batchNumber: '', expiryDate: '', serialNumbers: '' })}><option value="">Pilih barang</option>{selectedPO?.items.map((item) => <option key={item.id} value={item.id}>{item.product.name} · sisa {Math.floor((item.orderedQty - item.receivedQty) / Math.max(1, item.quantityFactor || 1))} {item.unitCode ?? item.product.unit}</option>)}</select></label>
                 <div className="inline"><label>Jumlah datang<input type="number" min="1" value={receiptForm.quantityReceived} onChange={(e) => setReceiptForm({ ...receiptForm, quantityReceived: Number(e.target.value) })} /></label><label>Rusak<input type="number" min="0" max={receiptForm.quantityReceived} value={receiptForm.quantityDamaged} onChange={(e) => setReceiptForm({ ...receiptForm, quantityDamaged: Number(e.target.value) })} /></label></div>
+                {selectedPOItem?.product.trackBatch && <div className="inline"><label>Nomor batch<input required value={receiptForm.batchNumber} onChange={(e) => setReceiptForm({ ...receiptForm, batchNumber: e.target.value })} /></label><label>Kedaluwarsa{selectedPOItem.product.trackExpiry ? ' (wajib)' : ''}<input type="date" required={Boolean(selectedPOItem.product.trackExpiry)} value={receiptForm.expiryDate} onChange={(e) => setReceiptForm({ ...receiptForm, expiryDate: e.target.value })} /></label></div>}
+                {selectedPOItem?.product.trackSerial && <label>Serial accepted unit<textarea required value={receiptForm.serialNumbers} onChange={(e) => setReceiptForm({ ...receiptForm, serialNumbers: e.target.value })} placeholder="Satu serial per baris atau pisahkan dengan koma" /><small>Jumlah serial harus sama dengan jumlah diterima dikurangi rusak, lalu dikalikan faktor UOM karena serial mengikuti base unit.</small></label>}
                 <div className="inline"><label>Faktur supplier<input value={receiptForm.supplierInvoice} onChange={(e) => setReceiptForm({ ...receiptForm, supplierInvoice: e.target.value })} /></label><label>Surat jalan<input value={receiptForm.deliveryNote} onChange={(e) => setReceiptForm({ ...receiptForm, deliveryNote: e.target.value })} /></label></div>
                 <button>Proses barang masuk</button>
               </form>
@@ -414,7 +427,7 @@ export default function AdminPage() {
             </section>
           </>}
 
-          {activeNav === 'Sistem & Akses' && <>
+          {activeNav === 'Sistem & Akses' && (activeDomainView?.key === 'automation' ? <AutomationWorkspace token={token} /> : <>
             <section className="panel">
               <div className="panelTitle"><div><span className="eyebrow">RUNTIME MODULES</span><h2>Feature flags</h2></div><span>{Object.values(manifest?.features ?? {}).filter((feature) => feature.enabled).length} aktif</span></div>
               <p className="sectionHelp">Perubahan flag memengaruhi kemampuan runtime. Gunakan hanya untuk feature yang memang memiliki implementasi backend/UI.</p>
@@ -426,7 +439,7 @@ export default function AdminPage() {
             </section>
             <SecurityView token={token} />
             <ApiKeysView token={token} />
-          </>}
+          </>)}
 
         {featureChange && <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="feature-change-title">
           <div className="modalCard">
