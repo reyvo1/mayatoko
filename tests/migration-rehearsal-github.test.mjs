@@ -32,6 +32,10 @@ test('migration rehearsal refuses mutation of an already-existing migration and 
   assert.match(rehearsal, /compareSchemaContract/);
   assert.match(rehearsal, /missingTables/);
   assert.match(rehearsal, /missingColumns/);
+  assert.match(rehearsal, /generateScratchClient/);
+  assert.match(rehearsal, /output = \"\$\{normalizedOutput\}\"/);
+  assert.match(rehearsal, /pathToFileURL\(entry\)/);
+  assert.doesNotMatch(rehearsal, /import\('@prisma\/client'\)/);
   assert.doesNotMatch(rehearsal, /PGPASSWORD[^\n]*commandArgs/);
 });
 

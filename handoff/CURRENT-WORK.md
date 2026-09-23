@@ -244,3 +244,11 @@ UI-P7 sekarang VERIFICATION:
 - Root compile issues were fixed in Admin tax workspace, current-schema seed selectors, Accounting Core null narrowing, aggregate audit typing, AP aging typing, Purchase UOM prepared-item typing, and Sales variant/ProductUnit snapshot typing.
 - Added `tests/local-candidate-typescript-regressions.test.mjs`; source gates now PASS with 829/829 dependency-free tests.
 - Next gate remains `npm run uat:pre-github:local` on the dependency-complete local repo. Do not push to GitHub heavy simulation until that local gate is fully PASS.
+
+### 2026-09-23 — GitHub migration rehearsal blocker fixed
+- GitHub Full System Simulation reached PostgreSQL expand migration rehearsal.
+- All 11 F2-F11 PostgreSQL expand migrations applied successfully.
+- Failure occurred only during current-schema verification because `@prisma/client` had not been initialized in that workflow ordering.
+- Root fix: rehearsal generates an isolated scratch Prisma Client from the current provider schema, verifies the migrated scratch DB, then deletes the scratch directory. It does not regenerate/mutate the exact build artifact client.
+- Validation after fix: targeted GitHub/migration guards 15/15 PASS; workflow validate PASS; repo validate PASS; dependency-free regression 829/829 PASS.
+- Next: apply patch, rerun local static gate, commit/push, rerun GitHub Full System Simulation. Human Stage-20 remains PENDING.

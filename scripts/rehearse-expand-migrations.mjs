@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnNpmSync } from './lib/process-runner.mjs';
 import { buildExpectedSchemaContract, compareSchemaContract } from './lib/postgres-schema-contract.mjs';
 
@@ -107,13 +107,37 @@ function npmPrisma(args, env) {
   }
 }
 
+
+function schemaWithScratchClient(schemaSource, outputDir) {
+  const normalizedOutput = path.resolve(outputDir).replaceAll('\\', '/').replaceAll('"', '\\"');
+  const generatorPattern = /generator\s+client\s*\{([\s\S]*?)\}/m;
+  const match = schemaSource.match(generatorPattern);
+  if (!match) throw new Error('Generator Prisma client tidak ditemukan pada schema saat ini.');
+  const body = match[1].replace(/^\s*output\s*=.*$/m, '').trimEnd();
+  return schemaSource.replace(generatorPattern, `generator client {${body}\n  output = "${normalizedOutput}"\n}`);
+}
+
+async function generateScratchClient(tempDir, databaseUrl) {
+  const currentSchemaSource = fs.readFileSync(path.join(root, schemaRelative), 'utf8');
+  const scratchClientDir = path.join(tempDir, `prisma-client-${provider}`);
+  const verificationSchema = path.join(tempDir, `verification-${provider}.prisma`);
+  fs.writeFileSync(verificationSchema, schemaWithScratchClient(currentSchemaSource, scratchClientDir));
+  npmPrisma(['generate', '--schema', verificationSchema], {
+    DATABASE_URL: databaseUrl,
+    DATABASE_PROFILE: provider,
+  });
+  const entry = path.join(scratchClientDir, 'index.js');
+  if (!fs.existsSync(entry)) throw new Error('Scratch Prisma Client tidak terbentuk untuk verifikasi migration rehearsal.');
+  return import(`${pathToFileURL(entry).href}?t=${Date.now()}`);
+}
+
 function sqliteUrl(file) {
   return `file:${path.resolve(file).replaceAll('\\', '/')}`;
 }
 
-async function verifySqlite(databaseFile) {
+async function verifySqlite(databaseFile, verificationClient) {
   const { DatabaseSync } = await import('node:sqlite');
-  const { Prisma } = await import('@prisma/client');
+  const { Prisma } = verificationClient;
   const db = new DatabaseSync(databaseFile);
   try {
     const tables = db.prepare("SELECT name AS table_name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
@@ -196,12 +220,12 @@ function applyPostgres(files, target) {
   }
 }
 
-async function verifyPostgres(targetUrl) {
+async function verifyPostgres(targetUrl, verificationClient) {
   const previous = process.env.DATABASE_URL;
   process.env.DATABASE_URL = targetUrl;
   let prisma;
   try {
-    const { Prisma, PrismaClient } = await import('@prisma/client');
+    const { Prisma, PrismaClient } = verificationClient;
     prisma = new PrismaClient();
     const expected = buildExpectedSchemaContract(Prisma.dmmf);
     const [tables, columns, enums, indexes] = await Promise.all([
@@ -243,14 +267,16 @@ async function main() {
       const databaseUrl = sqliteUrl(databaseFile);
       npmPrisma(['db', 'push', '--schema', baseSchemaFile, '--skip-generate'], { DATABASE_URL: databaseUrl, DATABASE_PROFILE: 'sqlite' });
       await applySqlite(pending, databaseFile);
-      await verifySqlite(databaseFile);
+      const verificationClient = await generateScratchClient(tempDir, databaseUrl);
+      await verifySqlite(databaseFile, verificationClient);
     } else {
       const raw = process.env.T360_MIGRATION_DATABASE_URL;
       if (!raw) throw new Error('T360_MIGRATION_DATABASE_URL wajib untuk PostgreSQL rehearsal.');
       const target = postgresConnection(raw);
       npmPrisma(['db', 'push', '--schema', baseSchemaFile, '--skip-generate'], { DATABASE_URL: raw, DATABASE_PROFILE: 'postgresql' });
       applyPostgres(pending, target);
-      await verifyPostgres(raw);
+      const verificationClient = await generateScratchClient(tempDir, raw);
+      await verifyPostgres(raw, verificationClient);
     }
 
     console.log(`Migration rehearsal PASS — ${pending.length} migration(s) membawa baseline ${baseRef} ke schema saat ini.`);
