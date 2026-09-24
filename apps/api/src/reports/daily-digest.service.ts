@@ -1,7 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../auth/auth.types';
-import { Roles } from '../auth/roles.decorator';
 
 /**
  * T360-20260825 OWNER VALUE PACK
@@ -12,7 +11,7 @@ import { Roles } from '../auth/roles.decorator';
 
 const DIGEST_SETTING_KEY = 'daily_digest';
 
-export type DigestConfig = { enabled: boolean; hour: number; recipients: string[] };
+export type DigestConfig = { enabled: boolean; hour: number; recipientBindingIds: string[] };
 
 @Injectable()
 export class DailyDigestService {
@@ -22,21 +21,27 @@ export class DailyDigestService {
     const setting = await this.prisma.systemSetting.findFirst({
       where: { companyId, namespace: 'reports', key: DIGEST_SETTING_KEY },
     });
-    if (!setting) return { enabled: false, hour: 21, recipients: [] };
+    if (!setting) return { enabled: false, hour: 21, recipientBindingIds: [] };
     try {
       const parsed = (typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value) as Partial<DigestConfig>;
-      return { enabled: !!parsed.enabled, hour: Math.min(23, Math.max(0, Number(parsed.hour ?? 21))), recipients: Array.isArray(parsed.recipients) ? parsed.recipients : [] };
+      return { enabled: !!parsed.enabled, hour: Math.min(23, Math.max(0, Number(parsed.hour ?? 21))), recipientBindingIds: Array.isArray(parsed.recipientBindingIds) ? parsed.recipientBindingIds.filter((id): id is string => typeof id === 'string' && !!id.trim()).slice(0, 10) : [] };
     } catch {
-      return { enabled: false, hour: 21, recipients: [] };
+      return { enabled: false, hour: 21, recipientBindingIds: [] };
     }
   }
 
   async saveConfig(user: AuthUser, dto: Partial<DigestConfig> & { companyId?: string }) {
     if (dto.companyId && dto.companyId !== user.companyId) throw new ForbiddenException('Tenant tidak sesuai token.');
+    const requestedBindingIds = (dto.recipientBindingIds ?? []).filter((id) => typeof id === 'string' && id.trim()).slice(0, 10);
+    const verifiedBindings = requestedBindingIds.length ? await this.prisma.employeeChannelBinding.findMany({
+      where: { id: { in: requestedBindingIds }, companyId: user.companyId, channel: 'TELEGRAM', verifiedAt: { not: null }, revokedAt: null },
+      select: { id: true },
+    }) : [];
+    if (verifiedBindings.length !== requestedBindingIds.length) throw new BadRequestException('Semua penerima owner digest harus memakai binding Telegram terverifikasi pada tenant aktif.');
     const config: DigestConfig = {
       enabled: !!dto.enabled,
       hour: Math.min(23, Math.max(0, Number(dto.hour ?? 21))),
-      recipients: (dto.recipients ?? []).filter((r) => typeof r === 'string' && r.trim()).slice(0, 10),
+      recipientBindingIds: requestedBindingIds,
     };
     const existing = await this.prisma.systemSetting.findFirst({ where: { companyId: user.companyId, namespace: 'reports', key: DIGEST_SETTING_KEY } });
     const value = config as unknown as import('@prisma/client').Prisma.InputJsonValue;
@@ -45,17 +50,52 @@ export class DailyDigestService {
     return config;
   }
 
+  private async verifiedRecipientOptions(companyId: string) {
+    const bindings = await this.prisma.employeeChannelBinding.findMany({
+      where: { companyId, channel: 'TELEGRAM', verifiedAt: { not: null }, revokedAt: null, externalUserId: { not: null } },
+      select: { id: true, employeeId: true, externalUserId: true, verifiedAt: true, isPrimary: true },
+      orderBy: [{ isPrimary: 'desc' }, { verifiedAt: 'desc' }],
+      take: 100,
+    });
+    const employeeIds = [...new Set(bindings.map((binding) => binding.employeeId))];
+    const employees = employeeIds.length ? await this.prisma.employee.findMany({
+      where: { companyId, id: { in: employeeIds } },
+      select: { id: true, employeeNumber: true, fullName: true },
+    }) : [];
+    const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
+    return bindings.map((binding) => ({
+      id: binding.id,
+      employeeId: binding.employeeId,
+      externalUserId: binding.externalUserId,
+      verifiedAt: binding.verifiedAt,
+      isPrimary: binding.isPrimary,
+      employeeNumber: employeeById.get(binding.employeeId)?.employeeNumber ?? null,
+      employeeName: employeeById.get(binding.employeeId)?.fullName ?? binding.employeeId,
+    }));
+  }
+
   async getConfigForUser(user: AuthUser) {
-    return this.getConfig(user.companyId as string);
+    const [config, availableRecipients] = await Promise.all([
+      this.getConfig(user.companyId as string),
+      this.verifiedRecipientOptions(user.companyId as string),
+    ]);
+    return { ...config, availableRecipients };
   }
 
   private async findLowStock(companyId: string, branchId: string) {
-    const inventories = await this.prisma.inventory.findMany({
-      where: { warehouse: { branchId, branch: { companyId } }, available: { lte: 10 } },
-      select: { available: true, product: { select: { name: true, minStock: true, sku: true } } },
-      take: 200,
+    const products = await this.prisma.product.findMany({
+      where: { companyId, isActive: true, minStock: { gt: 0 }, inventories: { some: { warehouse: { branchId, branch: { companyId } } } } },
+      select: {
+        name: true, minStock: true, sku: true,
+        inventories: { where: { warehouse: { branchId, branch: { companyId } } }, select: { available: true } },
+      },
+      take: 500,
     });
-    return inventories.filter((inv) => inv.available <= inv.product.minStock).slice(0, 10);
+    return products
+      .map((product) => ({ product, available: product.inventories.reduce((sum, inventory) => sum + inventory.available, 0) }))
+      .filter((item) => item.available <= item.product.minStock)
+      .sort((left, right) => (left.available - left.product.minStock) - (right.available - right.product.minStock))
+      .slice(0, 10);
   }
 
   /** Susun ringkasan hari ini untuk satu perusahaan (branch utama token). */
@@ -111,17 +151,26 @@ export class DailyDigestService {
   async queueDailyDigest(user: AuthUser, branchId?: string) {
     const companyId = user.companyId as string;
     const config = await this.getConfig(companyId);
+    if (!config.enabled) throw new BadRequestException('Owner daily digest sedang nonaktif. Aktifkan konfigurasi sebelum mengirim.');
+    if (!config.recipientBindingIds.length) throw new BadRequestException('Owner daily digest belum memiliki penerima Telegram terverifikasi.');
+    const bindings = await this.prisma.employeeChannelBinding.findMany({
+      where: { id: { in: config.recipientBindingIds }, companyId, channel: 'TELEGRAM', verifiedAt: { not: null }, revokedAt: null, externalUserId: { not: null } },
+      select: { id: true, externalUserId: true },
+    });
+    if (bindings.length !== config.recipientBindingIds.length) throw new BadRequestException('Penerima owner digest sudah tidak valid atau tidak lagi terverifikasi.');
     const todayKey = new Date().toISOString().slice(0, 10);
+    const targetBranch = branchId ?? (user.branchId ?? 'unknown');
+    const digest = await this.buildDigest(user, branchId);
     const created: string[] = [];
-    for (const recipient of config.recipients) {
-      const dedupeKey = `daily-digest:${companyId}:${branchId ?? (user.branchId ?? 'unknown')}:${todayKey}`;
+    for (const binding of bindings) {
+      const recipient = binding.externalUserId as string;
+      const dedupeKey = `daily-digest:${companyId}:${targetBranch}:${todayKey}`;
       const duplicate = await this.prisma.notification.findFirst({
         where: { companyId, channel: 'TELEGRAM', recipient, templateCode: dedupeKey },
       });
       if (duplicate) continue;
-      const digest = await this.buildDigest(user, branchId);
       const notification = await this.prisma.notification.create({
-        data: { companyId, channel: 'TELEGRAM', recipient, templateCode: dedupeKey, body: digest.text, status: 'QUEUED' },
+        data: { companyId, channel: 'TELEGRAM', recipient, templateCode: dedupeKey, body: digest.text, status: 'QUEUED', data: { branchId: targetBranch, recipientBindingId: binding.id } },
       });
       created.push(notification.id);
     }

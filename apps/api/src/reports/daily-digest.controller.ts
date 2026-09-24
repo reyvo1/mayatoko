@@ -2,6 +2,8 @@ import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Permissions } from '../auth/permissions.decorator';
+import { Roles } from '../auth/roles.decorator';
 import { DailyDigestService } from './daily-digest.service';
 
 @ApiTags('reports') @ApiBearerAuth() @Controller()
@@ -15,7 +17,9 @@ export class DailyDigestController {
   }
 
   @Post('reports/daily-digest/config')
-  saveConfig(@Body() dto: { enabled?: boolean; hour?: number; recipients?: string[] }, @CurrentUser() user: AuthUser) {
+  @Roles('SUPER_ADMIN','OWNER','ADMIN')
+  @Permissions('notification.manage')
+  saveConfig(@Body() dto: { enabled?: boolean; hour?: number; recipientBindingIds?: string[] }, @CurrentUser() user: AuthUser) {
     return this.digest.saveConfig(user, dto);
   }
 
@@ -27,6 +31,8 @@ export class DailyDigestController {
 
   /** Masukkan laporan hari ini ke antrian notifikasi TELEGRAM. */
   @Post('reports/daily-digest/send')
+  @Roles('SUPER_ADMIN','OWNER','ADMIN')
+  @Permissions('notification.manage')
   send(@CurrentUser() user: AuthUser) {
     return this.digest.queueDailyDigest(user);
   }

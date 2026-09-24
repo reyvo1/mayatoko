@@ -57,6 +57,10 @@ F07–F10 are runtime-closed by that evidence. No UAT assertion was weakened to 
 
 ## Recovery R2 — 2026-09-24
 
-R2 is **IMPLEMENTATION** under `T360-20260924-180000-recovery-r2-hr-attendance-payroll`. Source implementation now covers WorkShift CRUD, roster schedules, AttendancePolicy management, attendance correction submit/review/apply, effective-dated EmployeeAssignment, device/geofence/biometric operator management, verified Employee Telegram/WhatsApp channel preferences, employee tax/social-security profile management, and PayrollAccountingMapping management.
+R2 is **CLOSED** on current green GitHub runtime evidence. The exact current-source chain passed `ci:r2:probe`, PostgreSQL runtime, six-app build, Built Browser UAT, Telegram/WhatsApp provider simulation, Stage-18, Stage-19, automated Stage-20, and aggregate gates. Human Stage-20 remains separate/PENDING. F11–F21 are runtime-closed for recovery sequencing.
 
-Payroll tax method support is intentionally truthful: only `GROSS` is executable; `NET` and `GROSS_UP` fail closed. Split-period/proration is also fail-closed when a component or statutory profile changes inside one payroll period instead of silently applying the wrong full-period value. Both GitHub heavy workflows now require `ci:r2:probe` on live PostgreSQL. F11–F21 remain runtime-evidence pending and R2 must not be marked CLOSED until that probe plus the existing payroll staging/Stage-20 chain pass on the same current source. Human Stage-20 remains separate/PENDING.
+## Recovery R3 — 2026-09-24
+
+R3 is **IMPLEMENTATION** under `T360-20260924-195500-recovery-r3-reporting-integrations`. Scope is F22–F25, F29, F37, F39, F42–F44. The first implementation cluster fixes owner digest at the root: operator configuration is exposed, POST config/send require `notification.manage`, disabled digest cannot be manually sent, low-stock uses each product `minStock` without the old `available <= 10` prefilter, and configured recipients are verified/non-revoked Telegram `EmployeeChannelBinding` IDs rather than raw destination strings.
+
+The GitHub provider simulation is strengthened to create and verify an employee Telegram binding through the real Employee Self-Service API and provider simulator before configuring/sending the owner digest. R3 remains open until the remaining integration/operator findings and current-source runtime/browser/provider evidence pass.

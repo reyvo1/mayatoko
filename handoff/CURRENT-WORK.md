@@ -1,13 +1,14 @@
-# CURRENT AUTHORITATIVE RECOVERY — 2026-09-24
+# CURRENT AUTHORITATIVE RECOVERY — 2026-09-24 R3
 
-Active work item: `T360-20260924-180000` — R2 HRIS, Attendance, Employee Self-Service, and Payroll closure.
+Active work item: `T360-20260924-195500` — R3 Reporting, Owner Digest, Notifications, Providers, Marketplace, and Edge Integrations.
 
-- R0 is CLOSED; 48/48 recovery findings remain mapped.
-- R1 `T360-20260924-022400` is CLOSED on exact green GitHub commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29`.
-- R1 runtime evidence includes `ci:r1:probe`, PostgreSQL rehearsal, six-app build, API sweep, Built Browser UAT, Telegram/WhatsApp provider simulation, worker/report, Stage-18, Stage-19, automated Stage-20, and aggregate PASS. Human Stage-20 remains PENDING separately.
-- R2 implements F11–F21: WorkShift/roster/policy/correction, EmployeeAssignment, attendance device/geofence/biometric operations, verified employee channels/preferences, employee tax/social profiles, PayrollAccountingMapping, and explicit fail-close for unsupported NET/GROSS_UP and split-period/proration.
-- `ci:r2:probe` is now mandatory in both GitHub heavy workflows. R2 remains IMPLEMENTATION/VERIFICATION until current-source live PostgreSQL evidence passes; do not close it from source/static tests alone.
-- F12R4 remains BLOCKED behind recovery; do not resume UI polish before R2–R6 prerequisites stabilize.
+- R0 CLOSED; recovery coverage remains 48/48 mapped.
+- R1 CLOSED on exact green GitHub commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29`.
+- R2 is CLOSED on current green GitHub runtime evidence: `ci:r2:probe`, PostgreSQL runtime, six-app build, Browser UAT, provider simulation, Stage-18/19/20 automated and aggregate gates PASS. Human Stage-20 remains separate/PENDING.
+- R3 is IMPLEMENTATION. First root cluster covers F22/F23/F24/F25/F44: owner digest operator config, explicit mutation permission, enabled fail-close, minStock-correct low-stock detection, and verified Telegram recipient bindings.
+- Provider simulation must prove verification notification + owner digest + manual Telegram delivery; no UAT/provider assertion may be weakened.
+- Remaining R3 findings F29/F37/F39/F42/F43 stay OPEN until their runtime/operator flows and GitHub evidence are implemented.
+- F12R4 UI work remains BLOCKED until R1–R6 recovery prerequisites stabilize.
 
 ## Final automation closure — 2026-09-22
 

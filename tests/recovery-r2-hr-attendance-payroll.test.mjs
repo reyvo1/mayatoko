@@ -14,14 +14,14 @@ const selfService = read('apps/api/src/employee-self-service/employee-self-servi
 const admin = read('apps/admin/app/modules/hr-payroll.tsx');
 const portal = read('apps/employee-portal/app/employee-portal-app.tsx');
 const r1 = JSON.parse(read('work-items/completed/T360-20260924-022400-recovery-r1-tenant-access-control-plane.json'));
-const r2 = JSON.parse(read('work-items/active/T360-20260924-180000-recovery-r2-hr-attendance-payroll.json'));
+const r2 = JSON.parse(read('work-items/completed/T360-20260924-180000-recovery-r2-hr-attendance-payroll.json'));
 
-test('R1 is closed on exact green runtime evidence and R2 is active', () => {
+test('R1 and R2 are closed on green runtime evidence', () => {
   assert.equal(r1.phase, 'CLOSED');
   assert.equal(r1.closureEvidence.commit, 'abac92662cab4cc7352de4f9f9d2e2419aad9c29');
   assert.equal(r1.closureEvidence.automatedStatus, 'PASS');
   assert.equal(r1.closureEvidence.humanStage20, 'PENDING_SEPARATE');
-  assert.equal(r2.phase, 'IMPLEMENTATION');
+  assert.equal(r2.phase, 'CLOSED');
   assert.deepEqual(r2.dependencies, ['T360-20260924-022400']);
 });
 

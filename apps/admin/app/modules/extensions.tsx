@@ -12,6 +12,8 @@ type NotificationTemplate = { id: string; code: string; channel: string; subject
 type DeviceCredentialResult = { deviceId: string; keyId: string; secret: string; expiresAt?: string | null; note?: string };
 type Notification = { id: string; channel: string; templateCode?: string; recipient: string; status: string; provider?: string | null; attempts: number; scheduledAt?: string; sentAt?: string | null; lastError?: string | null; createdAt: string };
 type NotificationProvider = { id: string; type: string; provider: string; name: string; status: string; config?: Record<string, unknown> | null; hasSecrets?: boolean; branchId?: string | null; lastHealthCheckAt?: string | null; lastError?: string | null };
+type DigestRecipient = { id: string; employeeId: string; externalUserId: string | null; verifiedAt: string | null; isPrimary: boolean; employeeNumber: string | null; employeeName: string };
+type DailyDigestConfig = { enabled: boolean; hour: number; recipientBindingIds: string[]; availableRecipients: DigestRecipient[] };
 type Shipment = { id: string; number: string; orderId?: string | null; status?: string; createdAt: string };
 type StoreOrder = { id: string; number: string; status: string; customerName: string; total: string | number; fulfillmentType?: 'DELIVERY'|'PICKUP'|string; shippingMethodCode?: string|null; shippingMethodName?: string|null; payments: Array<{ method: string; status: string }> };
 type PromoRule = { id:string; code:string; name:string; type:string; value:string|number; channel:string; memberTier?:string|null; minQuantity?:number|null; buyQuantity?:number|null; getQuantity?:number|null; usageLimit?:number|null; perCustomerLimit?:number|null; isActive:boolean; startsAt:string; endsAt?:string|null };
@@ -42,6 +44,7 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [providers, setProviders] = useState<NotificationProvider[]>([]);
+  const [digestConfig, setDigestConfig] = useState<DailyDigestConfig>({ enabled: false, hour: 21, recipientBindingIds: [], availableRecipients: [] });
   const [deviceForm, setDeviceForm] = useState({ code: '', name: '', platform: 'POS_WEB', appVersion: '' });
   const [credential, setCredential] = useState<DeviceCredentialResult | null>(null);
   const [templateForm, setTemplateForm] = useState({ code: '', channel: 'EMAIL', subject: '', body: '', isActive: true });
@@ -74,14 +77,15 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
   }
 
   async function refreshExtensions() {
-    const [lp, dv, nt, tp, pv] = await Promise.all([
+    const [lp, dv, nt, tp, pv, dg] = await Promise.all([
       readJson<CursorResponse<LoyaltyProgram>>(`${API}/loyalty/programs?limit=15`, token),
       readJson<CursorResponse<Device>>(`${API}/devices?limit=50`, token),
       readJson<CursorResponse<Notification>>(`${API}/notifications?limit=200`, token),
       readJson<NotificationTemplate[]>(`${API}/notifications/templates`, token),
       readJson<NotificationProvider[]>(`${API}/notifications/providers`, token),
+      readJson<DailyDigestConfig>(`${API}/reports/daily-digest/config`, token),
     ]);
-    setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []); setProviders(pv ?? []);
+    setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []); setProviders(pv ?? []); setDigestConfig(dg);
   }
 
   async function registerDevice() {
@@ -179,6 +183,28 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Notifikasi gagal diantrikan.'); } finally { setBusy(false); }
   }
 
+  async function saveDigestConfig() {
+    setBusy(true); setMessage('');
+    try {
+      await writeJson(`${API}/reports/daily-digest/config`, token, 'POST', {
+        enabled: digestConfig.enabled,
+        hour: digestConfig.hour,
+        recipientBindingIds: digestConfig.recipientBindingIds,
+      });
+      setMessage('Konfigurasi owner daily digest tersimpan. Penerima hanya memakai binding Telegram terverifikasi.');
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Konfigurasi daily digest gagal disimpan.'); } finally { setBusy(false); }
+  }
+
+  async function sendDigestNow() {
+    setBusy(true); setMessage('');
+    try {
+      const result = await writeJson<{ queued: number }>(`${API}/reports/daily-digest/send`, token, 'POST', {});
+      setMessage(`Owner daily digest masuk antrean: ${result.queued} notifikasi.`);
+      await refreshExtensions();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Owner daily digest gagal diantrikan.'); } finally { setBusy(false); }
+  }
+
   async function savePromo() {
     setBusy(true); setMessage('');
     try {
@@ -217,7 +243,8 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
           readJson<CursorResponse<Notification>>(`${API}/notifications?limit=200`, token),
           readJson<NotificationTemplate[]>(`${API}/notifications/templates`, token),
           readJson<NotificationProvider[]>(`${API}/notifications/providers`, token),
-        ]).then(([lp, dv, nt, tp, pv]) => { if (!cancelled) { setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []); setProviders(pv ?? []); } });
+          readJson<DailyDigestConfig>(`${API}/reports/daily-digest/config`, token),
+        ]).then(([lp, dv, nt, tp, pv, dg]) => { if (!cancelled) { setPrograms(rows(lp)); setDevices(rows(dv)); setNotifications(rows(nt)); setTemplates(tp ?? []); setProviders(pv ?? []); setDigestConfig(dg); } });
     task.catch((error) => { if (!cancelled) setMessage(error instanceof Error ? error.message : 'Data gagal dimuat.'); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [token, mode]);
@@ -313,6 +340,15 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
             <Table head={['Kode', 'Channel', 'Status', 'Aksi']} rows={templates.slice(0, 30).map((t) => [<strong>{t.code}</strong>, t.channel, <StatusChip status={t.isActive === false ? 'NONAKTIF' : 'AKTIF'} />, <button type="button" className="secondary" onClick={() => editTemplate(t)}>Edit</button>])} empty="Belum ada template." />
           </Panel>
         </section>}
+        {showNotifications && <Panel eyebrow="OWNER REPORTING" title="Owner Daily Digest" badge={digestConfig.enabled ? 'AKTIF' : 'NONAKTIF'}>
+          <div className="formStack">
+            <label><input type="checkbox" checked={digestConfig.enabled} onChange={(e) => setDigestConfig({ ...digestConfig, enabled: e.target.checked })} /> Aktifkan pengiriman owner digest</label>
+            <label>Jam kirim (0-23)<input type="number" min="0" max="23" value={digestConfig.hour} onChange={(e) => setDigestConfig({ ...digestConfig, hour: Math.min(23, Math.max(0, Number(e.target.value) || 0)) })} /></label>
+            <label>Penerima Telegram terverifikasi<select multiple value={digestConfig.recipientBindingIds} onChange={(e) => setDigestConfig({ ...digestConfig, recipientBindingIds: Array.from(e.target.selectedOptions).map((option) => option.value) })}>{digestConfig.availableRecipients.map((recipient) => <option key={recipient.id} value={recipient.id}>{recipient.employeeNumber ? `${recipient.employeeNumber} · ` : ''}{recipient.employeeName}{recipient.isPrimary ? ' · PRIMARY' : ''}</option>)}</select></label>
+            <div className="rowActions"><button type="button" disabled={busy} onClick={() => void saveDigestConfig()}>Simpan daily digest</button><button type="button" className="secondary" disabled={busy || !digestConfig.enabled || digestConfig.recipientBindingIds.length === 0} onClick={() => void sendDigestNow()}>Kirim sekarang</button></div>
+          </div>
+          <p className="sectionHelp">Recipient raw tidak diterima. Verifikasi Telegram dilakukan dari Employee Portal terlebih dahulu; binding yang dicabut otomatis membuat pengiriman fail-closed.</p>
+        </Panel>}
         {showNotifications && <Panel eyebrow="NOTIFICATION QUEUE" title="Kirim notifikasi" badge="worker delivery">
           <div className="formStack">
             <label>Channel<select value={notificationForm.channel} onChange={(e) => setNotificationForm({ ...notificationForm, channel: e.target.value, templateCode: '' })}>{['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
