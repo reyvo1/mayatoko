@@ -82,6 +82,12 @@ test('F12R4 Tailwind v4 is exact and legacy overflow/gradient styling is forbidd
   }
 });
 
+test('F12R4 closed Admin sidebar is removed from mobile layout instead of translated off-canvas', () => {
+  const adminCss = styles[0];
+  assert.match(adminCss, /@media \(max-width: 1023px\)[\s\S]*?\.sidebar:not\(\.mobileOpen\) \{ display: none; \}/);
+  assert.match(adminCss, /\.sidebar\.mobileOpen \{ @apply translate-x-0; \}/);
+});
+
 test('F12R4 preserves the deep fail-closed GitHub UAT chain', () => {
   for (const workflow of [fullSystem, manualUat]) {
     for (const command of ['audit:full:repo', 'ci:ui:audit', 'ci:api:sweep', 'ci:provider:probe']) {

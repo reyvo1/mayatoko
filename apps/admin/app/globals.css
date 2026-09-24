@@ -176,6 +176,9 @@ button.dangerButton { @apply border-red-500 bg-red-500 hover:bg-red-400; }
 .skeletonBar { min-height: 10px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 1023px) {
+  .sidebar:not(.mobileOpen) { display: none; }
+}
 @media (max-width: 767px) {
   .content { @apply px-3 pt-4; }
   .pageHeader h1 { @apply text-xl; }
