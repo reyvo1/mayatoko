@@ -17,6 +17,11 @@ export type DigestConfig = { enabled: boolean; hour: number; recipientBindingIds
 export class DailyDigestService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private requireCompanyId(user: AuthUser): string {
+    if (!user.companyId) throw new ForbiddenException('Tenant scope tidak lengkap.');
+    return user.companyId;
+  }
+
   private async getConfig(companyId: string): Promise<DigestConfig> {
     const setting = await this.prisma.systemSetting.findFirst({
       where: { companyId, namespace: 'reports', key: DIGEST_SETTING_KEY },
@@ -31,10 +36,11 @@ export class DailyDigestService {
   }
 
   async saveConfig(user: AuthUser, dto: Partial<DigestConfig> & { companyId?: string }) {
-    if (dto.companyId && dto.companyId !== user.companyId) throw new ForbiddenException('Tenant tidak sesuai token.');
+    const companyId = this.requireCompanyId(user);
+    if (dto.companyId && dto.companyId !== companyId) throw new ForbiddenException('Tenant tidak sesuai token.');
     const requestedBindingIds = (dto.recipientBindingIds ?? []).filter((id) => typeof id === 'string' && id.trim()).slice(0, 10);
     const verifiedBindings = requestedBindingIds.length ? await this.prisma.employeeChannelBinding.findMany({
-      where: { id: { in: requestedBindingIds }, companyId: user.companyId, channel: 'TELEGRAM', verifiedAt: { not: null }, revokedAt: null },
+      where: { id: { in: requestedBindingIds }, companyId, channel: 'TELEGRAM', verifiedAt: { not: null }, revokedAt: null },
       select: { id: true },
     }) : [];
     if (verifiedBindings.length !== requestedBindingIds.length) throw new BadRequestException('Semua penerima owner digest harus memakai binding Telegram terverifikasi pada tenant aktif.');
@@ -43,10 +49,10 @@ export class DailyDigestService {
       hour: Math.min(23, Math.max(0, Number(dto.hour ?? 21))),
       recipientBindingIds: requestedBindingIds,
     };
-    const existing = await this.prisma.systemSetting.findFirst({ where: { companyId: user.companyId, namespace: 'reports', key: DIGEST_SETTING_KEY } });
+    const existing = await this.prisma.systemSetting.findFirst({ where: { companyId, namespace: 'reports', key: DIGEST_SETTING_KEY } });
     const value = config as unknown as import('@prisma/client').Prisma.InputJsonValue;
     if (existing) await this.prisma.systemSetting.update({ where: { id: existing.id }, data: { value, updatedAt: new Date() } });
-    else await this.prisma.systemSetting.create({ data: { companyId: user.companyId, branchId: user.branchId ?? null, namespace: 'reports', key: DIGEST_SETTING_KEY, value } });
+    else await this.prisma.systemSetting.create({ data: { companyId, branchId: user.branchId ?? null, namespace: 'reports', key: DIGEST_SETTING_KEY, value } });
     return config;
   }
 
@@ -75,9 +81,10 @@ export class DailyDigestService {
   }
 
   async getConfigForUser(user: AuthUser) {
+    const companyId = this.requireCompanyId(user);
     const [config, availableRecipients] = await Promise.all([
-      this.getConfig(user.companyId as string),
-      this.verifiedRecipientOptions(user.companyId as string),
+      this.getConfig(companyId),
+      this.verifiedRecipientOptions(companyId),
     ]);
     return { ...config, availableRecipients };
   }
@@ -100,7 +107,7 @@ export class DailyDigestService {
 
   /** Susun ringkasan hari ini untuk satu perusahaan (branch utama token). */
   async buildDigest(user: AuthUser, branchId?: string) {
-    const companyId = user.companyId as string;
+    const companyId = this.requireCompanyId(user);
     const targetBranch: string | undefined = branchId ?? (user.branchId ?? undefined);
     if (!targetBranch) throw new BadRequestException('Branch tidak ditemukan pada konteks token.');
     const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -149,7 +156,7 @@ export class DailyDigestService {
 
   /** Buat notifikasi TELEGRAM untuk semua penerima terdaftar. Idempotent per hari+branch. */
   async queueDailyDigest(user: AuthUser, branchId?: string) {
-    const companyId = user.companyId as string;
+    const companyId = this.requireCompanyId(user);
     const config = await this.getConfig(companyId);
     if (!config.enabled) throw new BadRequestException('Owner daily digest sedang nonaktif. Aktifkan konfigurasi sebelum mengirim.');
     if (!config.recipientBindingIds.length) throw new BadRequestException('Owner daily digest belum memiliki penerima Telegram terverifikasi.');
