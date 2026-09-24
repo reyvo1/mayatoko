@@ -320,9 +320,9 @@ async function main() {
     if (payrollBodyText.includes('Gagal memuat HR/Payroll') || payrollBodyText.includes('Gagal memuat detail payroll')) throw new Error('Payroll Lifecycle dirender tetapi read model gagal dimuat dari API.');
     evidence.checks.push({ id: 'ADMIN_PAYROLL_LIFECYCLE', status: 'PASS', assertions: ['PAYROLL LIFECYCLE', 'Riwayat Payroll Runs', 'PPh / BPJS / Potongan', 'read model tanpa error'] });
 
-    const clickEmployees = `(() => { const nodes=[...document.querySelectorAll('button,a')]; const el=nodes.find(x=>x.textContent?.trim()==='Employees'); if(!el)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickEmployees, 'Domain Employees');
-    await waitExpression(cdp, `document.body && document.body.innerText.includes('EMPLOYEE MASTER') && document.body.innerText.includes('Tambah karyawan') && document.body.innerText.includes('Daftar Karyawan')`, 'Employee Master Admin', 45000);
+    const clickEmployees = `(() => { const el=document.querySelector('.domainTabs [data-admin-route="/people/employees"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
+    await waitExpression(cdp, clickEmployees, 'Menu /people/employees');
+    await waitExpression(cdp, `Boolean(document.querySelector('.domainTabs [data-admin-route="/people/employees"][aria-current="page"]')) && document.body && document.body.innerText.includes('EMPLOYEE MASTER') && document.body.innerText.includes('Tambah karyawan') && document.body.innerText.includes('Daftar Karyawan')`, 'Employee Master Admin', 45000);
     evidence.checks.push({ id: 'ADMIN_EMPLOYEE_MASTER', status: 'PASS', assertions: ['EMPLOYEE MASTER', 'Tambah karyawan', 'Daftar Karyawan'] });
 
     if (String(process.env.T360_UAT_HR_MUTATIONS || '').toLowerCase() === 'true') {

@@ -32,6 +32,14 @@ test('browser UAT verifies payroll lifecycle read model in Admin', () => {
   assert.match(script, /ADMIN_PAYROLL_LIFECYCLE/);
   assert.match(script, /Gagal memuat HR\/Payroll/);
 });
+test('browser UAT verifies employee master through canonical people domain route', () => {
+  assert.match(script, /data-admin-route=\"\/people\/employees\"/);
+  assert.match(script, /Menu \/people\/employees/);
+  assert.doesNotMatch(script, /textContent\?\.trim\(\)===['\"]Employees['\"]/);
+  assert.match(script, /EMPLOYEE MASTER/);
+  assert.match(script, /Tambah karyawan/);
+  assert.match(script, /Daftar Karyawan/);
+});
 
 test('browser UAT is exposed through npm and Windows launcher', () => {
   assert.equal(pkg.scripts['uat:browser'], 'node scripts/browser-uat.mjs');

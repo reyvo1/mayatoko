@@ -107,6 +107,8 @@ test('R1 GitHub evidence harness follows current Admin navigation and normalizes
   assert.match(browser,/data-admin-route=\"\/assets-fleet\"/);
   assert.match(browser,/data-admin-route=\"\/people\"/);
   assert.match(browser,/data-admin-route=\"\/people\/payroll\"/);
+  assert.match(browser,/data-admin-route=\"\/people\/employees\"/);
+  assert.doesNotMatch(browser,/textContent\?\.trim\(\)===['\"]Employees['\"]/);
   assert.doesNotMatch(browser,/Aset & Fleet/);
   assert.match(sweep,/function runtimePath\(route\)/);
   assert.match(sweep,/pathname\.startsWith\(`\$\{apiPath\}\/`\)/);
