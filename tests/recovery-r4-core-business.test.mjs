@@ -137,3 +137,11 @@ test('R4 runtime probe is self-contained on bootstrap seed and creates a product
   assert.match(probe, /productType: 'PHYSICAL'/);
   assert.doesNotMatch(probe, /Produk\/gudang R4 runtime tidak tersedia/);
 });
+
+test('R4 runtime probe respects purchase-order tenant denial contract for inactive supplier', () => {
+  const probe = read('scripts/ci-r4-core-business-probe.mjs');
+  const purchaseOrderService = read('apps/api/src/purchase-orders/purchase-orders.service.ts');
+  assert.match(purchaseOrderService, /companyId: scope\.companyId, isActive: true/);
+  assert.match(purchaseOrderService, /if \(supplierExists\) return this\.denyTenantAccess\(user, scope, 'Supplier', dto\.supplierId\)/);
+  assert.match(probe, /r4-po-inactive-\$\{stamp\}[\s\S]*method: 'POST', token, expect: 403|method: 'POST', token, expect: 403[\s\S]*r4-po-inactive-\$\{stamp\}/);
+});

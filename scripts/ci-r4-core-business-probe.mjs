@@ -73,7 +73,7 @@ const inactiveSupplierVisible = suppliersWithInactive.items?.some((item) => item
 if (!inactiveSupplierVisible) throw new Error('Supplier R4 tidak terlihat sebagai INACTIVE pada lifecycle list.');
 
 await request('/purchase-orders', {
-  method: 'POST', token, expect: 400,
+  method: 'POST', token, expect: 403,
   body: { supplierId: supplier.id, warehouseId: warehouse.id, idempotencyKey: `r4-po-inactive-${stamp}`, items: [{ productId: product.id, orderedQty: 1, unitCost: Number(product.costPrice || 1000) }] },
 });
 await request(`/suppliers/${supplier.id}`, { method: 'PATCH', token, body: { isActive: true } });
