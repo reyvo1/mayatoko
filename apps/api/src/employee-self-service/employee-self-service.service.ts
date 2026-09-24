@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { createHash, randomInt } from 'node:crypto';
 import { AuthUser } from '../auth/auth.types';
 import { HrService } from '../hr/hr.service';
@@ -7,6 +8,29 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RequestChannelBindingDto, SubmitAttendanceCorrectionDto, UpdateNotificationPreferenceDto, VerifyChannelBindingDto } from './employee-self-service.dto';
 
 const sha256 = (input: string) => createHash('sha256').update(input).digest('hex');
+
+
+const toPrismaJsonValue = (value: unknown): Prisma.InputJsonValue | null => {
+  if (value === null) return null;
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toPrismaJsonValue(item));
+  }
+
+  if (typeof value === 'object') {
+    const result: Prisma.InputJsonObject = {};
+    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+      if (nestedValue === undefined) {
+        throw new BadRequestException(`Nilai JSON untuk field ${key} tidak boleh undefined.`);
+      }
+      result[key] = toPrismaJsonValue(nestedValue);
+    }
+    return result;
+  }
+
+  throw new BadRequestException('Payload koreksi absensi harus berupa nilai JSON yang valid.');
+};
 
 @Injectable()
 export class EmployeeSelfServiceService {
@@ -131,7 +155,12 @@ export class EmployeeSelfServiceService {
       const pending = await tx.attendanceCorrection.findFirst({ where: { companyId: employee.companyId, employeeId: employee.id, attendanceRecordId: record.id, status: 'SUBMITTED' } });
       if (pending) throw new BadRequestException('Koreksi untuk tanggal ini sudah diajukan dan belum diputuskan.');
       const allowed = new Set(['firstCheckInAt','lastCheckOutAt','workedMinutes','breakMinutes','lateMinutes','earlyLeaveMinutes','overtimeMinutes','status','notes']);
-      const proposed = Object.fromEntries(Object.entries(dto.proposedData).filter(([key]) => allowed.has(key)));
+      const proposed: Prisma.InputJsonObject = {};
+      for (const [key, value] of Object.entries(dto.proposedData)) {
+        if (!allowed.has(key)) continue;
+        if (value === undefined) throw new BadRequestException(`Nilai koreksi ${key} tidak boleh undefined.`);
+        proposed[key] = toPrismaJsonValue(value);
+      }
       if (!Object.keys(proposed).length) throw new BadRequestException('Tidak ada field absensi yang dapat dikoreksi.');
       const row = await tx.attendanceCorrection.create({ data: { companyId: employee.companyId, employeeId: employee.id, attendanceRecordId: record.id, requestedById: user.sub, reason: dto.reason.trim(), proposedData: proposed } });
       await tx.auditLog.create({ data: { companyId: employee.companyId, userId: user.sub, action: 'SUBMIT_SELF_ATTENDANCE_CORRECTION', entityType: 'AttendanceCorrection', entityId: row.id, payload: { branchId: employee.branchId, employeeId: employee.id, attendanceRecordId: record.id } } });
