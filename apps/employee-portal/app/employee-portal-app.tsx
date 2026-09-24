@@ -64,6 +64,10 @@ type OvertimeRequest = {
   createdAt: string;
 };
 
+type ChannelBinding = { id: string; channel: string; externalUserId?: string | null; verifiedAt?: string | null; isPrimary: boolean };
+type NotificationPreference = { id: string; eventCode: string; channel: string; enabled: boolean };
+type AttendanceCorrection = { id: string; attendanceRecordId?: string | null; reason: string; proposedData: Record<string, unknown>; status: string; createdAt: string };
+
 type Tone = 'info' | 'success' | 'error';
 
 function localWorkDate(date = new Date()) {
@@ -94,6 +98,9 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequest[]>([]);
+  const [channelBindings, setChannelBindings] = useState<ChannelBinding[]>([]);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreference[]>([]);
+  const [attendanceCorrections, setAttendanceCorrections] = useState<AttendanceCorrection[]>([]);
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState<Tone>('info');
   const [position, setPosition] = useState<{ latitude: number; longitude: number; accuracy: number } | null>(null);
@@ -153,13 +160,16 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
     setLoading(true);
     try {
       const profile = await api('/employee/me');
-      const [attendancePage, payslipPage, config, leaveTypeData, leaveData, overtimeData] = await Promise.all([
+      const [attendancePage, payslipPage, config, leaveTypeData, leaveData, overtimeData, bindings, preferences, corrections] = await Promise.all([
         api('/employee/me/attendance?limit=31'),
         api('/employee/me/payslips?limit=12'),
         api(`/attendance/config?employeeId=${profile.id}`),
         api('/employee/me/leave-types'),
         api('/employee/me/leave-requests'),
         api('/employee/me/overtime-requests'),
+        api('/employee/me/channels'),
+        api('/employee/me/notification-preferences'),
+        api('/employee/me/attendance-corrections'),
       ]);
 
       setEmployee(profile);
@@ -169,6 +179,9 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
       setLeaveTypes(leaveTypeData ?? []);
       setLeaveRequests(leaveData ?? []);
       setOvertimeRequests(overtimeData ?? []);
+      setChannelBindings(bindings ?? []);
+      setNotificationPreferences(preferences ?? []);
+      setAttendanceCorrections(corrections ?? []);
       setMessage('');
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Gagal memuat data', 'error');
@@ -325,6 +338,59 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
     }
   }
 
+
+  async function requestChannelBinding(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget; const fd = new FormData(form);
+    setBusy(true);
+    try {
+      const result = await api('/employee/me/channels/request-verification', { method:'POST', body: JSON.stringify({ channel: fd.get('channel'), externalUserId: fd.get('externalUserId') }) });
+      notify(`Kode verifikasi ${String(fd.get('channel'))} sudah diantrikan.${result.developmentCode ? ` Kode development: ${result.developmentCode}` : ''}`, 'success');
+      form.reset(); await load();
+    } catch (error) { notify(error instanceof Error ? error.message : 'Gagal meminta verifikasi kanal.', 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function verifyChannelBinding(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget; const fd = new FormData(form);
+    setBusy(true);
+    try {
+      await api('/employee/me/channels/verify', { method:'POST', body: JSON.stringify({ channel: fd.get('channel'), externalUserId: fd.get('externalUserId'), code: fd.get('code') }) });
+      notify('Kanal berhasil diverifikasi.', 'success'); form.reset(); await load();
+    } catch (error) { notify(error instanceof Error ? error.message : 'Verifikasi kanal gagal.', 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function saveNotificationPreference(channel: 'TELEGRAM'|'WHATSAPP', enabled: boolean) {
+    setBusy(true);
+    try {
+      await api('/employee/me/notification-preferences', { method:'POST', body: JSON.stringify({ eventCode:'PAYSLIP_PUBLISHED', channel, enabled }) });
+      notify(`Preferensi ${channel} diperbarui.`, 'success'); await load();
+    } catch (error) { notify(error instanceof Error ? error.message : 'Preferensi notifikasi gagal.', 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function submitAttendanceCorrection(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget; const fd = new FormData(form);
+    const record = attendance.find((item) => item.id === fd.get('attendanceRecordId'));
+    if (!record) { notify('Pilih attendance record yang akan dikoreksi.', 'error'); return; }
+    const proposedData: Record<string, unknown> = {};
+    const firstCheckInAt = String(fd.get('firstCheckInAt') ?? '').trim();
+    const lastCheckOutAt = String(fd.get('lastCheckOutAt') ?? '').trim();
+    const status = String(fd.get('status') ?? '').trim();
+    if (firstCheckInAt) proposedData.firstCheckInAt = new Date(`${record.workDate.slice(0,10)}T${firstCheckInAt}:00`).toISOString();
+    if (lastCheckOutAt) proposedData.lastCheckOutAt = new Date(`${record.workDate.slice(0,10)}T${lastCheckOutAt}:00`).toISOString();
+    if (status) proposedData.status = status;
+    setBusy(true);
+    try {
+      await api('/employee/me/attendance-corrections', { method:'POST', body: JSON.stringify({ attendanceRecordId: record.id, reason: fd.get('reason'), proposedData }) });
+      notify('Koreksi absensi dikirim untuk review HR.', 'success'); form.reset(); await load();
+    } catch (error) { notify(error instanceof Error ? error.message : 'Koreksi absensi gagal dikirim.', 'error'); }
+    finally { setBusy(false); }
+  }
+
   async function logout() {
     try {
       await api('/auth/logout', { method: 'POST' });
@@ -339,6 +405,9 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
     setLeaveTypes([]);
     setLeaveRequests([]);
     setOvertimeRequests([]);
+    setChannelBindings([]);
+    setNotificationPreferences([]);
+    setAttendanceCorrections([]);
     setPosition(null);
     setMessage('');
   }
@@ -347,8 +416,8 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
     records: attendance.length,
     late: attendance.filter((item) => Number(item.lateMinutes) > 0).length,
     payslips: payslips.length,
-    pendingLeave: leaveRequests.filter((item) => item.status === 'PENDING').length,
-    pendingOvertime: overtimeRequests.filter((item) => item.status === 'PENDING').length,
+    pendingLeave: leaveRequests.filter((item) => item.status === 'SUBMITTED').length,
+    pendingOvertime: overtimeRequests.filter((item) => item.status === 'SUBMITTED').length,
   }), [attendance, payslips, leaveRequests, overtimeRequests]);
 
   if (!token) {
@@ -452,7 +521,7 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
       <div className="cardHeading">
         <div>
           <small>LEAVE SELF-SERVICE</small>
-          <h3>Ajukan Cuti / Izin</h3>
+          <h3>Ajukan Cuti / Izin / Sakit</h3>
         </div>
         <span className="statusPill">{metrics.pendingLeave} pending</span>
       </div>
@@ -553,6 +622,31 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
     </article>
   );
 
+
+  const correctionCard = (
+    <article className="card">
+      <div className="cardHeading"><div><small>ATTENDANCE CORRECTION</small><h3>Ajukan Koreksi Absensi</h3></div><span className="statusPill">{attendanceCorrections.filter((item) => item.status === 'SUBMITTED').length} menunggu</span></div>
+      <p className="mutedText">Koreksi tidak langsung mengubah absensi. HR wajib review; record yang sudah dikunci payroll akan ditolak dan harus masuk payroll adjustment.</p>
+      <form className="formStack" onSubmit={submitAttendanceCorrection}>
+        <label>Rekaman<select name="attendanceRecordId" required defaultValue=""><option value="" disabled>Pilih tanggal</option>{attendance.map(item=><option key={item.id} value={item.id}>{dateLabel(item.workDate)} · {item.status}</option>)}</select></label>
+        <div className="formGrid"><label>Jam masuk usulan<input name="firstCheckInAt" type="time" /></label><label>Jam pulang usulan<input name="lastCheckOutAt" type="time" /></label></div>
+        <label>Status usulan<select name="status" defaultValue=""><option value="">Tidak diubah</option><option value="PRESENT">Hadir</option><option value="LATE">Terlambat</option><option value="EARLY_LEAVE">Pulang cepat</option><option value="SICK">Sakit</option><option value="LEAVE">Cuti / izin yang disetujui</option><option value="ABSENT">Tidak hadir</option><option value="OFF_DAY">Hari libur</option><option value="INCOMPLETE">Belum lengkap</option><option value="NEEDS_REVIEW">Perlu review</option></select></label>
+        <label>Alasan<textarea name="reason" minLength={5} required rows={3} /></label><button disabled={busy}>Kirim koreksi</button>
+      </form>
+      <div className="table"><div className="tr th"><span>Diajukan</span><span>Alasan</span><span>Status</span><span>Usulan</span></div>{attendanceCorrections.slice(0,12).map(item=><div className="tr" key={item.id}><span>{dateTimeLabel(item.createdAt)}</span><span>{item.reason}</span><span>{item.status}</span><span>{JSON.stringify(item.proposedData)}</span></div>)}</div>
+    </article>
+  );
+
+  const channelCard = (
+    <article className="card">
+      <div className="cardHeading"><div><small>VERIFIED DELIVERY</small><h3>Telegram & WhatsApp</h3></div><span className="statusPill">{channelBindings.filter((item)=>item.verifiedAt).length} verified</span></div>
+      <p className="mutedText">Slip gaji hanya dikirim melalui secure link ke binding yang sudah diverifikasi. Token/kredensial provider tidak pernah disimpan di portal.</p>
+      <form className="formStack" onSubmit={requestChannelBinding}><label>Kanal<select name="channel" required defaultValue="TELEGRAM"><option value="TELEGRAM">Telegram</option><option value="WHATSAPP">WhatsApp</option></select></label><label>Chat ID / nomor E.164<input name="externalUserId" required /></label><button disabled={busy}>Kirim kode verifikasi</button></form>
+      <form className="formStack" onSubmit={verifyChannelBinding}><label>Kanal<select name="channel" required defaultValue="TELEGRAM"><option value="TELEGRAM">Telegram</option><option value="WHATSAPP">WhatsApp</option></select></label><label>Chat ID / nomor yang sama<input name="externalUserId" required /></label><label>Kode 6 digit<input name="code" inputMode="numeric" minLength={6} maxLength={6} required /></label><button disabled={busy}>Verifikasi kanal</button></form>
+      <div className="table"><div className="tr th"><span>Kanal</span><span>Tujuan</span><span>Verifikasi</span><span>Slip gaji</span></div>{channelBindings.map(binding=>{const pref=notificationPreferences.find(item=>item.eventCode==='PAYSLIP_PUBLISHED'&&item.channel===binding.channel);const enabled=pref?.enabled??true;return <div className="tr" key={binding.id}><span>{binding.channel}</span><span>{binding.externalUserId??'-'}</span><span>{binding.verifiedAt?'VERIFIED':'PENDING'}</span><span>{binding.verifiedAt&&['TELEGRAM','WHATSAPP'].includes(binding.channel)?<button className="secondary" type="button" disabled={busy} onClick={()=>void saveNotificationPreference(binding.channel as 'TELEGRAM'|'WHATSAPP',!enabled)}>{enabled?'Aktif':'Nonaktif'}</button>:'-'}</span></div>;})}</div>
+    </article>
+  );
+
   let content: React.ReactNode;
 
   switch (initialView) {
@@ -579,7 +673,7 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
       content = <>{notice}<section className="singleWorkspace">{payslipList}</section></>;
       break;
     case 'history':
-      content = <>{notice}<section className="singleWorkspace">{attendanceHistory}</section></>;
+      content = <>{notice}<section className="singleWorkspace">{attendanceHistory}{correctionCard}</section></>;
       break;
     case 'profile':
       content = (
@@ -601,6 +695,7 @@ export function EmployeePortalApp({ initialView = 'home' }: { initialView?: Empl
               <p className="mutedText">Portal hanya membaca data employee yang terikat pada sesi autentikasi. Scope employee, tenant, branch, payslip, absensi, cuti, dan lembur tetap divalidasi oleh backend.</p>
             </article>
           </section>
+          <section className="singleWorkspace">{channelCard}</section>
         </>
       );
       break;

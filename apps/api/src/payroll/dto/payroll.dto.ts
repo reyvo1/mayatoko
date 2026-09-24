@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
 
 export class CreatePayrollPeriodDto {
   @ApiPropertyOptional({ description: 'Kompatibilitas lama; company tetap berasal dari token.' }) @IsOptional() @IsUUID() companyId?: string;
@@ -85,4 +85,33 @@ export class SettlePayrollPaymentDto {
 export class PublishPayslipsDto {
   @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() channels?: string[];
   @ApiPropertyOptional() @IsOptional() @IsString() baseUrl?: string;
+}
+
+
+export class UpsertEmployeeTaxProfileDto {
+  @ApiProperty() @IsUUID() employeeId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() taxStatusCode?: string;
+  @ApiProperty({ example: 'GROSS', description: 'Saat ini hanya GROSS executable; metode lain disimpan hanya bila backend mendukungnya secara eksplisit.' }) @IsString() taxMethod!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() annualizationMethod?: string;
+  @ApiProperty() @IsDateString() effectiveFrom!: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveTo?: string;
+  @ApiPropertyOptional() @IsOptional() @IsObject() attributes?: Record<string, unknown>;
+}
+
+export class UpsertEmployeeSocialSecurityProfileDto {
+  @ApiProperty() @IsUUID() employeeId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) wageBase?: number;
+  @ApiProperty({ type: [String] }) @IsArray() programs!: string[];
+  @ApiProperty() @IsDateString() effectiveFrom!: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveTo?: string;
+}
+
+export class UpsertPayrollAccountingMappingDto {
+  @ApiProperty() @IsString() componentCode!: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() debitAccountId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() creditAccountId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() employerDebitAccountId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() employerCreditAccountId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsObject() rules?: Record<string, unknown>;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }

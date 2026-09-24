@@ -4,7 +4,7 @@
   "type": "feature",
   "module": "platform",
   "wave": "W0",
-  "phase": "VERIFICATION",
+  "phase": "CLOSED",
   "risk": "HIGH",
   "owner": "openai",
   "featureFlag": "",
@@ -65,5 +65,15 @@
     ".github/workflows/toko360-full-uat.yml"
   ],
   "createdAt": "2026-09-24T02:24:00+08:00",
-  "updatedAt": "2026-09-24T02:24:00+08:00"
+  "updatedAt": "2026-09-24T18:00:00+08:00",
+  "closureEvidence": {
+    "commit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29",
+    "githubRuns": [
+      "97436154184",
+      "97436154273",
+      "97436154286"
+    ],
+    "automatedStatus": "PASS",
+    "humanStage20": "PENDING_SEPARATE"
+  }
 }

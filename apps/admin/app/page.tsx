@@ -431,7 +431,7 @@ export default function AdminPage() {
           {activeWorkspace.key === 'organization' && (activeDomainView?.key === 'organization' || !activeDomainView ? <OrganizationAdminView token={token} /> : <MasterDataView token={token} mode={activeDomainView.key} />)}
           {activeWorkspace.key === 'finance' && <AccountingView token={token} mode={activeDomainView?.key ?? 'ledger'} />}
           {activeWorkspace.key === 'reports' && (activeDomainView?.key === 'owner' ? <OwnerView token={token} /> : <ReportingWorkspace token={token} />)}
-          {activeWorkspace.key === 'people' && (activeDomainView?.key === 'employees' || !activeDomainView ? <EmployeeMasterView token={token} /> : <HrPayrollView token={token} />)}
+          {activeWorkspace.key === 'people' && (activeDomainView?.key === 'employees' || !activeDomainView ? <EmployeeMasterView token={token} /> : <HrPayrollView token={token} mode={activeDomainView?.key ?? 'payroll'} />)}
           {activeWorkspace.key === 'assets-fleet' && <AssetsFleetView token={token} />}
           {activeWorkspace.key === 'intelligence' && (['automation','schedules'].includes(activeDomainView?.key ?? '') ? <AutomationWorkspace token={token} /> : <AiWorkspace token={token} />)}
           {activeWorkspace.key === 'integrations' && <ExtensionsView token={token} mode="extensions" />}

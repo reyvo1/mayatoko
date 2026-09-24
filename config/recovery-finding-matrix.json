@@ -5,8 +5,8 @@
     "branch": "main",
     "workingTree": "DIRTY_F12R4_R0_R1_UNCOMMITTED",
     "prismaModels": 180,
-    "apiHandlers": 405,
-    "uiInteractiveElements": 295,
+    "apiHandlers": 433,
+    "uiInteractiveElements": 313,
     "fullRepositoryAuditFiles": 974,
     "repoValidationFiles": 1259,
     "tailwindcss": "4.3.3",
@@ -163,9 +163,10 @@
       "title": "Tidak ada Company/Tenant administration CRUD",
       "primaryWave": "R1",
       "secondaryWave": null,
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R1",
       "closureRequirement": "Implement tenant/company administration or document a deliberate constrained product model with operator control.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F08",
@@ -174,9 +175,10 @@
       "title": "Tidak ada branch switcher operasional di Admin",
       "primaryWave": "R1",
       "secondaryWave": null,
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R1",
       "closureRequirement": "Implement authorized branch switching/context with tenant-safe enforcement.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F09",
@@ -185,9 +187,10 @@
       "title": "User/role API lebih lengkap daripada UI",
       "primaryWave": "R1",
       "secondaryWave": null,
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R1",
       "closureRequirement": "Expose role/permission/user-role/user-status administration.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F10",
@@ -196,9 +199,10 @@
       "title": "Banyak control-plane API tidak punya operator UI",
       "primaryWave": "R1",
       "secondaryWave": "R7",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R1",
       "closureRequirement": "Expose and permission platform settings/custom fields/webhooks/approvals/audit/outbox/ui-schema/ops-health surfaces.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F11",
@@ -207,7 +211,7 @@
       "title": "WorkShift ada di database tetapi tidak punya workflow runtime",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement WorkShift CRUD and operator UI.",
       "runtimeEvidenceRequired": true
     },
@@ -218,7 +222,7 @@
       "title": "EmployeeSchedule nyaris hanya dipakai sebagai hitungan",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement EmployeeSchedule/roster lifecycle.",
       "runtimeEvidenceRequired": true
     },
@@ -229,7 +233,7 @@
       "title": "AttendanceCorrection menjadi blocker tanpa workflow koreksi",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement AttendanceCorrection submit-review-approve/reject-payroll-unblock flow.",
       "runtimeEvidenceRequired": true
     },
@@ -240,7 +244,7 @@
       "title": "EmployeeAssignment tidak diimplementasikan",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement EmployeeAssignment/effective-dated placement lifecycle.",
       "runtimeEvidenceRequired": true
     },
@@ -251,7 +255,7 @@
       "title": "AttendancePolicy tidak punya management API/UI",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement AttendancePolicy management.",
       "runtimeEvidenceRequired": true
     },
@@ -262,7 +266,7 @@
       "title": "Geofence/device/biometric API tidak punya Admin workflow",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement geofence/device/biometric/fingerprint operator management.",
       "runtimeEvidenceRequired": true
     },
@@ -273,7 +277,7 @@
       "title": "Portal karyawan tidak mengekspos binding Telegram/WhatsApp",
       "primaryWave": "R2",
       "secondaryWave": "R3",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Expose employee channel verification and notification preferences.",
       "runtimeEvidenceRequired": true
     },
@@ -284,7 +288,7 @@
       "title": "Employee tax/social profile tidak punya management API/UI",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement tax/social profile management used by payroll.",
       "runtimeEvidenceRequired": true
     },
@@ -295,7 +299,7 @@
       "title": "PayrollAccountingMapping dibaca tetapi tidak dapat dikelola operator",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement payroll accounting mapping management.",
       "runtimeEvidenceRequired": true
     },
@@ -306,7 +310,7 @@
       "title": "Gross-up/net belum diimplementasikan",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_FAIL_CLOSED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Support documented payroll tax methods or fail closed with truthful capability state.",
       "runtimeEvidenceRequired": true
     },
@@ -317,7 +321,7 @@
       "title": "Split-period/proration payroll belum tersedia",
       "primaryWave": "R2",
       "secondaryWave": null,
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_FAIL_CLOSED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement split-period/proration where required by effective-dated payroll rules.",
       "runtimeEvidenceRequired": true
     },

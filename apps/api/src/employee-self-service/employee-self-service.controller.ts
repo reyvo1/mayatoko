@@ -6,7 +6,7 @@ import { decodeCursor, parsePageLimit, toCursorPage } from '../common/pagination
 import { Permissions } from '../auth/permissions.decorator';
 import { HrService } from '../hr/hr.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { RequestChannelBindingDto, UpdateNotificationPreferenceDto, VerifyChannelBindingDto } from './employee-self-service.dto';
+import { RequestChannelBindingDto, SubmitAttendanceCorrectionDto, UpdateNotificationPreferenceDto, VerifyChannelBindingDto } from './employee-self-service.dto';
 import { CreateLeaveRequestDto, CreateOvertimeRequestDto } from '../hr/dto/hr.dto';
 import { EmployeeSelfServiceService } from './employee-self-service.service';
 
@@ -17,6 +17,19 @@ import { EmployeeSelfServiceService } from './employee-self-service.service';
     private readonly prisma: PrismaService,
     private readonly selfService: EmployeeSelfServiceService,
   ) {}
+
+
+  @Permissions('employee.self') @Get('channels')
+  channels(@CurrentUser() user: AuthUser) { return this.selfService.channelState(user); }
+
+  @Permissions('employee.self') @Get('notification-preferences')
+  preferences(@CurrentUser() user: AuthUser) { return this.selfService.preferences(user); }
+
+  @Permissions('employee.self') @Get('attendance-corrections')
+  corrections(@CurrentUser() user: AuthUser) { return this.selfService.corrections(user); }
+
+  @Permissions('employee.self') @Post('attendance-corrections')
+  submitCorrection(@CurrentUser() user: AuthUser, @Body() dto: SubmitAttendanceCorrectionDto) { return this.selfService.submitAttendanceCorrection(user, dto); }
 
   @Permissions('employee.self') @Post('channels/request-verification')
   requestChannel(@CurrentUser() user: AuthUser, @Body() dto: RequestChannelBindingDto) {

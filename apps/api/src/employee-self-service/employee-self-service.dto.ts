@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsEnum, IsObject, IsOptional, IsString, IsUUID, Length, MinLength } from 'class-validator';
 
 export enum EmployeeChannelDto { IN_APP = 'IN_APP', EMAIL = 'EMAIL', TELEGRAM = 'TELEGRAM', WHATSAPP = 'WHATSAPP', SMS = 'SMS' }
 export class RequestChannelBindingDto {
@@ -15,4 +15,11 @@ export class UpdateNotificationPreferenceDto {
   @ApiProperty() @IsString() eventCode!: string;
   @ApiProperty({ enum: EmployeeChannelDto }) @IsEnum(EmployeeChannelDto) channel!: EmployeeChannelDto;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() enabled?: boolean;
+}
+
+
+export class SubmitAttendanceCorrectionDto {
+  @ApiProperty() @IsUUID() attendanceRecordId!: string;
+  @ApiProperty() @IsString() @MinLength(5) reason!: string;
+  @ApiProperty() @IsObject() proposedData!: Record<string, unknown>;
 }

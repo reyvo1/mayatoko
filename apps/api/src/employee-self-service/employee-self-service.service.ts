@@ -4,7 +4,7 @@ import { createHash, randomInt } from 'node:crypto';
 import { AuthUser } from '../auth/auth.types';
 import { HrService } from '../hr/hr.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { RequestChannelBindingDto, UpdateNotificationPreferenceDto, VerifyChannelBindingDto } from './employee-self-service.dto';
+import { RequestChannelBindingDto, SubmitAttendanceCorrectionDto, UpdateNotificationPreferenceDto, VerifyChannelBindingDto } from './employee-self-service.dto';
 
 const sha256 = (input: string) => createHash('sha256').update(input).digest('hex');
 
@@ -61,14 +61,26 @@ export class EmployeeSelfServiceService {
     if (!binding?.verificationTokenHash || binding.verificationTokenHash !== sha256(dto.code)) {
       throw new BadRequestException('Kode verifikasi tidak valid.');
     }
-    return this.prisma.employeeChannelBinding.update({
-      where: { id: binding.id },
-      data: { verifiedAt: new Date(), verificationTokenHash: null, isPrimary: true },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.employeeChannelBinding.updateMany({
+        where: { companyId: employee.companyId, employeeId: employee.id, channel: dto.channel as never, id: { not: binding.id } },
+        data: { isPrimary: false },
+      });
+      const verified = await tx.employeeChannelBinding.update({
+        where: { id: binding.id },
+        data: { verifiedAt: new Date(), verificationTokenHash: null, isPrimary: true },
+      });
+      await tx.auditLog.create({ data: { companyId: employee.companyId, userId: user.sub, action: 'VERIFY_EMPLOYEE_CHANNEL', entityType: 'EmployeeChannelBinding', entityId: verified.id, payload: { branchId: employee.branchId, employeeId: employee.id, channel: dto.channel } } });
+      return verified;
     });
   }
 
   async updatePreference(user: AuthUser, dto: UpdateNotificationPreferenceDto) {
     const employee = await this.hr.byUserId(user);
+    if ((dto.enabled ?? true) && ['TELEGRAM', 'WHATSAPP', 'EMAIL', 'SMS'].includes(dto.channel)) {
+      const verified = await this.prisma.employeeChannelBinding.findFirst({ where: { companyId: employee.companyId, employeeId: employee.id, channel: dto.channel as never, verifiedAt: { not: null }, revokedAt: null } });
+      if (!verified) throw new BadRequestException(`Kanal ${dto.channel} harus diverifikasi sebelum preferensi delivery diaktifkan.`);
+    }
     return this.prisma.employeeNotificationPreference.upsert({
       where: {
         employeeId_eventCode_channel: {
@@ -84,4 +96,47 @@ export class EmployeeSelfServiceService {
       update: { enabled: dto.enabled ?? true },
     });
   }
+
+  async channelState(user: AuthUser) {
+    const employee = await this.hr.byUserId(user);
+    return this.prisma.employeeChannelBinding.findMany({
+      where: { companyId: employee.companyId, employeeId: employee.id, revokedAt: null },
+      select: { id: true, channel: true, externalUserId: true, verifiedAt: true, isPrimary: true, createdAt: true },
+      orderBy: [{ channel: 'asc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async preferences(user: AuthUser) {
+    const employee = await this.hr.byUserId(user);
+    return this.prisma.employeeNotificationPreference.findMany({
+      where: { companyId: employee.companyId, employeeId: employee.id },
+      orderBy: [{ eventCode: 'asc' }, { channel: 'asc' }],
+    });
+  }
+
+  async corrections(user: AuthUser) {
+    const employee = await this.hr.byUserId(user);
+    return this.prisma.attendanceCorrection.findMany({
+      where: { companyId: employee.companyId, employeeId: employee.id },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 100,
+    });
+  }
+
+  async submitAttendanceCorrection(user: AuthUser, dto: SubmitAttendanceCorrectionDto) {
+    const employee = await this.hr.byUserId(user);
+    return this.prisma.$transaction(async (tx) => {
+      const record = await tx.attendanceRecord.findFirst({ where: { id: dto.attendanceRecordId, companyId: employee.companyId, branchId: employee.branchId, employeeId: employee.id } });
+      if (!record) throw new BadRequestException('AttendanceRecord tidak ditemukan pada akun karyawan aktif.');
+      if (record.lockedAt) throw new BadRequestException('Absensi sudah dikunci payroll; ajukan payroll adjustment melalui HR setelah koreksi administratif diverifikasi.');
+      const pending = await tx.attendanceCorrection.findFirst({ where: { companyId: employee.companyId, employeeId: employee.id, attendanceRecordId: record.id, status: 'SUBMITTED' } });
+      if (pending) throw new BadRequestException('Koreksi untuk tanggal ini sudah diajukan dan belum diputuskan.');
+      const allowed = new Set(['firstCheckInAt','lastCheckOutAt','workedMinutes','breakMinutes','lateMinutes','earlyLeaveMinutes','overtimeMinutes','status','notes']);
+      const proposed = Object.fromEntries(Object.entries(dto.proposedData).filter(([key]) => allowed.has(key)));
+      if (!Object.keys(proposed).length) throw new BadRequestException('Tidak ada field absensi yang dapat dikoreksi.');
+      const row = await tx.attendanceCorrection.create({ data: { companyId: employee.companyId, employeeId: employee.id, attendanceRecordId: record.id, requestedById: user.sub, reason: dto.reason.trim(), proposedData: proposed } });
+      await tx.auditLog.create({ data: { companyId: employee.companyId, userId: user.sub, action: 'SUBMIT_SELF_ATTENDANCE_CORRECTION', entityType: 'AttendanceCorrection', entityId: row.id, payload: { branchId: employee.branchId, employeeId: employee.id, attendanceRecordId: record.id } } });
+      return row;
+    });
+  }
+
 }

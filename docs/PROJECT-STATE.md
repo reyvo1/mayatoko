@@ -51,6 +51,12 @@ Current generated counts: 180 Prisma models, 405 API handlers, 295 UI interactiv
 
 ## Recovery R1 — 2026-09-24
 
-R0 truth reset is complete locally and R1 is in **VERIFICATION** under work item `T360-20260924-022400`. R1 closes F07–F10 at source level: current-company administration with deliberate `BOOTSTRAP_ONLY` provisioning, session-scoped same-company branch switching through `AuthSession.activeBranchId`, complete Admin user/role/permission/status operations, and explicit control-plane workspaces for settings/custom fields/webhooks/approvals/audit/outbox/UI schemas/ops health.
+R1 is **CLOSED** on exact GitHub runtime commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29`. Full System Simulation, Full Automated UAT, `ci:r1:probe`, PostgreSQL migration rehearsal, exact six-app build, runtime API sweep, Built Browser UAT, Telegram/WhatsApp provider simulation, worker/report probe, Stage-18, Stage-19, automated Stage-20, and aggregate automated gates passed on current R1 source. Human Stage-20 remains a separate PENDING gate and was not replaced by automation.
 
-The expand-only migration `T360-20260924-r1-session-branch-context` is appended after F11 for SQLite/PostgreSQL parity. GitHub Full System Simulation and Toko360 Full Automated UAT now require `ci:r1:probe` to prove tenant isolation, branch switch, access lifecycle, and control-plane reads on live PostgreSQL exact runtime. Until that evidence passes, F07–F10 remain `SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING`; R2 must not start and Human Stage-20 remains BLOCKED.
+F07–F10 are runtime-closed by that evidence. No UAT assertion was weakened to obtain green; the final R1 fixes corrected real mobile layout, canonical nested navigation, and runtime-origin consistency while keeping fail-closed browser/provider gates intact.
+
+## Recovery R2 — 2026-09-24
+
+R2 is **IMPLEMENTATION** under `T360-20260924-180000-recovery-r2-hr-attendance-payroll`. Source implementation now covers WorkShift CRUD, roster schedules, AttendancePolicy management, attendance correction submit/review/apply, effective-dated EmployeeAssignment, device/geofence/biometric operator management, verified Employee Telegram/WhatsApp channel preferences, employee tax/social-security profile management, and PayrollAccountingMapping management.
+
+Payroll tax method support is intentionally truthful: only `GROSS` is executable; `NET` and `GROSS_UP` fail closed. Split-period/proration is also fail-closed when a component or statutory profile changes inside one payroll period instead of silently applying the wrong full-period value. Both GitHub heavy workflows now require `ci:r2:probe` on live PostgreSQL. F11–F21 remain runtime-evidence pending and R2 must not be marked CLOSED until that probe plus the existing payroll staging/Stage-20 chain pass on the same current source. Human Stage-20 remains separate/PENDING.

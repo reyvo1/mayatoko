@@ -222,6 +222,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r1:probe
 
+      - name: Exercise R2 HR, attendance, employee self-service and payroll configuration lifecycle
+        id: r2_hr_payroll
+        continue-on-error: true
+        run: npm run ci:r2:probe
+
       - name: Sweep every documented OpenAPI operation against exact runtime
         id: api_sweep
         continue-on-error: true
@@ -312,6 +317,7 @@ jobs:
           STEP_RUNTIME_SWEEP_START: ${{ steps.runtime_sweep_start.outcome }}
           STEP_API_SWEEP: ${{ steps.api_sweep.outcome }}
           STEP_R1_TENANT_ACCESS: ${{ steps.r1_tenant_access.outcome }}
+          STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -356,6 +362,7 @@ jobs:
           STEP_RUNTIME_SWEEP_START: ${{ steps.runtime_sweep_start.outcome }}
           STEP_API_SWEEP: ${{ steps.api_sweep.outcome }}
           STEP_R1_TENANT_ACCESS: ${{ steps.r1_tenant_access.outcome }}
+          STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -385,6 +392,7 @@ jobs:
           check "Runtime sweep start" "$STEP_RUNTIME_SWEEP_START"
           check "All OpenAPI runtime sweep" "$STEP_API_SWEEP"
           check "R1 tenant/access runtime probe" "$STEP_R1_TENANT_ACCESS"
+          check "R2 HR/attendance/payroll runtime probe" "$STEP_R2_HR_PAYROLL"
           check "Telegram/WhatsApp provider probe" "$STEP_PROVIDER_PROBE"
           check "Stage 18" "$STEP_STAGE18"
           check "Stage 19" "$STEP_STAGE19"

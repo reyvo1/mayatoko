@@ -81,3 +81,14 @@ export class CreateOvertimeRequestDto {
 export class ReviewOvertimeRequestDto extends ReviewHrRequestDto {
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(1440) approvedMinutes?: number;
 }
+
+
+export class CreateEmployeeAssignmentDto {
+  @ApiProperty() @IsUUID() employeeId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() departmentId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() positionId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() managerEmployeeId?: string;
+  @ApiProperty() @IsDateString() effectiveFrom!: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveTo?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isPrimary?: boolean;
+}

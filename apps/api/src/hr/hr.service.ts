@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { AuthUser } from '../auth/auth.types';
 import { decodeCursor, parsePageLimit, toCursorPage } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateDepartmentDto, CreateEmployeeDto, CreateLeaveRequestDto, CreateLeaveTypeDto, CreateOvertimeRequestDto, CreatePositionDto, ReviewHrRequestDto, ReviewOvertimeRequestDto, UpdateEmployeeDto } from './dto/hr.dto';
+import { CreateDepartmentDto, CreateEmployeeAssignmentDto, CreateEmployeeDto, CreateLeaveRequestDto, CreateLeaveTypeDto, CreateOvertimeRequestDto, CreatePositionDto, ReviewHrRequestDto, ReviewOvertimeRequestDto, UpdateEmployeeDto } from './dto/hr.dto';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 type TenantScope = { companyId: string; branchId: string };
@@ -465,4 +465,48 @@ export class HrService {
     if (!employee) throw new NotFoundException('Akun belum terhubung ke data karyawan pada tenant aktif.');
     return employee;
   }
+
+  async listAssignments(employeeId: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const employee = await this.prisma.employee.findFirst({ where: { id: employeeId, companyId: scope.companyId, branchId: scope.branchId } });
+    if (!employee) return this.denyTenantAccess(this.prisma, user, scope, 'Employee', employeeId);
+    return this.prisma.employeeAssignment.findMany({ where: { employeeId }, orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }] });
+  }
+
+  async createAssignment(dto: CreateEmployeeAssignmentDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const effectiveFrom = this.parseBusinessDate(dto.effectiveFrom, 'Tanggal mulai assignment');
+    const effectiveTo = dto.effectiveTo ? this.parseBusinessDate(dto.effectiveTo, 'Tanggal akhir assignment') : null;
+    if (effectiveTo && effectiveTo < effectiveFrom) throw new BadRequestException('Tanggal akhir assignment tidak boleh sebelum tanggal mulai.');
+    return this.prisma.$transaction(async (tx) => {
+      const employee = await tx.employee.findFirst({ where: { id: dto.employeeId, companyId: scope.companyId, branchId: scope.branchId, isActive: true } });
+      if (!employee) return this.denyTenantAccess(tx, user, scope, 'Employee', dto.employeeId);
+      await this.assertDepartment(tx, user, scope, dto.departmentId);
+      await this.assertPosition(tx, user, scope, dto.positionId);
+      if (dto.managerEmployeeId) {
+        const manager = await tx.employee.findFirst({ where: { id: dto.managerEmployeeId, companyId: scope.companyId, branchId: scope.branchId, isActive: true } });
+        if (!manager) return this.denyTenantAccess(tx, user, scope, 'Employee', dto.managerEmployeeId);
+        if (manager.id === employee.id) throw new BadRequestException('Karyawan tidak dapat menjadi manajer untuk dirinya sendiri.');
+      }
+      if (dto.isPrimary ?? true) {
+        const overlap = await tx.employeeAssignment.findFirst({ where: {
+          employeeId: employee.id, isPrimary: true,
+          effectiveFrom: { lte: effectiveTo ?? new Date('9999-12-31T00:00:00.000Z') },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }],
+        } });
+        if (overlap) throw new ConflictException('Rentang primary EmployeeAssignment bertumpang tindih dengan assignment aktif/terjadwal lain.');
+      }
+      const row = await tx.employeeAssignment.create({ data: {
+        employeeId: employee.id, branchId: scope.branchId, departmentId: dto.departmentId, positionId: dto.positionId,
+        managerEmployeeId: dto.managerEmployeeId, effectiveFrom, effectiveTo, isPrimary: dto.isPrimary ?? true,
+      } });
+      const now = new Date();
+      if (row.isPrimary && row.effectiveFrom <= now && (!row.effectiveTo || row.effectiveTo >= now)) {
+        await tx.employee.update({ where: { id: employee.id }, data: { branchId: scope.branchId, departmentId: row.departmentId, positionId: row.positionId, managerEmployeeId: row.managerEmployeeId } });
+      }
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_EMPLOYEE_ASSIGNMENT', entityType: 'EmployeeAssignment', entityId: row.id, payload: { branchId: scope.branchId, employeeId: employee.id, effectiveFrom: effectiveFrom.toISOString(), effectiveTo: effectiveTo?.toISOString() ?? null, isPrimary: row.isPrimary } } });
+      return row;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
 }

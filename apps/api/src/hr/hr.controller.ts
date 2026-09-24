@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Permissions } from '../auth/permissions.decorator';
-import { CreateDepartmentDto, CreateEmployeeDto, CreateLeaveTypeDto, CreatePositionDto, ReviewHrRequestDto, ReviewOvertimeRequestDto, UpdateEmployeeDto } from './dto/hr.dto';
+import { CreateDepartmentDto, CreateEmployeeAssignmentDto, CreateEmployeeDto, CreateLeaveTypeDto, CreatePositionDto, ReviewHrRequestDto, ReviewOvertimeRequestDto, UpdateEmployeeDto } from './dto/hr.dto';
 import { HrService } from './hr.service';
 
 @ApiTags('hr') @ApiBearerAuth() @Controller('hr')
@@ -31,6 +31,13 @@ import { HrService } from './hr.service';
   update(@Param('id') id: string, @Body() dto: UpdateEmployeeDto, @CurrentUser() user: AuthUser) {
     return this.hr.updateEmployee(id, dto, user);
   }
+
+
+  @Permissions('employee.view') @Get('employees/:id/assignments')
+  assignments(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.hr.listAssignments(id, user); }
+
+  @Permissions('employee.manage') @Post('assignments')
+  assignment(@Body() dto: CreateEmployeeAssignmentDto, @CurrentUser() user: AuthUser) { return this.hr.createAssignment(dto, user); }
 
   @Permissions('employee.manage') @Post('departments')
   department(@Body() dto: CreateDepartmentDto, @CurrentUser() user: AuthUser) {

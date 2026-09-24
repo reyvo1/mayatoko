@@ -7,7 +7,7 @@ import { extname, resolve } from 'node:path';
 import { AuthUser } from '../auth/auth.types';
 import { decodeCursor, parsePageLimit, toCursorPage } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
-import { AttendanceMethodDto, CreateAttendanceDeviceDto, CreateAttendanceEventDto, CreateGeofenceDto, EnrollBiometricDto, FingerprintEventDto, UploadAttendancePhotoDto } from './dto/attendance.dto';
+import { AttendanceMethodDto, CreateAttendanceCorrectionDto, CreateAttendanceDeviceDto, CreateAttendanceEventDto, CreateAttendancePolicyDto, CreateGeofenceDto, CreateWorkShiftDto, EnrollBiometricDto, FingerprintEventDto, ReviewAttendanceCorrectionDto, UpdateAttendanceDeviceDto, UpdateAttendancePolicyDto, UpdateBiometricCredentialDto, UpdateGeofenceDto, UpdateWorkShiftDto, UploadAttendancePhotoDto, UpsertEmployeeScheduleDto } from './dto/attendance.dto';
 
 function radians(value: number) { return value * Math.PI / 180; }
 function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -501,4 +501,245 @@ export class AttendanceService {
     });
     return toCursorPage(items, limit, (item) => ({ workDate: item.workDate.toISOString(), id: item.id }));
   }
+
+  async listWorkShifts(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.workShift.findMany({
+      where: { companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }] },
+      orderBy: [{ isActive: 'desc' }, { code: 'asc' }],
+    });
+  }
+
+  private validateShift(dto: CreateWorkShiftDto | UpdateWorkShiftDto) {
+    if (dto.startMinute === dto.endMinute && !dto.crossesMidnight) throw new BadRequestException('Jam mulai dan selesai shift tidak boleh sama kecuali shift lintas tengah malam.');
+    const span = dto.crossesMidnight
+      ? (1440 - dto.startMinute) + dto.endMinute
+      : dto.endMinute - dto.startMinute;
+    if (span <= 0 || span > 1440) throw new BadRequestException('Rentang WorkShift tidak valid.');
+    if ((dto.breakMinutes ?? 0) >= span) throw new BadRequestException('Durasi istirahat harus lebih kecil dari durasi shift.');
+  }
+
+  async createWorkShift(user: AuthUser, dto: CreateWorkShiftDto) {
+    const scope = this.requireTenantScope(user);
+    this.validateShift(dto);
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.workShift.create({ data: {
+        companyId: scope.companyId, branchId: scope.branchId, code: dto.code.trim(), name: dto.name.trim(),
+        startMinute: dto.startMinute, endMinute: dto.endMinute, crossesMidnight: dto.crossesMidnight ?? false,
+        breakMinutes: dto.breakMinutes ?? 0, lateToleranceMinutes: dto.lateToleranceMinutes ?? 0,
+        earlyLeaveToleranceMinutes: dto.earlyLeaveToleranceMinutes ?? 0, minimumWorkMinutes: dto.minimumWorkMinutes,
+        overtimeAfterMinutes: dto.overtimeAfterMinutes,
+      } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_WORK_SHIFT', entityType: 'WorkShift', entityId: row.id, payload: { branchId: scope.branchId, code: row.code } } });
+      return row;
+    });
+  }
+
+  async updateWorkShift(user: AuthUser, id: string, dto: UpdateWorkShiftDto) {
+    const scope = this.requireTenantScope(user);
+    this.validateShift(dto);
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.workShift.findFirst({ where: { id, companyId: scope.companyId, branchId: scope.branchId } });
+      if (!current) return this.denyTenantAccess(tx, user, scope, 'WorkShift', id);
+      const row = await tx.workShift.update({ where: { id }, data: {
+        code: dto.code.trim(), name: dto.name.trim(), startMinute: dto.startMinute, endMinute: dto.endMinute,
+        crossesMidnight: dto.crossesMidnight ?? false, breakMinutes: dto.breakMinutes ?? 0,
+        lateToleranceMinutes: dto.lateToleranceMinutes ?? 0, earlyLeaveToleranceMinutes: dto.earlyLeaveToleranceMinutes ?? 0,
+        minimumWorkMinutes: dto.minimumWorkMinutes, overtimeAfterMinutes: dto.overtimeAfterMinutes, isActive: dto.isActive ?? current.isActive,
+      } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPDATE_WORK_SHIFT', entityType: 'WorkShift', entityId: id, payload: { branchId: scope.branchId, isActive: row.isActive } } });
+      return row;
+    });
+  }
+
+  async listSchedules(user: AuthUser, from?: string, to?: string, employeeId?: string) {
+    const scope = this.requireTenantScope(user);
+    if (employeeId) await this.scopedEmployee(this.prisma, user, scope, employeeId);
+    const fromDate = from ? normalizeWorkDate(from, new Date(from)) : new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
+    const toDate = to ? normalizeWorkDate(to, new Date(to)) : new Date(Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth() + 1, 0));
+    return this.prisma.employeeSchedule.findMany({
+      where: { companyId: scope.companyId, branchId: scope.branchId, workDate: { gte: fromDate, lte: toDate }, ...(employeeId ? { employeeId } : {}) },
+      orderBy: [{ workDate: 'asc' }, { employeeId: 'asc' }], take: 1000,
+    });
+  }
+
+  async upsertSchedule(user: AuthUser, dto: UpsertEmployeeScheduleDto) {
+    const scope = this.requireTenantScope(user);
+    const employee = await this.scopedEmployee(this.prisma, user, scope, dto.employeeId);
+    const workDate = normalizeWorkDate(dto.workDate, new Date(dto.workDate));
+    if (dto.isDayOff && dto.shiftId) throw new BadRequestException('Hari libur tidak boleh sekaligus memiliki shift.');
+    if (!dto.isDayOff && !dto.shiftId) throw new BadRequestException('Roster hari kerja wajib memilih WorkShift.');
+    if (dto.shiftId) {
+      const shift = await this.prisma.workShift.findFirst({ where: { id: dto.shiftId, companyId: scope.companyId, isActive: true, OR: [{ branchId: scope.branchId }, { branchId: null }] } });
+      if (!shift) await this.denyTenantAccess(this.prisma, user, scope, 'WorkShift', dto.shiftId);
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.employeeSchedule.upsert({
+        where: { employeeId_workDate: { employeeId: employee.id, workDate } },
+        create: { companyId: scope.companyId, branchId: scope.branchId, employeeId: employee.id, shiftId: dto.shiftId, workDate, isDayOff: dto.isDayOff ?? false, source: 'ROSTER', notes: dto.notes },
+        update: { branchId: scope.branchId, shiftId: dto.shiftId ?? null, isDayOff: dto.isDayOff ?? false, source: 'ROSTER', notes: dto.notes },
+      });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPSERT_EMPLOYEE_SCHEDULE', entityType: 'EmployeeSchedule', entityId: row.id, payload: { branchId: scope.branchId, employeeId: employee.id, workDate: workDate.toISOString(), shiftId: dto.shiftId ?? null, isDayOff: row.isDayOff } } });
+      return row;
+    });
+  }
+
+  async listPolicies(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.attendancePolicy.findMany({ where: { companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }] }, orderBy: [{ isActive: 'desc' }, { code: 'asc' }] });
+  }
+
+  private policyData(dto: CreateAttendancePolicyDto | UpdateAttendancePolicyDto) {
+    const allowedMethods = [...new Set(dto.allowedMethods.map(String))];
+    if (!allowedMethods.length) throw new BadRequestException('AttendancePolicy wajib memiliki minimal satu metode absensi.');
+    return {
+      code: dto.code.trim(), name: dto.name.trim(), allowedMethods,
+      requirePhoto: dto.requirePhoto ?? false, requireLocation: dto.requireLocation ?? false,
+      requireLiveness: dto.requireLiveness ?? false, allowOutsideGeofence: dto.allowOutsideGeofence ?? false,
+      maxLocationAccuracyMeters: dto.maxLocationAccuracyMeters, duplicateWindowSeconds: dto.duplicateWindowSeconds ?? 60,
+      offlineAllowed: dto.offlineAllowed ?? true, rules: dto.rules as Prisma.InputJsonValue | undefined,
+    };
+  }
+
+  async createPolicy(user: AuthUser, dto: CreateAttendancePolicyDto) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.attendancePolicy.create({ data: { companyId: scope.companyId, branchId: scope.branchId, ...this.policyData(dto) } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_ATTENDANCE_POLICY', entityType: 'AttendancePolicy', entityId: row.id, payload: { branchId: scope.branchId, code: row.code } } });
+      return row;
+    });
+  }
+
+  async updatePolicy(user: AuthUser, id: string, dto: UpdateAttendancePolicyDto) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.attendancePolicy.findFirst({ where: { id, companyId: scope.companyId, branchId: scope.branchId } });
+      if (!current) return this.denyTenantAccess(tx, user, scope, 'AttendancePolicy', id);
+      const row = await tx.attendancePolicy.update({ where: { id }, data: { ...this.policyData(dto), isActive: dto.isActive ?? current.isActive } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPDATE_ATTENDANCE_POLICY', entityType: 'AttendancePolicy', entityId: id, payload: { branchId: scope.branchId, isActive: row.isActive } } });
+      return row;
+    });
+  }
+
+  async listCorrections(user: AuthUser, status?: string, employeeId?: string) {
+    const scope = this.requireTenantScope(user);
+    if (employeeId) await this.scopedEmployee(this.prisma, user, scope, employeeId);
+    const employees = await this.prisma.employee.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId }, select: { id: true } });
+    return this.prisma.attendanceCorrection.findMany({ where: { companyId: scope.companyId, employeeId: { in: employees.map((e) => e.id) }, ...(employeeId ? { employeeId } : {}), ...(status ? { status: status as never } : {}) }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 300 });
+  }
+
+  async submitCorrection(user: AuthUser, dto: CreateAttendanceCorrectionDto) {
+    const scope = this.requireTenantScope(user);
+    const employee = await this.scopedEmployee(this.prisma, user, scope, dto.employeeId);
+    return this.prisma.$transaction(async (tx) => {
+      const record = await tx.attendanceRecord.findFirst({ where: { id: dto.attendanceRecordId, companyId: scope.companyId, branchId: scope.branchId, employeeId: employee.id } });
+      if (!record) return this.denyTenantAccess(tx, user, scope, 'AttendanceRecord', dto.attendanceRecordId);
+      if (record.lockedAt) throw new BadRequestException('AttendanceRecord sudah dikunci payroll; gunakan payroll adjustment workflow, bukan koreksi absensi langsung.');
+      const duplicate = await tx.attendanceCorrection.findFirst({ where: { companyId: scope.companyId, attendanceRecordId: record.id, status: 'SUBMITTED' } });
+      if (duplicate) throw new ConflictException('AttendanceRecord sudah memiliki koreksi SUBMITTED yang belum diputuskan.');
+      const row = await tx.attendanceCorrection.create({ data: { companyId: scope.companyId, employeeId: employee.id, attendanceRecordId: record.id, requestedById: user.sub, reason: dto.reason.trim(), proposedData: dto.proposedData as Prisma.InputJsonValue } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'SUBMIT_ATTENDANCE_CORRECTION', entityType: 'AttendanceCorrection', entityId: row.id, payload: { branchId: scope.branchId, employeeId: employee.id, attendanceRecordId: record.id } } });
+      return row;
+    });
+  }
+
+  private correctionPatch(value: unknown): Prisma.AttendanceRecordUpdateInput {
+    const proposed = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+    const patch: Prisma.AttendanceRecordUpdateInput = {};
+    for (const key of ['workedMinutes','breakMinutes','lateMinutes','earlyLeaveMinutes','overtimeMinutes'] as const) {
+      if (proposed[key] !== undefined) {
+        const n = Number(proposed[key]);
+        if (!Number.isInteger(n) || n < 0) throw new BadRequestException(`${key} koreksi harus bilangan bulat >= 0.`);
+        patch[key] = n;
+      }
+    }
+    for (const key of ['firstCheckInAt','lastCheckOutAt'] as const) {
+      if (proposed[key] !== undefined) {
+        if (proposed[key] === null) patch[key] = null;
+        else {
+          const date = new Date(String(proposed[key]));
+          if (Number.isNaN(date.getTime())) throw new BadRequestException(`${key} koreksi tidak valid.`);
+          patch[key] = date;
+        }
+      }
+    }
+    if (proposed.status !== undefined) {
+      const allowed = new Set(['PRESENT','LATE','EARLY_LEAVE','ABSENT','LEAVE','SICK','HOLIDAY','OFF_DAY','INCOMPLETE','NEEDS_REVIEW']);
+      if (!allowed.has(String(proposed.status))) throw new BadRequestException('Status AttendanceRecord koreksi tidak didukung.');
+      patch.status = String(proposed.status) as never;
+    }
+    if (proposed.notes !== undefined) patch.notes = proposed.notes == null ? null : String(proposed.notes);
+    if (!Object.keys(patch).length) throw new BadRequestException('proposedData tidak memiliki field AttendanceRecord yang dapat dikoreksi.');
+    patch.sourceVersion = { increment: 1 };
+    patch.calculatedAt = new Date();
+    return patch;
+  }
+
+  async reviewCorrection(user: AuthUser, id: string, dto: ReviewAttendanceCorrectionDto) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const correction = await tx.attendanceCorrection.findFirst({ where: { id, companyId: scope.companyId, status: 'SUBMITTED' } });
+      if (!correction) throw new BadRequestException('AttendanceCorrection tidak ditemukan atau sudah diputuskan.');
+      const employee = await this.scopedEmployee(tx, user, scope, correction.employeeId);
+      const record = correction.attendanceRecordId ? await tx.attendanceRecord.findFirst({ where: { id: correction.attendanceRecordId, companyId: scope.companyId, branchId: scope.branchId, employeeId: employee.id } }) : null;
+      if (!record) return this.denyTenantAccess(tx, user, scope, 'AttendanceRecord', correction.attendanceRecordId ?? undefined);
+      if (record.lockedAt) throw new BadRequestException('AttendanceRecord sudah dikunci payroll; koreksi tidak boleh mengubah periode payroll terkunci.');
+      if (dto.status === 'APPROVED') await tx.attendanceRecord.update({ where: { id: record.id }, data: this.correctionPatch(correction.proposedData) });
+      const row = await tx.attendanceCorrection.update({ where: { id }, data: { status: dto.status as never, reviewedById: user.sub, reviewedAt: new Date(), reviewNotes: dto.reviewNotes } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: dto.status === 'APPROVED' ? 'APPROVE_ATTENDANCE_CORRECTION' : 'REJECT_ATTENDANCE_CORRECTION', entityType: 'AttendanceCorrection', entityId: id, payload: { branchId: scope.branchId, employeeId: employee.id, attendanceRecordId: record.id, reviewNotes: dto.reviewNotes } } });
+      return row;
+    });
+  }
+
+  async listDevices(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.attendanceDevice.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId }, orderBy: [{ status: 'asc' }, { code: 'asc' }] });
+  }
+
+  async updateDevice(user: AuthUser, id: string, dto: UpdateAttendanceDeviceDto) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.attendanceDevice.findFirst({ where: { id, companyId: scope.companyId, branchId: scope.branchId } });
+      if (!current) return this.denyTenantAccess(tx, user, scope, 'AttendanceDevice', id);
+      const row = await tx.attendanceDevice.update({ where: { id }, data: { name: dto.name, vendor: dto.vendor, model: dto.model, serialNumber: dto.serialNumber, ipAddress: dto.ipAddress, status: dto.status } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPDATE_ATTENDANCE_DEVICE', entityType: 'AttendanceDevice', entityId: id, payload: { branchId: scope.branchId, status: row.status } } });
+      return row;
+    });
+  }
+
+  async listGeofences(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.attendanceGeofence.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId }, orderBy: [{ isActive: 'desc' }, { code: 'asc' }] });
+  }
+
+  async updateGeofence(user: AuthUser, id: string, dto: UpdateGeofenceDto) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.attendanceGeofence.findFirst({ where: { id, companyId: scope.companyId, branchId: scope.branchId } });
+      if (!current) return this.denyTenantAccess(tx, user, scope, 'AttendanceGeofence', id);
+      const row = await tx.attendanceGeofence.update({ where: { id }, data: { name: dto.name, latitude: dto.latitude, longitude: dto.longitude, radiusMeters: dto.radiusMeters, allowedAccuracyMeters: dto.allowedAccuracyMeters, isActive: dto.isActive } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPDATE_ATTENDANCE_GEOFENCE', entityType: 'AttendanceGeofence', entityId: id, payload: { branchId: scope.branchId, isActive: row.isActive } } });
+      return row;
+    });
+  }
+
+  async listBiometrics(user: AuthUser, employeeId?: string) {
+    const scope = this.requireTenantScope(user);
+    if (employeeId) await this.scopedEmployee(this.prisma, user, scope, employeeId);
+    const employees = await this.prisma.employee.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId }, select: { id: true } });
+    return this.prisma.employeeBiometricCredential.findMany({ where: { companyId: scope.companyId, employeeId: { in: employees.map((e) => e.id) }, ...(employeeId ? { employeeId } : {}) }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
+  }
+
+  async updateBiometric(user: AuthUser, id: string, dto: UpdateBiometricCredentialDto) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const employees = await tx.employee.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId }, select: { id: true } });
+      const current = await tx.employeeBiometricCredential.findFirst({ where: { id, companyId: scope.companyId, employeeId: { in: employees.map((e) => e.id) } } });
+      if (!current) return this.denyTenantAccess(tx, user, scope, 'EmployeeBiometricCredential', id);
+      const row = await tx.employeeBiometricCredential.update({ where: { id }, data: { status: dto.revoke ? 'REVOKED' : dto.status, revokedAt: dto.revoke ? new Date() : undefined } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: dto.revoke ? 'REVOKE_BIOMETRIC_CREDENTIAL' : 'UPDATE_BIOMETRIC_CREDENTIAL', entityType: 'EmployeeBiometricCredential', entityId: id, payload: { branchId: scope.branchId, employeeId: row.employeeId, status: row.status } } });
+      return row;
+    });
+  }
+
 }

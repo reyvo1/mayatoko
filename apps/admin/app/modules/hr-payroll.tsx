@@ -6,7 +6,19 @@ import { Panel, Table, StatusChip, rupiah, tanggal } from '../ui';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
-type Employee = { id: string; employeeNumber: string; fullName: string; isActive?: boolean };
+type Employee = { id: string; employeeNumber: string; fullName: string; isActive?: boolean; departmentId?: string | null; positionId?: string | null };
+type WorkShift = { id: string; code: string; name: string; startMinute: number; endMinute: number; isActive: boolean };
+type EmployeeSchedule = { id: string; employeeId: string; shiftId?: string | null; workDate: string; isDayOff: boolean; notes?: string | null };
+type AttendancePolicy = { id: string; code: string; name: string; allowedMethods: string[]; requirePhoto: boolean; requireLocation: boolean; isActive: boolean };
+type AttendanceCorrection = { id: string; employeeId: string; attendanceRecordId?: string | null; reason: string; status: string; proposedData: Record<string, unknown>; createdAt: string };
+type AttendanceDevice = { id: string; code: string; name: string; deviceType: string; vendor?: string | null; status: string };
+type AttendanceGeofence = { id: string; code: string; name: string; latitude: string | number; longitude: string | number; radiusMeters: number; isActive: boolean };
+type BiometricCredential = { id: string; employeeId: string; biometricType: string; deviceUserCode: string; status: string; revokedAt?: string | null };
+type Department = { id: string; code: string; name: string };
+type Position = { id: string; code: string; name: string; departmentId?: string | null };
+type Account = { id: string; code: string; name: string; isActive?: boolean };
+type PayrollAccountingMapping = { id: string; componentCode: string; debitAccountId?: string | null; creditAccountId?: string | null; isActive: boolean };
+type EmployeeProfiles = { employeeId: string; supportedTaxMethods: string[]; taxProfiles: Array<{ id: string; taxStatusCode?: string | null; taxMethod: string; effectiveFrom: string; effectiveTo?: string | null }>; socialSecurityProfiles: Array<{ id: string; wageBase?: string | number | null; programs: string[]; effectiveFrom: string; effectiveTo?: string | null }> };
 type PayrollPeriod = { id: string; code: string; year: number; month: number; startDate: string; endDate: string; status: string };
 type RuleSet = { id: string; code: string; name: string; version: number; status: string; effectiveFrom: string };
 type PayrollRun = {
@@ -34,7 +46,177 @@ function requestKey(prefix: string, id: string, account: string) {
   return `${prefix}:${id}:${account}`;
 }
 
-export default function HrPayrollView({ token }: { token: string }) {
+
+
+function minuteLabel(value: number) {
+  const h = Math.floor(value / 60) % 24;
+  const m = value % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+function minuteValue(value: string) {
+  const [h, m] = value.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function R2HrConfiguration({ token, employees, mode }: { token: string; employees: Employee[]; mode: 'attendance' | 'payroll' | 'compliance' | string }) {
+  const [shifts, setShifts] = useState<WorkShift[]>([]);
+  const [schedules, setSchedules] = useState<EmployeeSchedule[]>([]);
+  const [policies, setPolicies] = useState<AttendancePolicy[]>([]);
+  const [corrections, setCorrections] = useState<AttendanceCorrection[]>([]);
+  const [devices, setDevices] = useState<AttendanceDevice[]>([]);
+  const [geofences, setGeofences] = useState<AttendanceGeofence[]>([]);
+  const [biometrics, setBiometrics] = useState<BiometricCredential[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [mappings, setMappings] = useState<PayrollAccountingMapping[]>([]);
+  const [profileEmployeeId, setProfileEmployeeId] = useState('');
+  const [profiles, setProfiles] = useState<EmployeeProfiles | null>(null);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function api<T>(path: string, init?: RequestInit): Promise<T> {
+    const response = await authFetch(`${API}${path}`, token, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Permintaan HR gagal.');
+    return data as T;
+  }
+
+  async function refreshAttendance() {
+    const from = new Date(); from.setDate(1);
+    const to = new Date(from.getFullYear(), from.getMonth() + 1, 0);
+    const [shiftRows, scheduleRows, policyRows, correctionRows, deviceRows, geofenceRows, biometricRows, departmentRows, positionRows] = await Promise.all([
+      api<WorkShift[]>('/attendance/work-shifts'),
+      api<EmployeeSchedule[]>(`/attendance/schedules?from=${from.toLocaleDateString('en-CA')}&to=${to.toLocaleDateString('en-CA')}`),
+      api<AttendancePolicy[]>('/attendance/policies'),
+      api<AttendanceCorrection[]>('/attendance/corrections'),
+      api<AttendanceDevice[]>('/attendance/devices'),
+      api<AttendanceGeofence[]>('/attendance/geofences'),
+      api<BiometricCredential[]>('/attendance/biometrics'),
+      api<Department[]>('/hr/departments'),
+      api<Position[]>('/hr/positions'),
+    ]);
+    setShifts(shiftRows); setSchedules(scheduleRows); setPolicies(policyRows); setCorrections(correctionRows);
+    setDevices(deviceRows); setGeofences(geofenceRows); setBiometrics(biometricRows); setDepartments(departmentRows); setPositions(positionRows);
+  }
+
+  async function refreshPayrollConfig(employeeId = profileEmployeeId || employees[0]?.id || '') {
+    const [mappingRows, accountRows] = await Promise.all([
+      api<PayrollAccountingMapping[]>('/payroll/accounting-mappings'),
+      api<Account[]>('/accounting-core/accounts'),
+    ]);
+    setMappings(mappingRows); setAccounts(accountRows);
+    if (employeeId) { setProfileEmployeeId(employeeId); setProfiles(await api<EmployeeProfiles>(`/payroll/employee-profiles/${employeeId}`)); }
+  }
+
+  useEffect(() => {
+    const load = mode === 'attendance' ? refreshAttendance() : refreshPayrollConfig();
+    load.catch((error) => setMessage(error instanceof Error ? error.message : 'Gagal memuat konfigurasi HR.'));
+  }, [token, mode]);
+
+  async function run(work: () => Promise<void>) {
+    setBusy(true); setMessage('');
+    try { await work(); } catch (error) { setMessage(error instanceof Error ? error.message : 'Operasi HR gagal.'); }
+    finally { setBusy(false); }
+  }
+
+  if (mode === 'attendance') return <>
+    <Panel eyebrow="R2 · ROSTER" title="Shift & Jadwal Karyawan" badge={`${shifts.length} shift · ${schedules.length} roster bulan ini`}>
+      <form className="inline" onSubmit={(event) => { event.preventDefault(); const fd = new FormData(event.currentTarget); void run(async () => {
+        await api('/attendance/work-shifts', { method:'POST', body: JSON.stringify({ code:fd.get('code'), name:fd.get('name'), startMinute:minuteValue(String(fd.get('start'))), endMinute:minuteValue(String(fd.get('end'))), crossesMidnight: Boolean(fd.get('crossesMidnight')), breakMinutes:Number(fd.get('breakMinutes') || 0) }) });
+        event.currentTarget.reset(); await refreshAttendance(); setMessage('WorkShift berhasil dibuat.');
+      }); }}>
+        <label>Kode<input name="code" required placeholder="SHIFT-PAGI" /></label><label>Nama<input name="name" required placeholder="Shift Pagi" /></label>
+        <label>Mulai<input name="start" type="time" required defaultValue="08:00" /></label><label>Selesai<input name="end" type="time" required defaultValue="17:00" /></label>
+        <label>Istirahat (menit)<input name="breakMinutes" type="number" min="0" defaultValue="60" /></label><label className="checkboxLabel"><input name="crossesMidnight" type="checkbox" />Lintas tengah malam</label>
+        <button disabled={busy}>Tambah shift</button>
+      </form>
+      <Table head={['Kode','Nama','Jam','Status','Aksi']} rows={shifts.map((shift) => [shift.code, shift.name, `${minuteLabel(shift.startMinute)}–${minuteLabel(shift.endMinute)}`, <StatusChip status={shift.isActive?'ACTIVE':'INACTIVE'} />, <button type="button" className="secondary" disabled={busy} onClick={() => void run(async()=>{ await api(`/attendance/work-shifts/${shift.id}`, {method:'PATCH',body:JSON.stringify({...shift,isActive:!shift.isActive})}); await refreshAttendance(); })}>{shift.isActive?'Nonaktifkan':'Aktifkan'}</button>])} empty="Belum ada WorkShift." />
+      <form className="inline" onSubmit={(event) => { event.preventDefault(); const fd=new FormData(event.currentTarget); void run(async()=>{ await api('/attendance/schedules',{method:'POST',body:JSON.stringify({employeeId:fd.get('employeeId'),workDate:fd.get('workDate'),shiftId:fd.get('isDayOff')?undefined:fd.get('shiftId'),isDayOff:Boolean(fd.get('isDayOff')),notes:fd.get('notes')||undefined})}); await refreshAttendance(); setMessage('Roster diperbarui.'); }); }}>
+        <label>Karyawan<select name="employeeId" required defaultValue=""><option value="" disabled>Pilih</option>{employees.map(e=><option key={e.id} value={e.id}>{e.employeeNumber} · {e.fullName}</option>)}</select></label>
+        <label>Tanggal<input type="date" name="workDate" required /></label><label>Shift<select name="shiftId" defaultValue=""><option value="">Pilih shift</option>{shifts.filter(s=>s.isActive).map(s=><option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}</select></label>
+        <label className="checkboxLabel"><input type="checkbox" name="isDayOff" />Hari libur</label><label>Catatan<input name="notes" /></label><button disabled={busy}>Simpan roster</button>
+      </form>
+      <Table head={['Tanggal','Karyawan','Shift','Status']} rows={schedules.slice(0,100).map(row=>[tanggal(row.workDate), employees.find(e=>e.id===row.employeeId)?.fullName ?? row.employeeId, row.shiftId ? shifts.find(s=>s.id===row.shiftId)?.name ?? row.shiftId : '-', row.isDayOff?'OFF':'WORK'])} empty="Belum ada roster bulan ini." />
+    </Panel>
+
+    <section className="grid2">
+      <Panel eyebrow="R2 · POLICY" title="Attendance Policy" badge={`${policies.length} policy`}>
+        <form className="formGrid" onSubmit={(event)=>{event.preventDefault(); const fd=new FormData(event.currentTarget); void run(async()=>{ await api('/attendance/policies',{method:'POST',body:JSON.stringify({code:fd.get('code'),name:fd.get('name'),allowedMethods:String(fd.get('allowedMethods')||'').split(',').map(v=>v.trim()).filter(Boolean),requirePhoto:Boolean(fd.get('requirePhoto')),requireLocation:Boolean(fd.get('requireLocation')),allowOutsideGeofence:Boolean(fd.get('allowOutsideGeofence')),maxLocationAccuracyMeters:Number(fd.get('accuracy')||0)||undefined})}); event.currentTarget.reset(); await refreshAttendance(); setMessage('AttendancePolicy berhasil dibuat.'); });}}>
+          <label>Kode<input name="code" required /></label><label>Nama<input name="name" required /></label><label>Metode (koma)<input name="allowedMethods" defaultValue="MOBILE_GPS,SELFIE_GPS,FINGERPRINT" required /></label><label>Akurasi maks (m)<input name="accuracy" type="number" min="1" defaultValue="100" /></label>
+          <label className="checkboxLabel"><input name="requirePhoto" type="checkbox" />Wajib foto</label><label className="checkboxLabel"><input name="requireLocation" type="checkbox" />Wajib lokasi</label><label className="checkboxLabel"><input name="allowOutsideGeofence" type="checkbox" />Izinkan luar geofence</label><button disabled={busy}>Tambah policy</button>
+        </form>
+        <Table head={['Kode','Nama','Metode','Status']} rows={policies.map(p=>[p.code,p.name,Array.isArray(p.allowedMethods)?p.allowedMethods.join(', '):String(p.allowedMethods),<StatusChip status={p.isActive?'ACTIVE':'INACTIVE'} />])} empty="Belum ada policy." />
+      </Panel>
+      <Panel eyebrow="R2 · PLACEMENT" title="Effective-dated Assignment" badge="Tenant-safe">
+        <form className="formGrid" onSubmit={(event)=>{event.preventDefault(); const fd=new FormData(event.currentTarget); void run(async()=>{ await api('/hr/assignments',{method:'POST',body:JSON.stringify({employeeId:fd.get('employeeId'),departmentId:fd.get('departmentId')||undefined,positionId:fd.get('positionId')||undefined,managerEmployeeId:fd.get('managerEmployeeId')||undefined,effectiveFrom:fd.get('effectiveFrom'),effectiveTo:fd.get('effectiveTo')||undefined,isPrimary:true})}); event.currentTarget.reset(); setMessage('EmployeeAssignment berhasil dibuat.'); });}}>
+          <label>Karyawan<select name="employeeId" required defaultValue=""><option value="" disabled>Pilih</option>{employees.map(e=><option key={e.id} value={e.id}>{e.fullName}</option>)}</select></label>
+          <label>Department<select name="departmentId" defaultValue=""><option value="">-</option>{departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+          <label>Position<select name="positionId" defaultValue=""><option value="">-</option>{positions.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+          <label>Manager<select name="managerEmployeeId" defaultValue=""><option value="">-</option>{employees.map(e=><option key={e.id} value={e.id}>{e.fullName}</option>)}</select></label>
+          <label>Berlaku dari<input name="effectiveFrom" type="date" required /></label><label>Sampai<input name="effectiveTo" type="date" /></label><button disabled={busy}>Tambah assignment</button>
+        </form>
+        <div className="notice">Primary assignment tidak boleh overlap. Assignment aktif menyinkronkan branch/department/position/manager pada Employee master.</div>
+      </Panel>
+    </section>
+
+    <Panel eyebrow="R2 · ATTENDANCE CORRECTION" title="Koreksi Absensi" badge={`${corrections.filter(c=>c.status==='SUBMITTED').length} menunggu`}>
+      <Table head={['Karyawan','Alasan','Usulan','Status','Aksi']} rows={corrections.map(c=>[employees.find(e=>e.id===c.employeeId)?.fullName ?? c.employeeId,c.reason,<code>{JSON.stringify(c.proposedData)}</code>,<StatusChip status={c.status} />,c.status==='SUBMITTED'?<div className="rowActions"><button type="button" disabled={busy} onClick={()=>void run(async()=>{await api(`/attendance/corrections/${c.id}/review`,{method:'POST',body:JSON.stringify({status:'APPROVED',reviewNotes:'Disetujui operator HR'})});await refreshAttendance();})}>Approve</button><button type="button" className="secondary" disabled={busy} onClick={()=>void run(async()=>{await api(`/attendance/corrections/${c.id}/review`,{method:'POST',body:JSON.stringify({status:'REJECTED',reviewNotes:'Ditolak operator HR'})});await refreshAttendance();})}>Reject</button></div>:'-'])} empty="Tidak ada koreksi absensi." />
+      <div className="notice">Approval ditolak otomatis bila attendance record sudah dikunci payroll; periode terkunci harus dikoreksi lewat payroll adjustment.</div>
+    </Panel>
+
+    <section className="grid2">
+      <Panel eyebrow="R2 · DEVICE" title="Attendance Devices" badge={`${devices.length} device`}>
+        <form className="formGrid" onSubmit={(event)=>{event.preventDefault();const fd=new FormData(event.currentTarget);void run(async()=>{await api('/attendance/devices',{method:'POST',body:JSON.stringify({code:fd.get('code'),name:fd.get('name'),deviceType:fd.get('deviceType'),vendor:fd.get('vendor')||undefined,serialNumber:fd.get('serialNumber')||undefined})});event.currentTarget.reset();await refreshAttendance();});}}>
+          <label>Kode<input name="code" required /></label><label>Nama<input name="name" required /></label><label>Jenis<input name="deviceType" required defaultValue="FINGERPRINT" /></label><label>Vendor<input name="vendor" /></label><label>Serial<input name="serialNumber" /></label><button disabled={busy}>Daftarkan device</button>
+        </form>
+        <Table head={['Kode','Nama','Jenis','Status','Aksi']} rows={devices.map(d=>[d.code,d.name,d.deviceType,<StatusChip status={d.status}/>,<button type="button" className="secondary" disabled={busy} onClick={()=>void run(async()=>{await api(`/attendance/devices/${d.id}`,{method:'PATCH',body:JSON.stringify({status:d.status==='ACTIVE'?'INACTIVE':'ACTIVE'})});await refreshAttendance();})}>{d.status==='ACTIVE'?'Nonaktifkan':'Aktifkan'}</button>])} empty="Belum ada device." />
+      </Panel>
+      <Panel eyebrow="R2 · GEOFENCE" title="Geofence" badge={`${geofences.length} area`}>
+        <form className="formGrid" onSubmit={(event)=>{event.preventDefault();const fd=new FormData(event.currentTarget);void run(async()=>{await api('/attendance/geofences',{method:'POST',body:JSON.stringify({code:fd.get('code'),name:fd.get('name'),latitude:Number(fd.get('latitude')),longitude:Number(fd.get('longitude')),radiusMeters:Number(fd.get('radiusMeters')),allowedAccuracyMeters:Number(fd.get('accuracy')||0)||undefined})});event.currentTarget.reset();await refreshAttendance();});}}>
+          <label>Kode<input name="code" required /></label><label>Nama<input name="name" required /></label><label>Latitude<input name="latitude" type="number" step="any" required /></label><label>Longitude<input name="longitude" type="number" step="any" required /></label><label>Radius m<input name="radiusMeters" type="number" min="5" required /></label><label>Akurasi m<input name="accuracy" type="number" min="1" /></label><button disabled={busy}>Tambah geofence</button>
+        </form>
+        <Table head={['Kode','Nama','Radius','Status']} rows={geofences.map(g=>[g.code,g.name,`${g.radiusMeters} m`,<StatusChip status={g.isActive?'ACTIVE':'INACTIVE'} />])} empty="Belum ada geofence." />
+      </Panel>
+    </section>
+
+    <Panel eyebrow="R2 · BIOMETRIC" title="Biometric / Fingerprint Credentials" badge={`${biometrics.length} credential`}>
+      <Table head={['Karyawan','Jenis','Device user','Status','Aksi']} rows={biometrics.map(b=>[employees.find(e=>e.id===b.employeeId)?.fullName??b.employeeId,b.biometricType,b.deviceUserCode,<StatusChip status={b.status}/>,!b.revokedAt?<button type="button" className="secondary" disabled={busy} onClick={()=>void run(async()=>{await api(`/attendance/biometrics/${b.id}`,{method:'PATCH',body:JSON.stringify({revoke:true})});await refreshAttendance();})}>Revoke</button>:'-'])} empty="Belum ada biometric credential." />
+      {message && <div className="notice" style={{marginTop:12}}>{message}</div>}
+    </Panel>
+  </>;
+
+  return <>
+    <Panel eyebrow="R2 · PAYROLL COMPLIANCE" title="Employee Tax & Social Security Profile" badge={profiles ? `${profiles.supportedTaxMethods.join(', ')} supported` : 'Pilih karyawan'}>
+      <label>Karyawan<select value={profileEmployeeId} onChange={(event)=>{const id=event.target.value;setProfileEmployeeId(id);void refreshPayrollConfig(id);}}><option value="">Pilih karyawan</option>{employees.map(e=><option key={e.id} value={e.id}>{e.employeeNumber} · {e.fullName}</option>)}</select></label>
+      <section className="grid2">
+        <form className="formGrid" onSubmit={(event)=>{event.preventDefault();const fd=new FormData(event.currentTarget);void run(async()=>{if(!profileEmployeeId)throw new Error('Pilih karyawan.');await api('/payroll/employee-tax-profiles',{method:'POST',body:JSON.stringify({employeeId:profileEmployeeId,taxStatusCode:fd.get('taxStatusCode')||undefined,taxMethod:'GROSS',annualizationMethod:fd.get('annualizationMethod')||undefined,effectiveFrom:fd.get('effectiveFrom'),effectiveTo:fd.get('effectiveTo')||undefined})});await refreshPayrollConfig(profileEmployeeId);setMessage('Tax profile tersimpan.');});}}>
+          <h3>Tax Profile</h3><label>Status pajak<input name="taxStatusCode" placeholder="TK/0 / K/1" /></label><label>Tax method<select name="taxMethod" value="GROSS" disabled><option>GROSS</option></select><small>GROSS_UP/NET fail-closed sampai engine tervalidasi.</small></label><label>Annualization<input name="annualizationMethod" placeholder="MONTHLY / ANNUALIZED" /></label><label>Berlaku dari<input name="effectiveFrom" type="date" required /></label><label>Sampai<input name="effectiveTo" type="date" /></label><button disabled={busy||!profileEmployeeId}>Simpan tax profile</button>
+        </form>
+        <form className="formGrid" onSubmit={(event)=>{event.preventDefault();const fd=new FormData(event.currentTarget);void run(async()=>{if(!profileEmployeeId)throw new Error('Pilih karyawan.');await api('/payroll/employee-social-security-profiles',{method:'POST',body:JSON.stringify({employeeId:profileEmployeeId,wageBase:Number(fd.get('wageBase')||0)||undefined,programs:String(fd.get('programs')||'').split(',').map(v=>v.trim()).filter(Boolean),effectiveFrom:fd.get('effectiveFrom'),effectiveTo:fd.get('effectiveTo')||undefined})});await refreshPayrollConfig(profileEmployeeId);setMessage('Social-security profile tersimpan.');});}}>
+          <h3>BPJS / Social Security</h3><label>Wage base<input name="wageBase" type="number" min="0" /></label><label>Program (koma)<input name="programs" required placeholder="JKN,JHT,JP,JKK,JKM" /></label><label>Berlaku dari<input name="effectiveFrom" type="date" required /></label><label>Sampai<input name="effectiveTo" type="date" /></label><button disabled={busy||!profileEmployeeId}>Simpan social profile</button>
+        </form>
+      </section>
+      {profiles && <Table head={['Jenis','Berlaku','Metode/Program','Sampai']} rows={[...profiles.taxProfiles.map(p=>['Tax',tanggal(p.effectiveFrom),`${p.taxMethod} · ${p.taxStatusCode??'-'}`,p.effectiveTo?tanggal(p.effectiveTo):'-']),...profiles.socialSecurityProfiles.map(p=>['Social',tanggal(p.effectiveFrom),Array.isArray(p.programs)?p.programs.join(', '):String(p.programs),p.effectiveTo?tanggal(p.effectiveTo):'-'])]} empty="Belum ada profile effective-dated." />}
+    </Panel>
+
+    <Panel eyebrow="R2 · ACCOUNTING" title="Payroll Accounting Mapping" badge={`${mappings.length} mapping`}>
+      <form className="formGrid" onSubmit={(event)=>{event.preventDefault();const fd=new FormData(event.currentTarget);void run(async()=>{await api('/payroll/accounting-mappings',{method:'POST',body:JSON.stringify({componentCode:fd.get('componentCode'),debitAccountId:fd.get('debitAccountId')||undefined,creditAccountId:fd.get('creditAccountId')||undefined,isActive:true})});await refreshPayrollConfig(profileEmployeeId);setMessage('Payroll accounting mapping tersimpan.');});}}>
+        <label>Mapping<select name="componentCode" required defaultValue=""><option value="" disabled>Pilih</option><option value="__PAYROLL_EXPENSE__">Payroll Expense</option><option value="__SALARY_PAYABLE__">Salary Payable</option><option value="__PAYROLL_TAX_PAYABLE__">Payroll Tax Payable</option><option value="__PAYROLL_OTHER_PAYABLE__">Payroll Other/BPJS Payable</option><option value="__PAYROLL_RECEIVABLE__">Employee Receivable</option></select></label>
+        <label>Debit account<select name="debitAccountId" defaultValue=""><option value="">-</option>{accounts.filter(a=>a.isActive!==false).map(a=><option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}</select></label>
+        <label>Credit account<select name="creditAccountId" defaultValue=""><option value="">-</option>{accounts.filter(a=>a.isActive!==false).map(a=><option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}</select></label><button disabled={busy}>Simpan mapping</button>
+      </form>
+      <Table head={['Kode','Debit','Credit','Status']} rows={mappings.map(m=>[m.componentCode,accounts.find(a=>a.id===m.debitAccountId)?.code??'-',accounts.find(a=>a.id===m.creditAccountId)?.code??'-',<StatusChip status={m.isActive?'ACTIVE':'INACTIVE'} />])} empty="Belum ada mapping payroll branch." />
+      <div className="notice">Posting payroll tetap fail-closed bila mapping wajib tidak lengkap atau akun tidak aktif/milik branch lain. Split-period/proration tidak dihitung secara implisit.</div>
+      {message && <div className="notice" style={{marginTop:12}}>{message}</div>}
+    </Panel>
+  </>;
+}
+
+export default function HrPayrollView({ token, mode = 'payroll' }: { token: string; mode?: string }) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
   const [taxRules, setTaxRules] = useState<RuleSet[]>([]);
@@ -302,11 +484,11 @@ export default function HrPayrollView({ token }: { token: string }) {
       </section>
 
       <section className="grid2">
-        <Panel eyebrow="CUTI" title="Pengajuan Cuti" badge={`${leaveRequests.filter((row) => row.status === 'SUBMITTED').length} menunggu`}>
+        <Panel eyebrow="CUTI" title="Pengajuan Cuti / Izin / Sakit" badge={`${leaveRequests.filter((row) => row.status === 'SUBMITTED').length} menunggu`}>
           <Table head={['Karyawan', 'Jenis', 'Periode', 'Hari', 'Status', 'Aksi']} rows={leaveRequests.map((row) => {
             const leaveType = leaveTypes.find((item) => item.id === row.leaveTypeId);
             return [employeeById.get(row.employeeId)?.fullName ?? row.employeeId, leaveType?.name ?? row.leaveTypeId, `${tanggal(row.startDate)} – ${tanggal(row.endDate)}`, String(row.totalDays), <StatusChip status={row.status} />, row.status === 'SUBMITTED' ? <span style={{ display: 'flex', gap: 5 }}><button type="button" disabled={busy} onClick={() => void reviewLeaveRequest(row.id, 'APPROVED')}>Approve</button><button type="button" className="secondary" disabled={busy} onClick={() => void reviewLeaveRequest(row.id, 'REJECTED')}>Reject</button></span> : '-'];
-          })} empty="Belum ada pengajuan cuti." />
+          })} empty="Belum ada pengajuan cuti, izin, atau sakit." />
         </Panel>
         <Panel eyebrow="LEMBUR" title="Pengajuan Lembur" badge={`${overtimeRequests.filter((row) => row.status === 'SUBMITTED').length} menunggu`}>
           <Table head={['Karyawan', 'Waktu', 'Durasi', 'Status', 'Aksi']} rows={overtimeRequests.map((row) => {

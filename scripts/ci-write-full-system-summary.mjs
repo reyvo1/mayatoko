@@ -62,6 +62,7 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
   const uiAudit = readJson(root, 'handoff/quality/ui-interaction-audit-latest.json');
   const apiSweep = readJson(root, 'handoff/quality/github-api-runtime-sweep-latest.json');
   const r1TenantAccess = readJson(root, 'handoff/quality/github-r1-tenant-access-probe-latest.json');
+  const r2HrPayroll = readJson(root, 'handoff/quality/github-r2-hr-payroll-probe-latest.json');
   const providerProbe = readJson(root, 'handoff/quality/github-notification-provider-probe-latest.json');
   const stage18 = readJson(root, 'logs/stage18-product-supplier-postgres/latest.json');
   const payroll = readJson(root, 'logs/payroll-adjustment-postgres-stage/latest.json');
@@ -98,6 +99,7 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
     uiInteractionAudit: gateStatus(uiAudit, current, (v) => v.status === 'PASS' && Object.values(v.surfaces || {}).every((surface) => surface.inertButtons === 0 && surface.inertLinks === 0)),
     apiRuntimeSweep: gateStatus(apiSweep, current, (v) => v.status === 'PASS' && v.operationCount > 0 && v.blockerCount === 0),
     r1TenantAccess: gateStatus(r1TenantAccess, current, (v) => v.status === 'PASS' && v.isolation?.foreignBranchDenied === true && v.isolation?.foreignCompanyDenied === true && v.tenant?.switched === true && v.access?.statusLifecycle === true),
+    r2HrPayroll: gateStatus(r2HrPayroll, current, (v) => v.status === 'PASS' && Object.values(v.checks || {}).every(Boolean)),
     notificationProviderProbe: gateStatus(providerProbe, current, (v) => v.status === 'PASS' && v.productionTouched === false && v.simulator?.telegramCalls >= 2 && v.simulator?.whatsappCalls >= 1),
     stage18: gateStatus(stage18, current, (v) => v.gate?.passed === true),
     payrollMigration: gateStatus(payroll, current, (v) => v.status === 'PASS' && v.gate?.passed === true),
@@ -127,6 +129,7 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
     workerProbe: stepOutcome(env, 'T360_CI_STEP_WORKER_PROBE'),
     apiRuntimeSweep: stepOutcome(env, 'T360_CI_STEP_API_SWEEP'),
     r1TenantAccess: stepOutcome(env, 'T360_CI_STEP_R1_TENANT_ACCESS'),
+    r2HrPayroll: stepOutcome(env, 'T360_CI_STEP_R2_HR_PAYROLL'),
     notificationProviderProbe: stepOutcome(env, 'T360_CI_STEP_PROVIDER_PROBE'),
     stagingCertification: stepOutcome(env, 'T360_CI_STEP_STAGING_CERTIFICATION'),
     loadSmoke: stepOutcome(env, 'T360_CI_STEP_LOAD_SMOKE'),
@@ -141,7 +144,7 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
   const priorJobStatus = String(env.T360_CI_JOB_STATUS || 'unknown').toLowerCase();
   const requiredAutomated = [
     'build','buildArtifact','artifactTransport','dependencyAudit','criticalUatCoverage','repositoryAudit','uiInteractionAudit','stage18','payrollMigration','stage19',
-    'builtBrowser','workerRuntime','apiRuntimeSweep','r1TenantAccess','notificationProviderProbe','stagingCertification','load','indexProfile','dr','stage20Automated',
+    'builtBrowser','workerRuntime','apiRuntimeSweep','r1TenantAccess','r2HrPayroll','notificationProviderProbe','stagingCertification','load','indexProfile','dr','stage20Automated',
   ];
   const automatedPassed = requiredAutomated.every((key) => gate[key] === 'PASS');
   const reportedDiagnostics = Object.values(diagnosticSteps).filter((value) => value !== 'NOT_REPORTED');

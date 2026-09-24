@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Permissions } from '../auth/permissions.decorator';
-import { AssignEmployeeComponentDto, CancelPayrollRunDto, CreatePayrollAdjustmentRunDto, CreatePayrollComponentDto, CreatePayrollPeriodDto, CreatePayrollRunDto, CreateRuleSetDto, CreateSocialSecurityRuleSetDto, PublishPayslipsDto, SettlePayrollPaymentDto } from './dto/payroll.dto';
+import { AssignEmployeeComponentDto, CancelPayrollRunDto, CreatePayrollAdjustmentRunDto, CreatePayrollComponentDto, CreatePayrollPeriodDto, CreatePayrollRunDto, CreateRuleSetDto, CreateSocialSecurityRuleSetDto, PublishPayslipsDto, SettlePayrollPaymentDto, UpsertEmployeeSocialSecurityProfileDto, UpsertEmployeeTaxProfileDto, UpsertPayrollAccountingMappingDto } from './dto/payroll.dto';
 import { PayrollService } from './payroll.service';
 
 @ApiTags('payroll') @ApiBearerAuth() @Controller('payroll')
@@ -24,6 +24,22 @@ export class PayrollController {
   socialRuleSets(@CurrentUser() user: AuthUser) {
     return this.payroll.listSocialSecurityRuleSets(user);
   }
+
+
+  @Permissions('payroll.view') @Get('employee-profiles/:employeeId')
+  employeeProfiles(@Param('employeeId') employeeId: string, @CurrentUser() user: AuthUser) { return this.payroll.employeeProfiles(employeeId, user); }
+
+  @Permissions('payroll.manage') @Post('employee-tax-profiles')
+  taxProfile(@Body() dto: UpsertEmployeeTaxProfileDto, @CurrentUser() user: AuthUser) { return this.payroll.upsertEmployeeTaxProfile(dto, user); }
+
+  @Permissions('payroll.manage') @Post('employee-social-security-profiles')
+  socialProfile(@Body() dto: UpsertEmployeeSocialSecurityProfileDto, @CurrentUser() user: AuthUser) { return this.payroll.upsertEmployeeSocialSecurityProfile(dto, user); }
+
+  @Permissions('payroll.view') @Get('accounting-mappings')
+  accountingMappings(@CurrentUser() user: AuthUser) { return this.payroll.listAccountingMappings(user); }
+
+  @Permissions('payroll.manage') @Post('accounting-mappings')
+  accountingMapping(@Body() dto: UpsertPayrollAccountingMappingDto, @CurrentUser() user: AuthUser) { return this.payroll.upsertAccountingMapping(dto, user); }
 
   @Permissions('payroll.view') @Get('runs')
   list(@CurrentUser() user: AuthUser, @Query('companyId') companyId?: string) {

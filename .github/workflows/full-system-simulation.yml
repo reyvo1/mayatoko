@@ -278,6 +278,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r1:probe
 
+      - name: Exercise R2 HR, attendance, employee self-service and payroll configuration lifecycle
+        id: r2_hr_payroll
+        continue-on-error: true
+        run: npm run ci:r2:probe
+
       - name: Sweep every documented OpenAPI operation against exact runtime
         id: api_sweep
         continue-on-error: true
@@ -481,6 +486,7 @@ jobs:
           T360_CI_STEP_WORKER_PROBE: ${{ steps.worker_probe.outcome }}
           T360_CI_STEP_API_SWEEP: ${{ steps.api_sweep.outcome }}
           T360_CI_STEP_R1_TENANT_ACCESS: ${{ steps.r1_tenant_access.outcome }}
+          T360_CI_STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           T360_CI_STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           T360_CI_STEP_STAGING_CERTIFICATION: ${{ steps.staging_certification.outcome }}
           T360_CI_STEP_LOAD_SMOKE: ${{ steps.load_smoke.outcome }}

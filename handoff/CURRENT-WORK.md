@@ -1,15 +1,13 @@
 # CURRENT AUTHORITATIVE RECOVERY — 2026-09-24
 
-Active work item: `T360-20260924-022400` — R1 tenant branch identity access and control-plane closure.
+Active work item: `T360-20260924-180000` — R2 HRIS, Attendance, Employee Self-Service, and Payroll closure.
 
-- R0 `T360-20260924-020700` is CLOSED locally: 48/48 mapped and 854/854 dependency-free regression passed on the operator machine.
-- Baseline HEAD remains `c391fc9fd8c42cb6352317853718cba1415a9603`; working tree contains preserved F12R4 + R0 + R1 changes until operator commit/push.
-- R1 findings F07–F10 are SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING.
-- Company creation remains BOOTSTRAP_ONLY; current company profile is operator-manageable.
-- Branch switching is session-scoped (`AuthSession.activeBranchId`), same-company only, and does not mutate `User.branchId`.
-- User/role/permission/status and platform control-plane surfaces are now explicit Admin workspaces.
-- GitHub Full System Simulation and Full Automated UAT now require `ci:r1:probe`; R1 is not CLOSED until that live PostgreSQL probe passes.
-- F12R4 remains BLOCKED behind R1–R6; Human Stage-20 remains BLOCKED/PENDING.
+- R0 is CLOSED; 48/48 recovery findings remain mapped.
+- R1 `T360-20260924-022400` is CLOSED on exact green GitHub commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29`.
+- R1 runtime evidence includes `ci:r1:probe`, PostgreSQL rehearsal, six-app build, API sweep, Built Browser UAT, Telegram/WhatsApp provider simulation, worker/report, Stage-18, Stage-19, automated Stage-20, and aggregate PASS. Human Stage-20 remains PENDING separately.
+- R2 implements F11–F21: WorkShift/roster/policy/correction, EmployeeAssignment, attendance device/geofence/biometric operations, verified employee channels/preferences, employee tax/social profiles, PayrollAccountingMapping, and explicit fail-close for unsupported NET/GROSS_UP and split-period/proration.
+- `ci:r2:probe` is now mandatory in both GitHub heavy workflows. R2 remains IMPLEMENTATION/VERIFICATION until current-source live PostgreSQL evidence passes; do not close it from source/static tests alone.
+- F12R4 remains BLOCKED behind recovery; do not resume UI polish before R2–R6 prerequisites stabilize.
 
 ## Final automation closure — 2026-09-22
 

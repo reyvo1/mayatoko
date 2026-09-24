@@ -184,3 +184,8 @@ Untuk existing database, jalankan migration `database/migrations/T360-20260911-p
 
 Employee tax and social-security profiles are versioned by `(employeeId, effectiveFrom)`. The payroll engine deliberately requires one profile/rule version to cover the **entire** payroll period. A profile or statutory rule that starts/ends mid-period is not silently stretched across the month; the result must remain `REQUIRES_REVIEW` until a split-period/proration workflow is explicitly implemented.
 
+## Recovery R2 operator implementation — 2026-09-24
+
+R2 adds permissioned operator/API lifecycle for WorkShift, EmployeeSchedule roster, AttendancePolicy, AttendanceCorrection review, effective-dated EmployeeAssignment, attendance devices/geofences/biometric credentials, and employee channel/preferences. Attendance corrections cannot mutate payroll-locked records and approved corrections only apply an allowlisted AttendanceRecord patch. Employee Portal exposes separate self-service surfaces for attendance correction, leave/permission/sick through configured LeaveType, overtime, payslips, and verified Telegram/WhatsApp delivery preferences.
+
+Both heavy GitHub workflows require `ci:r2:probe` on the live PostgreSQL exact-runtime chain. Source/static evidence alone is not sufficient to close R2.

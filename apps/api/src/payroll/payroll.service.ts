@@ -8,7 +8,7 @@ import { nextDocumentNumber } from '../common/numbering';
 import { serializableTx } from '../common/serializable-tx';
 import { PrismaService } from '../prisma/prisma.service';
 import { evaluatePayrollFormula } from './payroll-formula';
-import { AssignEmployeeComponentDto, CreatePayrollAdjustmentRunDto, CreatePayrollComponentDto, CreatePayrollPeriodDto, CreatePayrollRunDto, CreateRuleSetDto, CreateSocialSecurityRuleSetDto, PublishPayslipsDto, SettlePayrollPaymentDto } from './dto/payroll.dto';
+import { AssignEmployeeComponentDto, CreatePayrollAdjustmentRunDto, CreatePayrollComponentDto, CreatePayrollPeriodDto, CreatePayrollRunDto, CreateRuleSetDto, CreateSocialSecurityRuleSetDto, PublishPayslipsDto, SettlePayrollPaymentDto, UpsertEmployeeSocialSecurityProfileDto, UpsertEmployeeTaxProfileDto, UpsertPayrollAccountingMappingDto } from './dto/payroll.dto';
 
 const decimal = (value: Prisma.Decimal.Value = 0) => new Prisma.Decimal(value);
 const nonNegative = (value: Prisma.Decimal) => value.greaterThan(0) ? value : decimal(0);
@@ -686,6 +686,11 @@ export class PayrollService {
         for (const assignment of assignments) {
           const definition = byId.get(assignment.componentId); if (!definition) continue;
           const calculated = this.calculateComponentAmount(definition, assignment, attendance, percentageBase);
+          const requiresProration = assignment.effectiveFrom > period.startDate || Boolean(assignment.effectiveTo && assignment.effectiveTo < period.endDate);
+          if (requiresProration) {
+            calculated.reviewReasons.push('split-period-proration-not-supported');
+            calculated.amount = 0;
+          }
           if (calculated.reviewReasons.length) componentReviews.push({ code: definition.code, reasons: calculated.reviewReasons });
           const positiveType = definition.componentType === 'EARNING' || definition.componentType === 'REIMBURSEMENT';
           if (positiveType && definition.affectsGross) gross += calculated.amount;
@@ -706,8 +711,18 @@ export class PayrollService {
         const socialProfile = await tx.employeeSocialSecurityProfile.findFirst({ where: {
           employeeId: employee.id, companyId: scope.companyId, effectiveFrom: { lte: period.startDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.endDate } }],
         }, orderBy: { effectiveFrom: 'desc' } });
-        const tax = this.calculateTax(taxableIncome, taxProfile, taxRuleSet);
-        const social = this.calculateSocialSecurity(gross, socialProfile, socialRuleSet);
+        const partialTaxProfile = taxProfile ? null : await tx.employeeTaxProfile.findFirst({ where: {
+          employeeId: employee.id, companyId: scope.companyId, effectiveFrom: { lte: period.endDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.startDate } }],
+        } });
+        const partialSocialProfile = socialProfile ? null : await tx.employeeSocialSecurityProfile.findFirst({ where: {
+          employeeId: employee.id, companyId: scope.companyId, effectiveFrom: { lte: period.endDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.startDate } }],
+        } });
+        const tax = partialTaxProfile
+          ? { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: 'EmployeeTaxProfile changes inside payroll period; split-period proration is not implemented safely.' } }
+          : this.calculateTax(taxableIncome, taxProfile, taxRuleSet);
+        const social = partialSocialProfile
+          ? { employee: 0, employer: 0, lines: [] as Array<{ code: string; base: number; employeeAmount: number; employerAmount: number }>, trace: { status: 'REQUIRES_REVIEW', reason: 'EmployeeSocialSecurityProfile changes inside payroll period; split-period proration is not implemented safely.' } }
+          : this.calculateSocialSecurity(gross, socialProfile, socialRuleSet);
         const net = netAdditions - otherDeductions - tax.amount - social.employee;
         if (net < 0) throw new BadRequestException(`Gaji bersih target ${employee.employeeNumber} bernilai negatif.`);
         if (tax.amount > 0) targetLines.push({ code: 'INCOME_TAX', name: 'Pajak Penghasilan', componentType: 'TAX' as never, amount: tax.amount, taxableAmount: 0, employerAmount: 0, source: 'TAX_ENGINE' });
@@ -1242,4 +1257,106 @@ export class PayrollService {
     await this.assertRequestedScope(this.prisma, user, scope, requestedCompanyId, undefined, 'PayrollRun');
     return this.prisma.payrollRun.findMany({ where: { companyId: scope.companyId, branchId: scope.branchId }, orderBy: { createdAt: 'desc' }, take: 100 });
   }
+
+  private async scopedEmployee(client: DbClient, user: AuthUser, scope: TenantScope, employeeId: string) {
+    const employee = await client.employee.findFirst({ where: { id: employeeId, companyId: scope.companyId, branchId: scope.branchId, isActive: true } });
+    if (!employee) return this.denyTenantAccess(client, user, scope, 'Employee', employeeId);
+    return employee;
+  }
+
+  async employeeProfiles(employeeId: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    await this.scopedEmployee(this.prisma, user, scope, employeeId);
+    const [taxProfiles, socialProfiles] = await Promise.all([
+      this.prisma.employeeTaxProfile.findMany({ where: { companyId: scope.companyId, employeeId }, orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }] }),
+      this.prisma.employeeSocialSecurityProfile.findMany({ where: { companyId: scope.companyId, employeeId }, orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }] }),
+    ]);
+    return {
+      employeeId,
+      supportedTaxMethods: ['GROSS'],
+      unsupportedTaxMethods: { GROSS_UP: 'Belum memiliki engine gross-up yang tervalidasi.', NET: 'Belum memiliki engine net-to-gross yang tervalidasi.' },
+      taxProfiles,
+      socialSecurityProfiles: socialProfiles,
+    };
+  }
+
+  private assertEffectiveRange(start: Date, end: Date | null, label: string) {
+    if (end && end < start) throw new BadRequestException(`${label}: effectiveTo tidak boleh sebelum effectiveFrom.`);
+  }
+
+  async upsertEmployeeTaxProfile(dto: UpsertEmployeeTaxProfileDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    if (dto.taxMethod !== 'GROSS') throw new BadRequestException(`Tax method ${dto.taxMethod} belum didukung aman. Metode yang executable saat ini hanya GROSS.`);
+    const effectiveFrom = parseDate(dto.effectiveFrom, 'EmployeeTaxProfile.effectiveFrom');
+    const effectiveTo = dto.effectiveTo ? parseRangeEnd(dto.effectiveTo, 'EmployeeTaxProfile.effectiveTo') : null;
+    this.assertEffectiveRange(effectiveFrom, effectiveTo, 'EmployeeTaxProfile');
+    return serializableTx(this.prisma, async (tx) => {
+      const employee = await this.scopedEmployee(tx, user, scope, dto.employeeId);
+      const overlap = await tx.employeeTaxProfile.findFirst({ where: {
+        companyId: scope.companyId, employeeId: employee.id,
+        effectiveFrom: { lte: effectiveTo ?? new Date('9999-12-31T23:59:59.999Z') },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }],
+        NOT: { effectiveFrom },
+      } });
+      if (overlap) throw new ConflictException('Rentang EmployeeTaxProfile bertumpang tindih dengan profile lain.');
+      const row = await tx.employeeTaxProfile.upsert({
+        where: { employeeId_effectiveFrom: { employeeId: employee.id, effectiveFrom } },
+        create: { companyId: scope.companyId, employeeId: employee.id, countryCode: 'ID', taxStatusCode: dto.taxStatusCode, taxMethod: dto.taxMethod, annualizationMethod: dto.annualizationMethod, effectiveFrom, effectiveTo, attributes: dto.attributes as Prisma.InputJsonValue | undefined },
+        update: { taxStatusCode: dto.taxStatusCode, taxMethod: dto.taxMethod, annualizationMethod: dto.annualizationMethod, effectiveTo, attributes: dto.attributes as Prisma.InputJsonValue | undefined },
+      });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPSERT_EMPLOYEE_TAX_PROFILE', entityType: 'EmployeeTaxProfile', entityId: row.id, payload: { branchId: scope.branchId, employeeId: employee.id, taxMethod: row.taxMethod, effectiveFrom: row.effectiveFrom.toISOString(), effectiveTo: row.effectiveTo?.toISOString() ?? null } } });
+      return row;
+    });
+  }
+
+  async upsertEmployeeSocialSecurityProfile(dto: UpsertEmployeeSocialSecurityProfileDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const effectiveFrom = parseDate(dto.effectiveFrom, 'EmployeeSocialSecurityProfile.effectiveFrom');
+    const effectiveTo = dto.effectiveTo ? parseRangeEnd(dto.effectiveTo, 'EmployeeSocialSecurityProfile.effectiveTo') : null;
+    this.assertEffectiveRange(effectiveFrom, effectiveTo, 'EmployeeSocialSecurityProfile');
+    const programs = [...new Set(dto.programs.map((item) => item.trim()).filter(Boolean))];
+    if (!programs.length) throw new BadRequestException('Minimal satu program social-security harus dipilih.');
+    return serializableTx(this.prisma, async (tx) => {
+      const employee = await this.scopedEmployee(tx, user, scope, dto.employeeId);
+      const overlap = await tx.employeeSocialSecurityProfile.findFirst({ where: {
+        companyId: scope.companyId, employeeId: employee.id,
+        effectiveFrom: { lte: effectiveTo ?? new Date('9999-12-31T23:59:59.999Z') },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }],
+        NOT: { effectiveFrom },
+      } });
+      if (overlap) throw new ConflictException('Rentang EmployeeSocialSecurityProfile bertumpang tindih dengan profile lain.');
+      const row = await tx.employeeSocialSecurityProfile.upsert({
+        where: { employeeId_effectiveFrom: { employeeId: employee.id, effectiveFrom } },
+        create: { companyId: scope.companyId, employeeId: employee.id, wageBase: dto.wageBase, programs, effectiveFrom, effectiveTo },
+        update: { wageBase: dto.wageBase, programs, effectiveTo },
+      });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPSERT_EMPLOYEE_SOCIAL_SECURITY_PROFILE', entityType: 'EmployeeSocialSecurityProfile', entityId: row.id, payload: { branchId: scope.branchId, employeeId: employee.id, programs, effectiveFrom: row.effectiveFrom.toISOString(), effectiveTo: row.effectiveTo?.toISOString() ?? null } } });
+      return row;
+    });
+  }
+
+  async listAccountingMappings(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.payrollAccountingMapping.findMany({ where: { companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }] }, orderBy: [{ componentCode: 'asc' }, { branchId: 'desc' }] });
+  }
+
+  async upsertAccountingMapping(dto: UpsertPayrollAccountingMappingDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const supported = new Set(Object.values(PAYROLL_MAPPING_CODES));
+    if (!supported.has(dto.componentCode as never)) throw new BadRequestException(`Payroll mapping code ${dto.componentCode} tidak didukung oleh posting engine.`);
+    const accountIds = [dto.debitAccountId, dto.creditAccountId, dto.employerDebitAccountId, dto.employerCreditAccountId].filter((value): value is string => Boolean(value));
+    if (!accountIds.length) throw new BadRequestException('PayrollAccountingMapping wajib mereferensikan minimal satu account.');
+    return serializableTx(this.prisma, async (tx) => {
+      const accounts = await tx.account.findMany({ where: { id: { in: accountIds }, branchId: scope.branchId, isActive: true, branch: { companyId: scope.companyId } }, select: { id: true } });
+      if (accounts.length !== new Set(accountIds).size) throw new BadRequestException('Satu atau lebih akun payroll mapping tidak aktif atau bukan milik branch aktif.');
+      const existing = await tx.payrollAccountingMapping.findFirst({ where: { companyId: scope.companyId, branchId: scope.branchId, componentCode: dto.componentCode } });
+      const data = { debitAccountId: dto.debitAccountId, creditAccountId: dto.creditAccountId, employerDebitAccountId: dto.employerDebitAccountId, employerCreditAccountId: dto.employerCreditAccountId, rules: dto.rules as Prisma.InputJsonValue | undefined, isActive: dto.isActive ?? true };
+      const row = existing
+        ? await tx.payrollAccountingMapping.update({ where: { id: existing.id }, data })
+        : await tx.payrollAccountingMapping.create({ data: { companyId: scope.companyId, branchId: scope.branchId, componentCode: dto.componentCode, ...data } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'UPSERT_PAYROLL_ACCOUNTING_MAPPING', entityType: 'PayrollAccountingMapping', entityId: row.id, payload: { branchId: scope.branchId, componentCode: row.componentCode, isActive: row.isActive } } });
+      return row;
+    });
+  }
+
 }

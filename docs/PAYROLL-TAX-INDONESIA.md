@@ -31,3 +31,9 @@ Employee tax and social-security profiles are versioned by `(employeeId, effecti
 Payroll yang sudah `POSTED` atau `PAID` tidak diubah. Koreksi dibuat sebagai differential adjustment run terhadap payroll sumber. Adjustment mewarisi rule set sumber kecuali operator memilih versi replacement yang sudah `APPROVED` dan valid; engine tetap tidak mengarang tarif PPh/BPJS.
 
 Untuk kewajiban eksternal, koreksi negatif hanya dapat mengurangi bagian PPh/BPJS/potongan yang belum dibayar dan belum dicadangkan oleh settlement aktif. Draft/approval pembayaran yang akan menjadi terlalu besar setelah koreksi harus dibatalkan atau disesuaikan terlebih dahulu. Jika pembayaran ke otoritas/provider sudah terjadi, sistem fail-closed dan meminta rekonsiliasi refund/offset melalui workflow terpisah. Dengan cara ini perubahan payroll tidak dapat menghasilkan saldo kewajiban negatif atau settlement ganda secara diam-diam.
+
+## Recovery R2 support truth — 2026-09-24
+
+EmployeeTaxProfile, EmployeeSocialSecurityProfile, and PayrollAccountingMapping are operator-managed and effective-dated. The executable employee tax method remains **GROSS only**. `NET` and `GROSS_UP` are rejected explicitly until a documented and validated net-to-gross/gross-up engine exists; the application must not approximate them.
+
+Payroll also fails closed when an employee component or statutory profile changes inside one payroll period without full-period coverage. Split-period/proration is therefore **not silently inferred**. Such rows require review/a supported future proration implementation before approval and posting. Existing payroll calculation, approval, balanced journal posting, settlement, and secure-link payslip gates remain authoritative.
