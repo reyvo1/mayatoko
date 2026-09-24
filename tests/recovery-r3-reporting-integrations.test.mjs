@@ -6,6 +6,9 @@ const controller = fs.readFileSync('apps/api/src/reports/daily-digest.controller
 const service = fs.readFileSync('apps/api/src/reports/daily-digest.service.ts', 'utf8');
 const admin = fs.readFileSync('apps/admin/app/modules/extensions.tsx', 'utf8');
 const probe = fs.readFileSync('scripts/ci-notification-provider-probe.mjs', 'utf8');
+const seed = fs.readFileSync('apps/api/prisma/seed.ts', 'utf8');
+const fullUatWorkflow = fs.readFileSync('.github/workflows/toko360-full-uat.yml', 'utf8');
+const fullSystemWorkflow = fs.readFileSync('.github/workflows/full-system-simulation.yml', 'utf8');
 const handoff = fs.readFileSync('handoff/CURRENT-WORK.md', 'utf8');
 const state = fs.readFileSync('docs/PROJECT-STATE.md', 'utf8');
 
@@ -46,4 +49,22 @@ test('R3 provider simulation verifies Telegram recipient before configuring and 
   assert.match(probe, /recipientBindingIds:\[bindingRequest\.bindingId\]/);
   assert.match(probe, /verification \+ owner digest \+ manual wajib terkirim/);
   assert.match(probe, /verifiedRecipient:true/);
+});
+test('R3 provider simulation uses a real dedicated bootstrap employee fixture in both GitHub workflows', () => {
+  assert.match(seed, /SEED_EMPLOYEE_EMAIL dan SEED_EMPLOYEE_PASSWORD harus diberikan berpasangan/);
+  assert.match(seed, /bootstrapPassword\('SEED_EMPLOYEE_PASSWORD'\)/);
+  assert.match(seed, /employeeNumber: 'CI-EMP-0001'/);
+  assert.match(seed, /roleId: employeeRole\.id/);
+
+  for (const [label, workflow] of [
+    ['full automated UAT', fullUatWorkflow],
+    ['full-system simulation', fullSystemWorkflow],
+  ]) {
+    assert.match(workflow, /SEED_EMPLOYEE_EMAIL: ci-employee@example\.invalid/, `${label} must seed dedicated employee email`);
+    assert.match(workflow, /SEED_EMPLOYEE_PASSWORD: CI-Only-Employee-Password-2026!/, `${label} must seed dedicated employee password`);
+  }
+
+  assert.match(probe, /process\.env\.SEED_EMPLOYEE_EMAIL\|\|'ci-employee@example\.invalid'/);
+  assert.match(probe, /process\.env\.SEED_EMPLOYEE_PASSWORD\|\|'CI-Only-Employee-Password-2026!'/);
+  assert.match(probe, /const employeeLogin=await request\('\/auth\/login'/);
 });

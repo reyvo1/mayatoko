@@ -823,6 +823,63 @@ async function main() {
     update: {}, create: { roleId: employeeRole.id, permissionId: attendanceRecordPermission.id },
   });
 
+  const bootstrapEmployeeEmail = process.env.SEED_EMPLOYEE_EMAIL?.trim().toLowerCase();
+  const bootstrapEmployeePasswordRaw = process.env.SEED_EMPLOYEE_PASSWORD?.trim();
+  if (!demoSeed && Boolean(bootstrapEmployeeEmail) !== Boolean(bootstrapEmployeePasswordRaw)) {
+    throw new Error('SEED_EMPLOYEE_EMAIL dan SEED_EMPLOYEE_PASSWORD harus diberikan berpasangan.');
+  }
+  if (!demoSeed && bootstrapEmployeeEmail && bootstrapEmployeePasswordRaw) {
+    if (!bootstrapEmployeeEmail.includes('@') || bootstrapEmployeeEmail.endsWith('@toko360.local')) {
+      throw new Error('SEED_EMPLOYEE_EMAIL harus alamat email bootstrap yang valid dan bukan domain demo @toko360.local.');
+    }
+    const employeePassword = bootstrapPassword('SEED_EMPLOYEE_PASSWORD');
+    const employeeUser = await prisma.user.upsert({
+      where: { email: bootstrapEmployeeEmail },
+      update: {
+        name: 'Karyawan Bootstrap',
+        passwordHash: await hash(employeePassword, 12),
+        branchId: branch.id,
+        isActive: true,
+      },
+      create: {
+        name: 'Karyawan Bootstrap',
+        email: bootstrapEmployeeEmail,
+        passwordHash: await hash(employeePassword, 12),
+        branchId: branch.id,
+        isActive: true,
+      },
+    });
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: employeeUser.id, roleId: employeeRole.id } },
+      update: {},
+      create: { userId: employeeUser.id, roleId: employeeRole.id },
+    });
+    await prisma.employee.upsert({
+      where: { companyId_employeeNumber: { companyId: company.id, employeeNumber: 'CI-EMP-0001' } },
+      update: {
+        userId: employeeUser.id,
+        branchId: branch.id,
+        fullName: 'Karyawan Bootstrap',
+        email: employeeUser.email,
+        employmentStatus: 'PERMANENT',
+        timezone: 'Asia/Makassar',
+        isActive: true,
+      },
+      create: {
+        companyId: company.id,
+        branchId: branch.id,
+        userId: employeeUser.id,
+        employeeNumber: 'CI-EMP-0001',
+        fullName: 'Karyawan Bootstrap',
+        email: employeeUser.email,
+        employmentStatus: 'PERMANENT',
+        hireDate: new Date('2026-01-01T00:00:00.000Z'),
+        timezone: 'Asia/Makassar',
+        isActive: true,
+      },
+    });
+  }
+
   if (demoSeed) {
     const employeeUser = await prisma.user.upsert({
       where: { email: 'karyawan@toko360.local' }, update: { branchId: branch.id, isActive: true },

@@ -47,6 +47,8 @@ jobs:
       T360_UAT_ENVIRONMENT: GITHUB_UAT
       SEED_ADMIN_EMAIL: ci-admin@example.invalid
       SEED_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
+      SEED_EMPLOYEE_EMAIL: ci-employee@example.invalid
+      SEED_EMPLOYEE_PASSWORD: CI-Only-Employee-Password-2026!
       T360_UAT_ADMIN_EMAIL: ci-admin@example.invalid
       T360_UAT_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
       T360_UAT_EXPECTED_HOST: localhost

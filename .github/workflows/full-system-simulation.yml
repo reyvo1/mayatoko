@@ -57,6 +57,8 @@ jobs:
       SEED_WAREHOUSE_NAME: Gudang GitHub CI
       SEED_ADMIN_EMAIL: ci-admin@example.invalid
       SEED_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
+      SEED_EMPLOYEE_EMAIL: ci-employee@example.invalid
+      SEED_EMPLOYEE_PASSWORD: CI-Only-Employee-Password-2026!
       T360_UAT_ENVIRONMENT: GITHUB_STAGING_SIMULATION
       T360_UAT_ADMIN_EMAIL: ci-admin@example.invalid
       T360_UAT_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
