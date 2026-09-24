@@ -290,6 +290,17 @@ async function main() {
     evidence.checks.push({ id: 'ADMIN_AUTHENTICATED_SHELL', status: 'PASS' });
     evidence.checks.push({ id: 'ADMIN_RESPONSIVE_SHELL', status: 'PASS', matrix: await assertResponsiveMatrix(cdp, 'Admin authenticated shell') });
 
+    const analyticsContract = await evaluateValue(cdp, `(() => {
+      const charts=[...document.querySelectorAll('[data-chart-kind]')].filter((el)=>el.getClientRects().length);
+      const kinds=charts.map((el)=>el.getAttribute('data-chart-kind')).filter(Boolean);
+      const legacyGradient=[...document.querySelectorAll('svg [fill*="gradient"],svg [stroke*="gradient"]')].length;
+      return { count: charts.length, kinds, legacyGradient };
+    })()`);
+    if (!analyticsContract || analyticsContract.count < 3 || !['line','share-bars','bars'].every((kind) => analyticsContract.kinds.includes(kind)) || analyticsContract.legacyGradient !== 0) {
+      throw new Error(`Admin canonical analytics contract gagal: ${JSON.stringify(analyticsContract)}`);
+    }
+    evidence.checks.push({ id: 'ADMIN_CANONICAL_ANALYTICS', status: 'PASS', ...analyticsContract, screenshot: await captureSuccessScreenshot(cdp, 'admin-dashboard-canonical-analytics') });
+
     const adminWorkspaces = await clickAllNavigation(cdp, '.navItem', 'Admin workspace');
     const adminDomainViews = [];
     for (const workspace of adminWorkspaces) {

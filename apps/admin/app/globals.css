@@ -170,6 +170,35 @@ button.dangerButton { @apply border-red-500 bg-red-500 hover:bg-red-400; }
 .toast.success { @apply border-emerald-500/20; }.toast.error { @apply border-red-500/20; }
 .toastIcon { @apply mt-0.5; }
 
+/* R7 canonical analytics */
+.chartFigure { @apply m-0 min-w-0; }
+.chartCanvas { @apply block h-auto w-full min-w-0 overflow-visible; }
+.chartGridLine { fill: none; stroke: var(--color-app-border); stroke-width: 1; }
+.chartLine { fill: none; stroke: var(--color-app-accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.chartLineSecondary { stroke-dasharray: 7 6; opacity: .55; }
+.chartPoint { fill: var(--color-app-bg); stroke: var(--color-app-accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.chartPointSecondary { opacity: .65; }
+.chartLegend { @apply mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-app-muted; }
+.chartLegend > span { @apply inline-flex items-center gap-2; }
+.chartLegend small { @apply ml-auto text-[10px] text-slate-600; }
+.chartLegendLine { @apply inline-block h-0.5 w-5 rounded-full bg-blue-500; }
+.chartLegendLine.secondary { @apply opacity-50; }
+.shareChart { @apply grid gap-4; }
+.shareRow { @apply grid gap-1.5; }
+.shareLabel { @apply flex items-baseline justify-between gap-3 text-xs; }
+.shareLabel strong { @apply font-medium text-slate-200; }
+.shareLabel span { @apply text-app-muted; }
+.shareTrack { @apply block h-2 overflow-hidden rounded-full bg-app-surface-3; }
+.shareTrack > span { @apply block h-full rounded-full bg-blue-500; }
+.shareRow small, .chartCaption { @apply text-[10px] text-slate-600; }
+.chartCaption { @apply mt-3 block; }
+.barChart { @apply flex min-h-44 items-end gap-1.5 border-b border-app-border pb-2; }
+.barColumn { @apply grid min-w-0 flex-1 grid-rows-[18px_128px_18px] items-end gap-1 text-center; }
+.barValue { @apply truncate text-[9px] text-slate-600; }
+.barTrack { @apply flex h-32 items-end overflow-hidden rounded-md bg-app-surface-2; }
+.barTrack > i { @apply block w-full rounded-t-md bg-blue-500 not-italic; min-height: 3px; }
+.barColumn small { @apply truncate text-[9px] text-app-muted; }
+
 /* compatibility classes intentionally kept semantic, but legacy visual overrides are gone */
 .workspaceRail,.domainDeck,.domainContext,.breadcrumbs,.statusbar,.routeBadge,.footerNote,.footerVersion { display: none !important; }
 .receiptForm { @apply grid grid-cols-1 gap-3 md:grid-cols-2; }.receiptForm > button,.receiptForm > .inline { @apply md:col-span-2; }

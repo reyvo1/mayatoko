@@ -4,7 +4,7 @@
   "type": "feature",
   "module": "integrations",
   "wave": "W6",
-  "phase": "VERIFICATION",
+  "phase": "CLOSED",
   "risk": "HIGH",
   "owner": "openai",
   "featureFlag": "",
@@ -67,5 +67,14 @@
     "docs/FULL-GITHUB-UAT.md"
   ],
   "createdAt": "2026-09-24T19:55:00+08:00",
-  "updatedAt": "2026-09-25T01:30:00+08:00"
+  "updatedAt": "2026-09-25T02:30:00+08:00",
+  "releaseEvidence": [
+    "Commit abac92662cab4cc7352de4f9f9d2e2419aad9c29 on origin/main",
+    "Source fingerprint 5006faaa354e32cdcfd952388a8dff76c712693835178ff53ff918875bf22615",
+    "GitHub Full System Simulation PASS",
+    "GitHub Full Automated UAT PASS",
+    "ci:r3:residual-probe PASS for F37/F39/F42/F43",
+    "Owner daily digest configuration and verified-recipient chain present and exercised",
+    "Stage-20 automated PASS; Human Stage-20 remains PENDING"
+  ]
 }

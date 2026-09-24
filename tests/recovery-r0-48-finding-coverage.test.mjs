@@ -34,7 +34,7 @@ test('critical and high findings cannot silently lose runtime evidence requireme
   }
 });
 
-test('R0, R1 and R2 are closed, while F12R4 remains blocked behind recovery', () => {
+test('R0-R6 prerequisites are closed and R7 UI verification is active', () => {
   assert.equal(r0.phase, 'CLOSED');
   assert.equal(r0.wave, 'W0');
   assert.equal(r1.phase, 'CLOSED');
@@ -43,8 +43,8 @@ test('R0, R1 and R2 are closed, while F12R4 remains blocked behind recovery', ()
   assert.equal(r2.phase, 'CLOSED');
   assert.equal(r2.wave, 'W4');
   assert.ok(r2.dependencies.includes(r1.id));
-  assert.equal(f12.phase, 'BLOCKED');
-  assert.ok(f12.dependencies.includes(r0.id));
+  assert.equal(f12.phase, 'VERIFICATION');
+  assert.ok(f12.dependencies.includes(r1.id));
   assert.match(projectState, /Recovery R0/);
   assert.match(projectState, /Recovery R1/);
   assert.match(projectState, /Recovery R2/);

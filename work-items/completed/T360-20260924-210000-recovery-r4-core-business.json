@@ -4,7 +4,7 @@
   "type": "feature",
   "module": "core-business",
   "wave": "W3",
-  "phase": "IMPLEMENTATION",
+  "phase": "CLOSED",
   "risk": "HIGH",
   "owner": "openai",
   "featureFlag": "",
@@ -64,5 +64,13 @@
     "docs/TOKO360-MASTER-RECOVERY-WORKFLOW.md"
   ],
   "createdAt": "2026-09-24T21:00:00+08:00",
-  "updatedAt": "2026-09-24T21:00:00+08:00"
+  "updatedAt": "2026-09-25T02:30:00+08:00",
+  "releaseEvidence": [
+    "Commit abac92662cab4cc7352de4f9f9d2e2419aad9c29 on origin/main",
+    "Source fingerprint 5006faaa354e32cdcfd952388a8dff76c712693835178ff53ff918875bf22615",
+    "GitHub Full System Simulation PASS",
+    "GitHub Full Automated UAT PASS",
+    "ci:r4:probe PASS on exact PostgreSQL runtime for supplier lifecycle, receipt rejection/no movement, inventory ledger, close/reopen, General Ledger, storefront branch discovery, and advanced promotion lifecycle",
+    "Human Stage-20 remains PENDING and separate"
+  ]
 }

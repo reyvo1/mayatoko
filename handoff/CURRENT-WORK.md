@@ -1,18 +1,15 @@
-# CURRENT AUTHORITATIVE RECOVERY — 2026-09-24 R3
+# CURRENT AUTHORITATIVE RECOVERY — 2026-09-25 R7
 
-Active work item: `T360-20260924-195500` — R3 Reporting, Owner Digest, Notifications, Providers, Marketplace, and Edge Integrations.
+Active work item: `T360-20260923-221011` — Full UI rebuild with Tailwind and GitHub full-system UAT expansion.
 
-- R0 CLOSED; recovery coverage remains 48/48 mapped.
-- R1 CLOSED on exact green GitHub commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29`.
-- R2 is CLOSED on current green GitHub runtime evidence: `ci:r2:probe`, PostgreSQL runtime, six-app build, Browser UAT, provider simulation, Stage-18/19/20 automated and aggregate gates PASS. Human Stage-20 remains separate/PENDING.
-- R3 is IMPLEMENTATION. First root cluster covers F22/F23/F24/F25/F44: owner digest operator config, explicit mutation permission, enabled fail-close, minStock-correct low-stock detection, and verified Telegram recipient bindings.
-- Provider simulation must prove verification notification + owner digest + manual Telegram delivery; no UAT/provider assertion may be weakened.
-- Remaining R3 findings F29/F37/F39/F42/F43 stay OPEN until their runtime/operator flows and GitHub evidence are implemented.
-- R4 automated runtime is CLOSED on exact green baseline `4963f8acdf8b5a63a8cc79caad5162dcf26c3808`; Human Stage-20 remains PENDING.
-- R5 is VERIFICATION under `T360-20260925-000500`: F31 AssetMaintenancePlan management, F32 VehicleDriverAssignment lifecycle, and F33 asset assign/transfer/dispose operator flow are implemented without schema change. Exact-source PostgreSQL `ci:r5:probe` is mandatory before F31/F32/F33 closure.
-- R5 preserves the Asset handover gate: operator explicitly finalizes the inspection and transfer/disposal only accepts PASSED/APPROVED status; no auto-pass shortcut is allowed.
-- Atomic wave rule applies: after this R5 package is applied, do not start another fix until the working tree is clean, all R5 files are committed, push succeeds, and `HEAD == origin/main`.
-- F12R4 UI work remains BLOCKED until R1–R6 recovery prerequisites stabilize.
+- Exact pre-R7 checkpoint: commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29`, source fingerprint `5006faaa354e32cdcfd952388a8dff76c712693835178ff53ff918875bf22615`.
+- R1–R6 functional prerequisites are CLOSED for R7 sequencing. R3 residual F37/F39/F42/F43 and R4 core-business probe are exact-runtime PASS on the same checkpoint.
+- R7 primary scope is F45 canonical chart strategy + F46 full information architecture/operator discoverability. R8 remains responsible for final safe mutation UAT/release evidence and remaining R8-owned findings.
+- Admin must remain one primary sidebar + one contextual secondary navigation + one content surface. Parallel workspace rails/decks/context strips are forbidden.
+- Dashboard analytics use reusable canonical chart primitives with a single accent language and no decorative gradients/ad-hoc per-widget color system.
+- `ci:r7:probe` must consume exact-source Browser UAT evidence and prove 14 Admin workspaces, contextual destinations, canonical analytics, screenshots, and 1440/1024/390 no-overflow geometry across Admin/POS/Storefront/Employee.
+- Human Stage-20 remains PENDING 12/12 and is not replaced by automated R7 acceptance.
+- Atomic wave rule remains mandatory: R7 source must be locally green, committed, pushed, clean, and `HEAD == origin/main` before R8 starts.
 
 ## Final automation closure — 2026-09-22
 

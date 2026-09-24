@@ -12,11 +12,11 @@ const fullSystemWorkflow = fs.readFileSync('.github/workflows/full-system-simula
 const handoff = fs.readFileSync('handoff/CURRENT-WORK.md', 'utf8');
 const state = fs.readFileSync('docs/PROJECT-STATE.md', 'utf8');
 
-test('R2 is closed on green runtime evidence and R3 is active without reopening UI polish', () => {
-  assert.match(handoff, /R2 .*CLOSED/);
-  assert.match(handoff, /R3 .*IMPLEMENTATION/);
-  assert.match(state, /Recovery R3/);
-  assert.match(state, /F22–F25, F29, F37, F39, F42–F44/);
+test('R3 is runtime-closed before R7 verification starts', () => {
+  assert.match(handoff, /R1–R6 functional prerequisites are CLOSED/);
+  assert.match(handoff, /R3 residual F37\/F39\/F42\/F43/);
+  assert.match(state, /R3\/R4 closure and R7 verification/);
+  assert.match(state, /R3 residual F37\/F39\/F42\/F43/);
 });
 
 test('R3 daily digest mutations are permissioned and manual send respects enabled flag', () => {

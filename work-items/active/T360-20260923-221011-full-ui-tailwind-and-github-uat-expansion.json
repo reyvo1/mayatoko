@@ -4,12 +4,17 @@
   "type": "feature",
   "module": "admin-ui",
   "wave": "W7",
-  "phase": "BLOCKED",
+  "phase": "VERIFICATION",
   "risk": "HIGH",
   "owner": "openai",
   "featureFlag": "",
   "dependencies": [
-    "T360-20260924-020700"
+    "T360-20260924-022400",
+    "T360-20260924-180000",
+    "T360-20260924-195500",
+    "T360-20260924-210000",
+    "T360-20260925-000500",
+    "T360-20260925-003000"
   ],
   "impacts": {
     "database": "NONE",
@@ -18,38 +23,39 @@
     "tax": "NONE",
     "payment": "NONE",
     "payroll": "NONE",
-    "sync": "LOW",
+    "sync": "NONE",
     "security": "LOW",
     "performance": "MEDIUM"
   },
   "businessRules": [
-    "Presentation and information architecture are being rebuilt, not patched; existing backend/API business authority remains unchanged.",
-    "Admin must use exactly one primary navigation plus at most one contextual secondary navigation layer; redundant workspace rails/decks/context strips are forbidden.",
-    "Every implemented operator capability must have a discoverable UI home, including tenant/organization, Telegram/WhatsApp, AI/forecasting, reports, automation, users/roles, and settings/security.",
-    "Admin, POS, Storefront, and Employee Portal use Tailwind CSS v4 with one visual language, Lucide icons, responsive no-horizontal-page-overflow behavior, and progressive disclosure.",
-    "GitHub UAT remains fail-closed and continues to test exact artifacts, PostgreSQL runtime, API/provider flows, browser geometry, worker/reporting, staging, load/index, DR, and automated Stage-20.",
-    "Human UAT remains separate and blocked until visual acceptance of the rebuilt UI.",
-    "R0 deep-audit recovery supersedes visual-only completion: final F12R4 verification cannot resume until R1-R6 operator-function gaps required by the 48/48 matrix are resolved or explicitly reclassified."
+    "R7 is the presentation/IA recovery wave after R1-R6 functional prerequisites are runtime-closed; business authority remains in existing APIs and server context.",
+    "Admin renders exactly one primary sidebar, one contextual secondary navigation, and one content surface. Parallel workspace rails/decks/context strips remain forbidden.",
+    "Four operator surfaces remain Tailwind CSS v4, flat one-accent, Lucide-based, responsive, keyboard-focusable, and free of decorative gradients or horizontal page overflow.",
+    "Dashboard analytics use reusable canonical chart primitives with one accent language; ad-hoc per-widget chart colors and decorative chart gradients are forbidden.",
+    "High-value capabilities remain discoverable in explicit workspaces, including owner digest/providers, control plane, reports, assets, marketplace, tenant/branch/warehouse, security/API keys, and truthful Forecast & Otomasi.",
+    "Exact-source Browser UAT must prove all visible Admin workspaces/contextual destinations, canonical analytics, desktop/tablet/mobile geometry, and screenshot evidence before F46 can close.",
+    "R8 remains responsible for expanded safe mutation journeys, exact release evidence, and remaining runtime revalidation such as F06/F40. Human Stage-20 remains separate."
   ],
   "acceptanceCriteria": [
-    "Legacy accumulated UI overrides are replaced rather than appended; all four app globals are Tailwind v4 canonical stylesheets.",
-    "Admin information architecture explicitly exposes sales/orders, procurement, inventory, master data, finance, reporting, HR/payroll, assets/fleet, AI/automation, integrations/notifications, tenant/organization, and settings/access.",
-    "Telegram/WhatsApp provider configuration is reachable from an explicit Integrations & Notifications workspace; AI is reachable from an explicit AI & Automation workspace.",
-    "Admin shell contains one sidebar, one contextual subnav, and one content surface without duplicate navigation layers.",
-    "POS sale/cart hierarchy is optimized for high mobility and collapses cleanly at tablet/mobile without page horizontal scrolling.",
-    "Storefront and Employee Portal use the same restrained flat visual system and fit supported viewports without page horizontal scrolling.",
-    "Existing business regression remains green and the expanded GitHub UAT gates are preserved or strengthened, never skipped.",
-    "Recovery matrix prerequisites for operator-facing functionality are closed before F12R4 can return to VERIFICATION."
+    "F45 canonical chart component strategy replaces ad-hoc analytics SVG/colors/gradient behavior.",
+    "F46 Admin information architecture exposes all 14 canonical top-level workspaces with one contextual navigation layer and no stacked navigation.",
+    "Browser UAT records canonical chart evidence plus 14-workspace/contextual navigation sweep on the exact source fingerprint.",
+    "Admin, POS, Storefront, and Employee Portal pass 1440x900, 1024x768, and 390x844 no-overflow geometry checks.",
+    "R7 GitHub probe is required by both PostgreSQL workflows and aggregate release evidence.",
+    "Existing functional operator routes from R1-R6 remain reachable; no API/business logic is reimplemented in the client.",
+    "Focused R7 tests, workflow/repository/recovery/full-repo/UI audits, lint/build gates, and full dependency-free regression pass before push.",
+    "Human Stage-20 remains PENDING until operator visual/usability acceptance."
   ],
   "testPlan": [
-    "Run workflow:validate and validate:repo.",
-    "Run source audits for all UI routes/navigation/API references and forbidden visual anti-patterns.",
-    "Run focused F12R3/F12R4 UI regression.",
-    "Run full dependency-free regression.",
-    "Run sync idempotency/retry/conflict regression unchanged because provider/device/offline navigation remains in scope.",
-    "Run local candidate gate for TypeScript, SQLite DB smoke, and six-app build.",
-    "Run GitHub Full System Simulation with API sweep, provider simulation, browser desktop/tablet/mobile geometry, worker/report, staging/load/index/DR, and automated Stage-20.",
-    "Human Stage-20 remains blocked until visual acceptance."
+    "node --test tests/recovery-r7-ui-ia.test.mjs",
+    "npm run lint -w @toko360/admin",
+    "npm run workflow:validate",
+    "npm run validate:repo",
+    "npm run audit:recovery",
+    "npm run audit:full:repo",
+    "npm run ci:ui:audit",
+    "npm run test:dependency-free",
+    "GitHub uat:browser:built + ci:r7:probe on exact source/build artifact"
   ],
   "migrationPlan": "No database schema change is planned. Tailwind/PostCSS and CI/UAT changes are source/build tooling only; existing expand-only database migration chain remains unchanged and must still be rehearsed.",
   "rollbackPlan": "Revert this work item commit set to the last source-bound automated-GitHub-PASS commit. No database rollback is required because schema is unchanged. If the new UAT gate itself is defective, fix the gate while preserving or strengthening its assertions; never bypass it to release.",
@@ -64,5 +70,5 @@
     ".github/workflows/toko360-full-uat.yml"
   ],
   "createdAt": "2026-09-23T14:10:11.719Z",
-  "updatedAt": "2026-09-24T02:07:00+08:00"
+  "updatedAt": "2026-09-25T02:30:00+08:00"
 }

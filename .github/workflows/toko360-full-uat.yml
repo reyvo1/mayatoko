@@ -198,6 +198,11 @@ jobs:
           console.log(`Browser UAT evidence PASS: ${p}`);
           NODE
 
+      - name: Verify R7 full UI and information architecture on exact browser artifact
+        id: r7_ui
+        continue-on-error: true
+        run: npm run ci:r7:probe
+
       - name: Start exact API + worker + provider simulator for deep runtime sweeps
         id: runtime_sweep_start
         continue-on-error: true
@@ -380,6 +385,7 @@ jobs:
           STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
+          STEP_R7_UI: ${{ steps.r7_ui.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -429,6 +435,7 @@ jobs:
           STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
+          STEP_R7_UI: ${{ steps.r7_ui.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -464,6 +471,7 @@ jobs:
           check "R5 assets/fleet runtime probe" "$STEP_R5_ASSETS_FLEET"
           check "R6 scale/summary/archive/capability runtime probe" "$STEP_R6_SCALE_AI"
           check "R3 residual payment/reporting/edge/marketplace runtime probe" "$STEP_R3_RESIDUAL"
+          check "R7 full UI / information architecture probe" "$STEP_R7_UI"
           check "Telegram/WhatsApp provider probe" "$STEP_PROVIDER_PROBE"
           check "Stage 18" "$STEP_STAGE18"
           check "Stage 19" "$STEP_STAGE19"
@@ -518,4 +526,3 @@ jobs:
           retention-days: 14
           if-no-files-found: error
           path: handoff/quality/github-live-telegram-smoke-latest.json
-

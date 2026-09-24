@@ -332,9 +332,10 @@
       "title": "Owner Telegram daily digest tidak punya UI konfigurasi",
       "primaryWave": "R3",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R3",
       "closureRequirement": "Build owner daily digest config/preview/send UI.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F23",
@@ -464,9 +465,10 @@
       "title": "Canonical inventory movement ledger tidak terekspos",
       "primaryWave": "R4",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R4",
       "closureRequirement": "Expose canonical inventory movement ledger/drill-down.",
-      "runtimeEvidenceRequired": false
+      "runtimeEvidenceRequired": false,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F35",
@@ -475,9 +477,10 @@
       "title": "Goods receipt reject tidak terekspos UI",
       "primaryWave": "R4",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R4",
       "closureRequirement": "Expose Goods Receipt reject flow.",
-      "runtimeEvidenceRequired": false
+      "runtimeEvidenceRequired": false,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F36",
@@ -486,9 +489,10 @@
       "title": "Supplier master hanya list/create",
       "primaryWave": "R4",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R4",
       "closureRequirement": "Add supplier update/deactivate lifecycle.",
-      "runtimeEvidenceRequired": false
+      "runtimeEvidenceRequired": false,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F37",
@@ -497,9 +501,10 @@
       "title": "Payment provider event diagnostics tidak punya UI",
       "primaryWave": "R3",
       "secondaryWave": "R7",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R3",
       "closureRequirement": "Expose payment provider event diagnostics.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F38",
@@ -508,9 +513,10 @@
       "title": "General Ledger report tidak dipanggil UI",
       "primaryWave": "R4",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R4",
       "closureRequirement": "Expose General Ledger report and drill-down.",
-      "runtimeEvidenceRequired": false
+      "runtimeEvidenceRequired": false,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F39",
@@ -519,9 +525,10 @@
       "title": "Daily digest, multi-outlet, cashier target tersembunyi",
       "primaryWave": "R3",
       "secondaryWave": "R7",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R3",
       "closureRequirement": "Expose daily digest/multi-outlet/cashier-target reporting in IA.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F40",
@@ -530,9 +537,10 @@
       "title": "Storefront dikunci ke satu branch lewat environment",
       "primaryWave": "R4",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R4",
       "closureRequirement": "Add Storefront outlet/branch selection if multi-outlet public catalog remains a product requirement.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F41",
@@ -541,9 +549,10 @@
       "title": "Advanced promotion masih eksplisit open",
       "primaryWave": "R4",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R4",
       "closureRequirement": "Close advanced promotion semantics or mark unsupported behavior explicitly.",
-      "runtimeEvidenceRequired": false
+      "runtimeEvidenceRequired": false,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F42",
@@ -552,9 +561,10 @@
       "title": "Device/sync backend lebih dalam daripada UI",
       "primaryWave": "R3",
       "secondaryWave": "R8",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R3",
       "closureRequirement": "Expose device sync/conflict/dead-letter/replay operations.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F43",
@@ -563,9 +573,10 @@
       "title": "MarketplaceOrder API tidak punya Admin UI",
       "primaryWave": "R3",
       "secondaryWave": "R7",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R3",
       "closureRequirement": "Expose marketplace import/list/error/replay flow.",
-      "runtimeEvidenceRequired": true
+      "runtimeEvidenceRequired": true,
+      "evidenceCommit": "abac92662cab4cc7352de4f9f9d2e2419aad9c29"
     },
     {
       "id": "F44",
@@ -585,7 +596,7 @@
       "title": "Design system chart requirement tidak diikuti",
       "primaryWave": "R7",
       "secondaryWave": null,
-      "status": "PARTIAL_F12R4_UNVERIFIED",
+      "status": "SOURCE_IMPLEMENTED_R7_VERIFICATION_PENDING",
       "closureRequirement": "Adopt canonical chart component/library strategy; remove ad-hoc simplistic chart contract.",
       "runtimeEvidenceRequired": false
     },
@@ -596,7 +607,7 @@
       "title": "Information architecture terlalu menggabungkan domain besar",
       "primaryWave": "R7",
       "secondaryWave": null,
-      "status": "PARTIAL_F12R4_UNVERIFIED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Rebuild IA so all operator-facing domains are discoverable without stacked navigation.",
       "runtimeEvidenceRequired": true
     },

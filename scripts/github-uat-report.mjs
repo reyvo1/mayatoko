@@ -22,6 +22,7 @@ const rows = [
   ['R5 assets/fleet runtime probe', process.env.STEP_R5_ASSETS_FLEET],
   ['R6 scale/summary/archive/capability runtime probe', process.env.STEP_R6_SCALE_AI],
   ['R3 residual payment/reporting/edge/marketplace runtime probe', process.env.STEP_R3_RESIDUAL],
+  ['R7 full UI / information architecture probe', process.env.STEP_R7_UI],
   ['Telegram/WhatsApp provider probe', process.env.STEP_PROVIDER_PROBE],
   ['Stage 18', process.env.STEP_STAGE18],
   ['Stage 19', process.env.STEP_STAGE19],

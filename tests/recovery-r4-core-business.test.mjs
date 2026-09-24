@@ -122,11 +122,11 @@ test('R4 live PostgreSQL probe is mandatory in both GitHub workflows and aggrega
   for (const token of ['inactiveSupplierRejectedForProcurement','goodsReceiptRejectPrePosting','accountingCloseBlocksPosting','generalLedgerVisible','storefrontBranchRuntime','advancedPromotionLifecycle']) assert.match(r4Probe, new RegExp(token));
 });
 
-test('R3 remains open while R4 runs as an explicit parallel recovery work item', () => {
-  assert.match(handoff, /R3 is IMPLEMENTATION/);
-  assert.match(handoff, /R4 is \*\*IMPLEMENTATION\*\*/);
-  assert.match(state, /Recovery R3/);
-  assert.match(state, /Recovery R4/);
+test('R3 and R4 are closed prerequisites before R7 verification', () => {
+  assert.match(handoff, /R1–R6 functional prerequisites are CLOSED/);
+  assert.match(handoff, /R4 core-business probe are exact-runtime PASS/);
+  assert.match(state, /R3\/R4 closure and R7 verification/);
+  assert.match(state, /R4 F34\/F35\/F36\/F38\/F40\/F41/);
 });
 
 test('R4 runtime probe is self-contained on bootstrap seed and creates a product fixture when catalog is empty', () => {

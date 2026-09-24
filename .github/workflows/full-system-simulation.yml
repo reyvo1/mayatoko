@@ -234,6 +234,11 @@ jobs:
         continue-on-error: true
         run: npm run uat:browser:built
 
+      - name: Verify R7 full UI and information architecture on exact browser artifact
+        id: r7_ui
+        continue-on-error: true
+        run: npm run ci:r7:probe
+
       - name: Start exact built runtime for certification and load
         id: runtime_start
         continue-on-error: true
@@ -514,6 +519,7 @@ jobs:
           T360_CI_STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           T360_CI_STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           T360_CI_STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
+          T360_CI_STEP_R7_UI: ${{ steps.r7_ui.outcome }}
           T360_CI_STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           T360_CI_STEP_STAGING_CERTIFICATION: ${{ steps.staging_certification.outcome }}
           T360_CI_STEP_LOAD_SMOKE: ${{ steps.load_smoke.outcome }}
