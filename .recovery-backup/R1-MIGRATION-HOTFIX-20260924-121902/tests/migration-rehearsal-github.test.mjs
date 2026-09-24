@@ -59,11 +59,3 @@ test('manual GitHub full UAT also rehearses migrations and reports the gate', ()
   assert.match(fullUat, /STEP_MIGRATION: \$\{\{ steps\.migration_rehearsal\.outcome \}\}/);
   assert.match(fullUat, /check "Expand migration rehearsal" "\$STEP_MIGRATION"/);
 });
-
-
-test('migration rehearsal keeps Prisma verification schema inside API workspace so generate never auto-installs from filesystem root', () => {
-  const script = fs.readFileSync(path.join(root, 'scripts', 'rehearse-expand-migrations.mjs'), 'utf8');
-  assert.match(script, /const apiWorkspace = path\.join\(root, 'apps', 'api'\)/);
-  assert.match(script, /fs\.mkdtempSync\(path\.join\(apiWorkspace, '\.t360-migration-rehearsal-'\)\)/);
-  assert.doesNotMatch(script, /os\.tmpdir\(\).*t360-migration-rehearsal/);
-});

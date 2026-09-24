@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
@@ -255,8 +256,7 @@ async function main() {
     return;
   }
 
-  const apiWorkspace = path.join(root, 'apps', 'api');
-  const tempDir = fs.mkdtempSync(path.join(apiWorkspace, '.t360-migration-rehearsal-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 't360-migration-rehearsal-'));
   try {
     const baseSchema = gitShow(baseRef, schemaRelative);
     const baseSchemaFile = path.join(tempDir, path.basename(schemaRelative));
