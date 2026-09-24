@@ -290,6 +290,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r4:probe
 
+      - name: Exercise R5 assets fleet and maintenance lifecycle
+        id: r5_assets_fleet
+        continue-on-error: true
+        run: npm run ci:r5:probe
+
       - name: Sweep every documented OpenAPI operation against exact runtime
         id: api_sweep
         continue-on-error: true
@@ -495,6 +500,7 @@ jobs:
           T360_CI_STEP_R1_TENANT_ACCESS: ${{ steps.r1_tenant_access.outcome }}
           T360_CI_STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           T360_CI_STEP_R4_CORE_BUSINESS: ${{ steps.r4_core_business.outcome }}
+          T360_CI_STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           T360_CI_STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           T360_CI_STEP_STAGING_CERTIFICATION: ${{ steps.staging_certification.outcome }}
           T360_CI_STEP_LOAD_SMOKE: ${{ steps.load_smoke.outcome }}

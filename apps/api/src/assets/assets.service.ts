@@ -5,7 +5,7 @@ import { AuthUser } from '../auth/auth.types';
 import { nextDocumentNumber } from '../common/numbering';
 import { consumeAvailableLocationStock } from '../common/location-inventory';
 import { PrismaService } from '../prisma/prisma.service';
-import { AssignAssetDto, CompleteMaintenanceDto, CreateAssetCategoryDto, CreateAssetDto, CreateMaintenanceWorkOrderDto, DisposeAssetDto, RunDepreciationDto, TransferAssetDto } from './dto/assets.dto';
+import { AssignAssetDto, CompleteMaintenanceDto, CreateAssetCategoryDto, CreateAssetDto, CreateAssetMaintenancePlanDto, CreateMaintenanceWorkOrderDto, DisposeAssetDto, RunDepreciationDto, TransferAssetDto, UpdateAssetMaintenancePlanDto } from './dto/assets.dto';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 type TenantScope = { companyId: string; branchId: string };
@@ -678,6 +678,78 @@ export class AssetsService {
       } });
       return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async listMaintenancePlans(user: AuthUser, requestedCompanyId?: string, requestedBranchId?: string) {
+    const scope = this.requireTenantScope(user);
+    await this.assertRequestedScope(this.prisma, user, scope, requestedCompanyId, requestedBranchId, 'AssetMaintenancePlan');
+    const assets = await this.prisma.asset.findMany({
+      where: { companyId: scope.companyId, branchId: scope.branchId },
+      select: { id: true, code: true, name: true },
+    });
+    const assetIds = assets.map((asset) => asset.id);
+    if (!assetIds.length) return [];
+    const plans = await this.prisma.assetMaintenancePlan.findMany({
+      where: { companyId: scope.companyId, assetId: { in: assetIds } },
+      orderBy: [{ isActive: 'desc' }, { nextDueDate: 'asc' }, { code: 'asc' }],
+      take: 500,
+    });
+    const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
+    return plans.map((plan) => ({ ...plan, asset: assetMap.get(plan.assetId) }));
+  }
+
+  async createMaintenancePlan(dto: CreateAssetMaintenancePlanDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    await this.assertRequestedScope(this.prisma, user, scope, dto.companyId, undefined, 'AssetMaintenancePlan');
+    const asset = await this.scopedAsset(this.prisma, user, scope, dto.assetId);
+    if (!dto.intervalDays && !dto.intervalOdometer) {
+      throw new BadRequestException('Maintenance plan membutuhkan interval hari atau interval odometer.');
+    }
+    if (dto.intervalOdometer && asset.assetType !== 'VEHICLE') {
+      throw new BadRequestException('Interval odometer hanya dapat dipakai untuk aset kendaraan.');
+    }
+    if (dto.checklistTemplateId) {
+      const template = await this.prisma.inspectionTemplate.findFirst({ where: { id: dto.checklistTemplateId, companyId: scope.companyId, status: 'ACTIVE' } });
+      if (!template) return this.denyTenantAccess(this.prisma, user, scope, 'InspectionTemplate', dto.checklistTemplateId);
+    }
+    const row = await this.prisma.assetMaintenancePlan.create({ data: {
+      companyId: scope.companyId, assetId: asset.id, code: dto.code.trim(), name: dto.name.trim(), scheduleType: dto.scheduleType.trim(),
+      intervalDays: dto.intervalDays, intervalOdometer: dto.intervalOdometer,
+      nextDueDate: dto.nextDueDate ? this.parseBusinessDate(dto.nextDueDate) : undefined, nextDueOdometer: dto.nextDueOdometer,
+      checklistTemplateId: dto.checklistTemplateId, autoCreateWorkOrder: dto.autoCreateWorkOrder ?? true, isActive: dto.isActive ?? true,
+      metadata: dto.metadata as Prisma.InputJsonValue | undefined,
+    } });
+    await this.prisma.auditLog.create({ data: {
+      companyId: scope.companyId, userId: user.sub, action: 'CREATE_ASSET_MAINTENANCE_PLAN', entityType: 'AssetMaintenancePlan', entityId: row.id,
+      payload: { branchId: scope.branchId, assetId: asset.id, code: row.code },
+    } });
+    return row;
+  }
+
+  async updateMaintenancePlan(id: string, dto: UpdateAssetMaintenancePlanDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const plan = await this.prisma.assetMaintenancePlan.findFirst({ where: { id, companyId: scope.companyId } });
+    if (!plan) return this.denyTenantAccess(this.prisma, user, scope, 'AssetMaintenancePlan', id);
+    const asset = await this.scopedAsset(this.prisma, user, scope, plan.assetId);
+    const intervalDays = dto.intervalDays ?? plan.intervalDays ?? undefined;
+    const intervalOdometer = dto.intervalOdometer ?? plan.intervalOdometer ?? undefined;
+    if (!intervalDays && !intervalOdometer) throw new BadRequestException('Maintenance plan membutuhkan interval hari atau interval odometer.');
+    if (intervalOdometer && asset.assetType !== 'VEHICLE') throw new BadRequestException('Interval odometer hanya dapat dipakai untuk aset kendaraan.');
+    if (dto.checklistTemplateId) {
+      const template = await this.prisma.inspectionTemplate.findFirst({ where: { id: dto.checklistTemplateId, companyId: scope.companyId, status: 'ACTIVE' } });
+      if (!template) return this.denyTenantAccess(this.prisma, user, scope, 'InspectionTemplate', dto.checklistTemplateId);
+    }
+    const row = await this.prisma.assetMaintenancePlan.update({ where: { id }, data: {
+      name: dto.name?.trim(), scheduleType: dto.scheduleType?.trim(), intervalDays: dto.intervalDays, intervalOdometer: dto.intervalOdometer,
+      nextDueDate: dto.nextDueDate ? this.parseBusinessDate(dto.nextDueDate) : undefined, nextDueOdometer: dto.nextDueOdometer,
+      checklistTemplateId: dto.checklistTemplateId, autoCreateWorkOrder: dto.autoCreateWorkOrder, isActive: dto.isActive,
+      metadata: dto.metadata as Prisma.InputJsonValue | undefined,
+    } });
+    await this.prisma.auditLog.create({ data: {
+      companyId: scope.companyId, userId: user.sub, action: 'UPDATE_ASSET_MAINTENANCE_PLAN', entityType: 'AssetMaintenancePlan', entityId: row.id,
+      payload: { branchId: scope.branchId, assetId: asset.id, isActive: row.isActive, autoCreateWorkOrder: row.autoCreateWorkOrder },
+    } });
+    return row;
   }
 
   async listMaintenances(user: AuthUser, requestedCompanyId?: string, requestedBranchId?: string) {

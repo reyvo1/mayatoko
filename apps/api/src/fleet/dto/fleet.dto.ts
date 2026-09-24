@@ -1,6 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsDateString, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+
+export class CreateVehicleDriverAssignmentDto {
+  @ApiPropertyOptional({ description: 'Kompatibilitas lama; company tetap berasal dari token.' }) @IsOptional() @IsString() companyId?: string;
+  @ApiPropertyOptional({ description: 'Kompatibilitas lama; branch tetap berasal dari token.' }) @IsOptional() @IsString() branchId?: string;
+  @ApiProperty() @IsString() vehicleId!: string;
+  @ApiProperty() @IsString() employeeId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveFrom?: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveTo?: string;
+  @ApiPropertyOptional({ default: false }) @IsOptional() @IsBoolean() isPrimary?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
+}
+
+export class EndVehicleDriverAssignmentDto {
+  @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveTo?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
+}
 
 export class CreateVehicleDto {
   @ApiPropertyOptional({ description: 'Kompatibilitas lama; company tetap berasal dari token.' }) @IsOptional() @IsString() companyId?: string;

@@ -4,7 +4,7 @@ import { AccountingCoreService } from '../accounting-core/accounting-core.servic
 import { AuthUser } from '../auth/auth.types';
 import { nextDocumentNumber } from '../common/numbering';
 import { PrismaService } from '../prisma/prisma.service';
-import { CloseTripDto, CompleteStopDto, ConfirmLoadingDto, CreateDeliveryTripDto, CreateVehicleDto, DispatchTripDto, RecordFuelDto } from './dto/fleet.dto';
+import { CloseTripDto, CompleteStopDto, ConfirmLoadingDto, CreateDeliveryTripDto, CreateVehicleDriverAssignmentDto, CreateVehicleDto, DispatchTripDto, EndVehicleDriverAssignmentDto, RecordFuelDto } from './dto/fleet.dto';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 type TenantScope = { companyId: string; branchId: string };
@@ -201,6 +201,88 @@ export class FleetService {
       orderBy: [{ status: 'asc' }, { code: 'asc' }],
       take: 500,
     });
+  }
+
+  async listDriverAssignments(user: AuthUser, requestedCompanyId?: string, requestedBranchId?: string) {
+    const scope = this.requireTenantScope(user);
+    await this.assertRequestedScope(this.prisma, user, scope, requestedCompanyId, requestedBranchId, 'VehicleDriverAssignment');
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { companyId: scope.companyId, branchId: scope.branchId },
+      select: { id: true, code: true, plateNumber: true },
+    });
+    const vehicleIds = vehicles.map((vehicle) => vehicle.id);
+    if (!vehicleIds.length) return [];
+    const rows = await this.prisma.vehicleDriverAssignment.findMany({
+      where: { companyId: scope.companyId, vehicleId: { in: vehicleIds } },
+      orderBy: [{ effectiveTo: 'asc' }, { effectiveFrom: 'desc' }],
+      take: 500,
+    });
+    const employeeIds = [...new Set(rows.map((row) => row.employeeId))];
+    const employees = await this.prisma.employee.findMany({
+      where: { id: { in: employeeIds }, companyId: scope.companyId, branchId: scope.branchId },
+      select: { id: true, employeeNumber: true, fullName: true, isActive: true },
+    });
+    const vehicleMap = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
+    const employeeMap = new Map(employees.map((employee) => [employee.id, employee]));
+    return rows.map((row) => ({ ...row, vehicle: vehicleMap.get(row.vehicleId), employee: employeeMap.get(row.employeeId) }));
+  }
+
+  async createDriverAssignment(dto: CreateVehicleDriverAssignmentDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    await this.assertRequestedScope(this.prisma, user, scope, dto.companyId, dto.branchId, 'VehicleDriverAssignment');
+    return this.prisma.$transaction(async (tx) => {
+      const vehicle = await this.scopedVehicle(tx, user, scope, dto.vehicleId);
+      const employee = await this.assertEmployee(tx, user, scope, dto.employeeId);
+      if (!employee) throw new BadRequestException('Pengemudi tidak ditemukan.');
+      const effectiveFrom = this.parseBusinessDate(dto.effectiveFrom);
+      const effectiveTo = dto.effectiveTo ? this.parseBusinessDate(dto.effectiveTo) : undefined;
+      if (effectiveTo && effectiveTo < effectiveFrom) throw new BadRequestException('Akhir penugasan pengemudi tidak boleh sebelum tanggal mulai.');
+      const overlap = await tx.vehicleDriverAssignment.findFirst({
+        where: { companyId: scope.companyId, vehicleId: vehicle.id, employeeId: employee.id, effectiveFrom: { lte: effectiveTo ?? new Date('9999-12-31T23:59:59.999Z') }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }] },
+        select: { id: true },
+      });
+      if (overlap) throw new BadRequestException('Pengemudi sudah memiliki penugasan yang bertumpang tindih pada kendaraan ini.');
+      if (dto.isPrimary) {
+        const primaryOverlap = await tx.vehicleDriverAssignment.findFirst({
+          where: { companyId: scope.companyId, vehicleId: vehicle.id, isPrimary: true, effectiveFrom: { lte: effectiveTo ?? new Date('9999-12-31T23:59:59.999Z') }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }] },
+          select: { id: true },
+        });
+        if (primaryOverlap) throw new BadRequestException('Kendaraan sudah memiliki primary driver pada periode yang sama.');
+      }
+      const row = await tx.vehicleDriverAssignment.create({ data: {
+        companyId: scope.companyId, vehicleId: vehicle.id, employeeId: employee.id, effectiveFrom, effectiveTo, isPrimary: dto.isPrimary ?? false, notes: dto.notes,
+      } });
+      const now = new Date();
+      if (row.isPrimary && row.effectiveFrom <= now && (!row.effectiveTo || row.effectiveTo >= now)) {
+        await tx.vehicle.update({ where: { id: vehicle.id }, data: { defaultDriverEmployeeId: employee.id } });
+      }
+      await tx.auditLog.create({ data: {
+        companyId: scope.companyId, userId: user.sub, action: 'CREATE_VEHICLE_DRIVER_ASSIGNMENT', entityType: 'VehicleDriverAssignment', entityId: row.id,
+        payload: { branchId: scope.branchId, vehicleId: vehicle.id, employeeId: employee.id, isPrimary: row.isPrimary },
+      } });
+      return row;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async endDriverAssignment(id: string, dto: EndVehicleDriverAssignmentDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const assignment = await tx.vehicleDriverAssignment.findFirst({ where: { id, companyId: scope.companyId } });
+      if (!assignment) return this.denyTenantAccess(tx, user, scope, 'VehicleDriverAssignment', id);
+      const vehicle = await this.scopedVehicle(tx, user, scope, assignment.vehicleId);
+      const effectiveTo = this.parseBusinessDate(dto.effectiveTo);
+      if (effectiveTo < assignment.effectiveFrom) throw new BadRequestException('Akhir penugasan pengemudi tidak boleh sebelum tanggal mulai.');
+      if (assignment.effectiveTo && assignment.effectiveTo <= effectiveTo) return assignment;
+      const row = await tx.vehicleDriverAssignment.update({ where: { id }, data: { effectiveTo, notes: dto.notes ?? assignment.notes } });
+      if (assignment.isPrimary && vehicle.defaultDriverEmployeeId === assignment.employeeId && effectiveTo <= new Date()) {
+        await tx.vehicle.update({ where: { id: vehicle.id }, data: { defaultDriverEmployeeId: null } });
+      }
+      await tx.auditLog.create({ data: {
+        companyId: scope.companyId, userId: user.sub, action: 'END_VEHICLE_DRIVER_ASSIGNMENT', entityType: 'VehicleDriverAssignment', entityId: row.id,
+        payload: { branchId: scope.branchId, vehicleId: vehicle.id, employeeId: row.employeeId, effectiveTo: effectiveTo.toISOString() },
+      } });
+      return row;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   async createVehicle(dto: CreateVehicleDto, user: AuthUser) {

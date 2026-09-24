@@ -5,7 +5,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { Permissions } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { AssetsService } from './assets.service';
-import { AssignAssetDto, CompleteMaintenanceDto, CreateAssetCategoryDto, CreateAssetDto, CreateMaintenanceWorkOrderDto, DisposeAssetDto, RunDepreciationDto, TransferAssetDto } from './dto/assets.dto';
+import { AssignAssetDto, CompleteMaintenanceDto, CreateAssetCategoryDto, CreateAssetDto, CreateAssetMaintenancePlanDto, CreateMaintenanceWorkOrderDto, DisposeAssetDto, RunDepreciationDto, TransferAssetDto, UpdateAssetMaintenancePlanDto } from './dto/assets.dto';
 
 @ApiTags('assets') @ApiBearerAuth() @Controller('assets')
   export class AssetsController {
@@ -28,6 +28,23 @@ import { AssignAssetDto, CompleteMaintenanceDto, CreateAssetCategoryDto, CreateA
     @Query('companyId') companyId?: string,
     @Query('branchId') branchId?: string,
   ) { return this.assets.listMaintenances(user, companyId, branchId); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','FINANCE','WAREHOUSE','AUDITOR') @Permissions('asset.view') @Get('maintenance-plans')
+  maintenancePlans(
+    @CurrentUser() user: AuthUser,
+    @Query('companyId') companyId?: string,
+    @Query('branchId') branchId?: string,
+  ) { return this.assets.listMaintenancePlans(user, companyId, branchId); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','WAREHOUSE') @Permissions('asset.maintenance') @Post('maintenance-plans')
+  createMaintenancePlan(@Body() dto: CreateAssetMaintenancePlanDto, @CurrentUser() user: AuthUser) {
+    return this.assets.createMaintenancePlan(dto, user);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','WAREHOUSE') @Permissions('asset.maintenance') @Post('maintenance-plans/:id/update')
+  updateMaintenancePlan(@Param('id') id: string, @Body() dto: UpdateAssetMaintenancePlanDto, @CurrentUser() user: AuthUser) {
+    return this.assets.updateMaintenancePlan(id, dto, user);
+  }
 
   @Roles('SUPER_ADMIN','OWNER','ADMIN','FINANCE') @Permissions('asset.view') @Get('categories')
   categories(@CurrentUser() user: AuthUser, @Query('companyId') companyId?: string) {

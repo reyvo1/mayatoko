@@ -234,6 +234,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r4:probe
 
+      - name: Exercise R5 assets fleet and maintenance lifecycle
+        id: r5_assets_fleet
+        continue-on-error: true
+        run: npm run ci:r5:probe
+
       - name: Sweep every documented OpenAPI operation against exact runtime
         id: api_sweep
         continue-on-error: true
@@ -361,6 +366,7 @@ jobs:
           STEP_R1_TENANT_ACCESS: ${{ steps.r1_tenant_access.outcome }}
           STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           STEP_R4_CORE_BUSINESS: ${{ steps.r4_core_business.outcome }}
+          STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -407,6 +413,7 @@ jobs:
           STEP_R1_TENANT_ACCESS: ${{ steps.r1_tenant_access.outcome }}
           STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           STEP_R4_CORE_BUSINESS: ${{ steps.r4_core_business.outcome }}
+          STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -439,6 +446,7 @@ jobs:
           check "R1 tenant/access runtime probe" "$STEP_R1_TENANT_ACCESS"
           check "R2 HR/attendance/payroll runtime probe" "$STEP_R2_HR_PAYROLL"
           check "R4 core-business runtime probe" "$STEP_R4_CORE_BUSINESS"
+          check "R5 assets/fleet runtime probe" "$STEP_R5_ASSETS_FLEET"
           check "Telegram/WhatsApp provider probe" "$STEP_PROVIDER_PROBE"
           check "Stage 18" "$STEP_STAGE18"
           check "Stage 19" "$STEP_STAGE19"

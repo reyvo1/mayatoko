@@ -5,7 +5,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { Permissions } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { FleetService } from './fleet.service';
-import { CloseTripDto, CompleteStopDto, ConfirmLoadingDto, CreateDeliveryTripDto, CreateVehicleDto, DispatchTripDto, RecordFuelDto } from './dto/fleet.dto';
+import { CloseTripDto, CompleteStopDto, ConfirmLoadingDto, CreateDeliveryTripDto, CreateVehicleDriverAssignmentDto, CreateVehicleDto, DispatchTripDto, EndVehicleDriverAssignmentDto, RecordFuelDto } from './dto/fleet.dto';
 
 @ApiTags('fleet') @ApiBearerAuth() @Controller('fleet')
   export class FleetController {
@@ -17,6 +17,23 @@ import { CloseTripDto, CompleteStopDto, ConfirmLoadingDto, CreateDeliveryTripDto
     @Query('companyId') companyId?: string,
     @Query('branchId') branchId?: string,
   ) { return this.fleet.listVehicles(user, companyId, branchId); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','WAREHOUSE','AUDITOR') @Permissions('fleet.view') @Get('driver-assignments')
+  driverAssignments(
+    @CurrentUser() user: AuthUser,
+    @Query('companyId') companyId?: string,
+    @Query('branchId') branchId?: string,
+  ) { return this.fleet.listDriverAssignments(user, companyId, branchId); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Permissions('fleet.manage') @Post('driver-assignments')
+  createDriverAssignment(@Body() dto: CreateVehicleDriverAssignmentDto, @CurrentUser() user: AuthUser) {
+    return this.fleet.createDriverAssignment(dto, user);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Permissions('fleet.manage') @Post('driver-assignments/:id/end')
+  endDriverAssignment(@Param('id') id: string, @Body() dto: EndVehicleDriverAssignmentDto, @CurrentUser() user: AuthUser) {
+    return this.fleet.endDriverAssignment(id, dto, user);
+  }
 
 
   @Roles('SUPER_ADMIN','OWNER','ADMIN','WAREHOUSE','AUDITOR') @Permissions('fleet.view') @Get('summary')

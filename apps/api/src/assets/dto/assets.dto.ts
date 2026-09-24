@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsDateString, IsEnum, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
 enum AssetTypeDto { MOVABLE='MOVABLE', IMMOVABLE='IMMOVABLE', VEHICLE='VEHICLE', LAND='LAND', BUILDING='BUILDING', EQUIPMENT='EQUIPMENT', FURNITURE='FURNITURE', IT='IT', SOFTWARE='SOFTWARE', OTHER='OTHER' }
 
@@ -84,6 +84,35 @@ export class CompleteMaintenanceDto {
   @ApiPropertyOptional() @IsOptional() @IsDateString() completedAt?: string;
   @ApiPropertyOptional({ type: [MaintenancePartUsageDto] }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => MaintenancePartUsageDto) parts?: MaintenancePartUsageDto[];
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
+}
+
+export class CreateAssetMaintenancePlanDto {
+  @ApiPropertyOptional({ description: 'Kompatibilitas lama; company tetap berasal dari token.' }) @IsOptional() @IsString() companyId?: string;
+  @ApiProperty() @IsString() assetId!: string;
+  @ApiProperty() @IsString() code!: string;
+  @ApiProperty() @IsString() name!: string;
+  @ApiProperty() @IsString() scheduleType!: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) intervalDays?: number;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) intervalOdometer?: number;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() nextDueDate?: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) nextDueOdometer?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() checklistTemplateId?: string;
+  @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() autoCreateWorkOrder?: boolean;
+  @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() isActive?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsObject() metadata?: Record<string, unknown>;
+}
+
+export class UpdateAssetMaintenancePlanDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() scheduleType?: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) intervalDays?: number;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) intervalOdometer?: number;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() nextDueDate?: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) nextDueOdometer?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() checklistTemplateId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() autoCreateWorkOrder?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsObject() metadata?: Record<string, unknown>;
 }
 
 export class RunDepreciationDto {

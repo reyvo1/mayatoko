@@ -8,6 +8,10 @@ Active work item: `T360-20260924-195500` — R3 Reporting, Owner Digest, Notific
 - R3 is IMPLEMENTATION. First root cluster covers F22/F23/F24/F25/F44: owner digest operator config, explicit mutation permission, enabled fail-close, minStock-correct low-stock detection, and verified Telegram recipient bindings.
 - Provider simulation must prove verification notification + owner digest + manual Telegram delivery; no UAT/provider assertion may be weakened.
 - Remaining R3 findings F29/F37/F39/F42/F43 stay OPEN until their runtime/operator flows and GitHub evidence are implemented.
+- R4 automated runtime is CLOSED on exact green baseline `4963f8acdf8b5a63a8cc79caad5162dcf26c3808`; Human Stage-20 remains PENDING.
+- R5 is VERIFICATION under `T360-20260925-000500`: F31 AssetMaintenancePlan management, F32 VehicleDriverAssignment lifecycle, and F33 asset assign/transfer/dispose operator flow are implemented without schema change. Exact-source PostgreSQL `ci:r5:probe` is mandatory before F31/F32/F33 closure.
+- R5 preserves the Asset handover gate: operator explicitly finalizes the inspection and transfer/disposal only accepts PASSED/APPROVED status; no auto-pass shortcut is allowed.
+- Atomic wave rule applies: after this R5 package is applied, do not start another fix until the working tree is clean, all R5 files are committed, push succeeds, and `HEAD == origin/main`.
 - F12R4 UI work remains BLOCKED until R1–R6 recovery prerequisites stabilize.
 
 ## Final automation closure — 2026-09-22
