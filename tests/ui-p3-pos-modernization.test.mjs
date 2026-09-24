@@ -32,7 +32,7 @@ test('UI-P3 preserves idempotent replay and conflict retention', () => {
 test('UI-P3 uses responsive flat workspace surfaces without decorative gradient additions', () => {
   assert.match(css, /@import \"tailwindcss\"/);
   assert.match(css, /\.posWorkspaceNav\{@apply[^}]*grid grid-cols-4/);
-  assert.match(css, /\.cart\{@apply sticky top-\[76px\]/);
+  assert.match(css, /\.cart\{@apply[^}]*xl:sticky[^}]*xl:top-\[132px\]/);
   assert.doesNotMatch(css, /linear-gradient|radial-gradient/);
   assert.doesNotMatch(css, /overflow-x:auto|overflow-x: auto/);
 });

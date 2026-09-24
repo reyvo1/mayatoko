@@ -341,6 +341,7 @@ model PasswordResetToken {
 model AuthSession {
   id               String   @id @default(uuid())
   userId           String
+  activeBranchId   String?
   expiresAt        DateTime
   refreshTokenHash String?  @unique
   lastRotatedAt    DateTime?
@@ -350,6 +351,7 @@ model AuthSession {
   createdAt        DateTime @default(now())
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, revokedAt, expiresAt])
+  @@index([activeBranchId, revokedAt, expiresAt])
   @@index([expiresAt])
 }
 

@@ -19,6 +19,10 @@ import ApiKeysView from './modules/api-keys';
 import SecurityView from './modules/security';
 import AutomationWorkspace from './modules/automation-workspace';
 import AiWorkspace from './modules/ai-workspace';
+import ReportingWorkspace from './modules/reporting-workspace';
+import OrganizationAdminView from './modules/organization-admin';
+import AccessControlView from './modules/access-control';
+import PlatformControlView from './modules/platform-control';
 import { CountUp } from './ui';
 import AdminAppShell from './app-shell';
 import { authFetch, clearLoginTokens, storeLoginTokens } from './auth-fetch';
@@ -59,8 +63,7 @@ type PurchaseOrder = { id: string; number: string; status: string; supplier: Sup
 type PurchaseRequest = { id: string; number: string; status: string; reason?: string | null; neededBy?: string | null; supplier?: Supplier | null; warehouse: Warehouse; purchaseOrderId?: string | null; items: Array<{ id: string; quantity: number; estimatedUnitCost: string | number; product: Product }> };
 type Receipt = { id: string; number: string; receivedAt: string; operationalStatus: string; inspectionId?: string | null; supplier: Supplier; purchaseOrder: { number: string }; items: Array<{ acceptedQty: number; quantityDamaged: number; product: Product }> };
 type Inventory = { id: string; quantity: number; reserved: number; available: number; product: Product & { minStock: number }; warehouse: Warehouse };
-type Role = { id: string; name: string };
-type User = { id: string; name: string; email: string; isActive: boolean; roles: Array<{ role: Role }> };
+type BranchContext = { company: { id:string; name:string }; activeBranchId:string; homeBranchId:string; canSwitch:boolean; branches:Array<{ id:string; code:string; name:string; isActive:boolean }> };
 type RuntimeManifest = AdminRuntimeManifest;
 type CursorPage<T> = { items: T[]; pageInfo: { limit: number; nextCursor: string | null; hasMore: boolean } };
 type Dashboard = { today: { revenue: number; transactions: number; grossProfitBeforeOnlineCops?: number; grossProfitBeforeOnlineCogs: number }, inventory: { items: number; lowStock: number; value: number }; pendingOrders: number } & Record<string, unknown>;
@@ -99,15 +102,13 @@ export default function AdminPage() {
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [inventories, setInventories] = useState<Inventory[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [branchContext, setBranchContext] = useState<BranchContext | null>(null);
   const [supplierForm, setSupplierForm] = useState({ code: '', name: '', phone: '' });
   const [purchaseRequestForm, setPurchaseRequestForm] = useState({ supplierId: '', warehouseId: '', productId: '', quantity: 1, estimatedUnitCost: 0, reason: '' });
   const [poForm, setPoForm] = useState({ supplierId: '', warehouseId: '', productId: '', variantId: '', productUnitId: '', orderedQty: 1, unitCost: 0 });
   const [receiptForm, setReceiptForm] = useState({ purchaseOrderId: '', purchaseOrderItemId: '', quantityReceived: 1, quantityDamaged: 0, supplierInvoice: '', deliveryNote: '', batchNumber: '', expiryDate: '', serialNumbers: '' });
   const poRequestKey = useRef(requestKey('po'));
   const receiptRequestKey = useRef(requestKey('gr'));
-  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', roleName: 'CASHIER' });
   const [featureChange, setFeatureChange] = useState<{ key: string; enabled: boolean } | null>(null);
 
   useEffect(() => { const saved = window.localStorage.getItem('toko360_token'); if (saved) setToken(saved); }, []);
@@ -158,15 +159,16 @@ export default function AdminPage() {
 
   async function loadAll(activeToken: string) {
     try {
-      const [d, p, s, w, pr, po, r, i, rl, u, m, an] = await Promise.all([
+      const [d, p, s, w, pr, po, r, i, m, an, bc] = await Promise.all([
         request<Dashboard>('/reports/dashboard', undefined, activeToken), request<CursorPage<Product>>('/products?limit=100', undefined, activeToken),
         request<CursorPage<Supplier>>('/suppliers?limit=100', undefined, activeToken), request<Warehouse[]>('/inventory/warehouses', undefined, activeToken),
         request<PurchaseRequest[]>('/purchase-requests', undefined, activeToken), request<CursorPage<PurchaseOrder>>('/purchase-orders?limit=100', undefined, activeToken), request<CursorPage<Receipt>>('/goods-receipts?limit=100', undefined, activeToken),
-        request<CursorPage<Inventory>>('/inventory?limit=100', undefined, activeToken), request<Role[]>('/users/roles', undefined, activeToken), request<User[]>('/users', undefined, activeToken),
+        request<CursorPage<Inventory>>('/inventory?limit=100', undefined, activeToken),
         request<RuntimeManifest>('/platform/manifest', undefined, activeToken),
         request<AnalyticsData>('/reports/analytics', undefined, activeToken),
+        request<BranchContext>('/auth/branch-context', undefined, activeToken),
       ]);
-      setDashboard(d); setAnalytics(an); setProducts(p.items); setSuppliers(s.items); setWarehouses(w); setPurchaseRequests(pr); setOrders(po.items); setReceipts(r.items); setInventories(i.items); setRoles(rl); setUsers(u); setManifest(m);
+      setDashboard(d); setAnalytics(an); setProducts(p.items); setSuppliers(s.items); setWarehouses(w); setPurchaseRequests(pr); setOrders(po.items); setReceipts(r.items); setInventories(i.items); setManifest(m); setBranchContext(bc);
       const defaults = { supplierId: s.items[0]?.id || '', warehouseId: w[0]?.id || '', productId: p.items[0]?.id || '', cost: Number(p.items[0]?.costPrice ?? 0) };
       setPurchaseRequestForm((current) => ({ ...current, supplierId: current.supplierId || defaults.supplierId, warehouseId: current.warehouseId || defaults.warehouseId, productId: current.productId || defaults.productId, estimatedUnitCost: current.estimatedUnitCost || defaults.cost }));
       setPoForm((current) => ({ ...current, supplierId: current.supplierId || defaults.supplierId, warehouseId: current.warehouseId || defaults.warehouseId, productId: current.productId || defaults.productId, unitCost: current.unitCost || defaults.cost }));
@@ -298,13 +300,16 @@ export default function AdminPage() {
     } catch (error) { notify(error instanceof Error ? error.message : 'Penerimaan belum dapat dikonfirmasi.', 'error'); }
   }
 
-  async function addUser(event: FormEvent) {
-    event.preventDefault();
+  async function switchBranch(branchId: string) {
+    if (!token || branchId === branchContext?.activeBranchId) return;
     try {
-      await request('/users', { method: 'POST', body: JSON.stringify({ name: userForm.name, email: userForm.email, password: userForm.password, roleNames: [userForm.roleName] }) });
-      setUserForm({ name: '', email: '', password: '', roleName: 'CASHIER' }); notify('Pengguna berhasil dibuat.'); await loadAll(token!);
-    } catch (error) { notify(error instanceof Error ? error.message : 'Gagal membuat pengguna.', 'error'); }
+      const result = await request<{ accessToken:string; activeBranch:{id:string;code:string;name:string} }>('/auth/branch-context', { method:'POST', body:JSON.stringify({ branchId }) });
+      storeLoginTokens(result.accessToken);
+      setToken(result.accessToken);
+      notify(`Context cabang dipindahkan ke ${result.activeBranch.name}.`);
+    } catch (error) { notify(error instanceof Error ? error.message : 'Gagal mengganti cabang.', 'error'); }
   }
+
 
   const selectedPO = useMemo(() => orders.find((order) => order.id === receiptForm.purchaseOrderId), [orders, receiptForm.purchaseOrderId]);
   const selectedPOItem = useMemo(() => selectedPO?.items.find((item) => item.id === receiptForm.purchaseOrderItemId), [selectedPO, receiptForm.purchaseOrderItemId]);
@@ -356,12 +361,14 @@ export default function AdminPage() {
       activeWorkspace={activeWorkspace}
       activeDomainView={activeDomainView}
       apiConnected={apiConnected}
+      branchContext={branchContext}
+      onBranchChange={(branchId) => void switchBranch(branchId)}
       onNavigate={navigateTo}
       onReload={() => void loadAll(token)}
       onLogout={() => void logout()}
-      headerAction={activeNav === 'Dashboard' ? <button type="button" className="btnGhost" onClick={() => window.print()}>Cetak ringkasan</button> : undefined}
+      headerAction={activeWorkspace.key === 'dashboard' ? <button type="button" className="btnGhost" onClick={() => window.print()}>Cetak ringkasan</button> : undefined}
     >
-          {activeNav === 'Dashboard' && <>
+          {activeWorkspace.key === 'dashboard' && <>
             {!dashboard ? (
               <section className="stats">{Array.from({ length: 5 }).map((_, i) => <article className="statCard" key={i}><div className="skeletonRow" style={{ width: '40%' }} /><div className="skeletonBar" style={{ width: '80%', height: 20, margin: '10px 0' }} /><div className="skeletonBar" style={{ width: '55%' }} /></article>)}</section>
             ) : (
@@ -376,17 +383,8 @@ export default function AdminPage() {
             <AnalyticsWidgets data={analytics} />
           </>}
 
-          {activeNav === 'Owner Suite' && <OwnerView token={token} />}
-          {activeNav === 'Master Data' && <MasterDataView token={token} mode={activeDomainView?.key} />}
-          {activeNav === 'Akuntansi & Kas' && <AccountingView token={token} mode={activeDomainView?.key} />}
-          {activeNav === 'HRIS & Payroll' && (activeDomainView?.key === 'employees' ? <EmployeeMasterView token={token} /> : <HrPayrollView token={token} />)}
-          {activeNav === 'Retur & Transfer' && <OperationsView token={token} />}
-          {activeNav === 'Aset & Fleet' && <AssetsFleetView token={token} />}
-          {activeNav === 'Kontrol Operasional' && <OperationsControlView token={token} />}
-          {activeNav === 'Integrasi, Notifikasi & AI' && (activeDomainView?.key === 'ai' ? <AiWorkspace token={token} /> : <ExtensionsView token={token} mode={activeDomainView?.key === 'notifications' ? 'notifications' : activeDomainView?.key === 'integrations' ? 'integrations' : activeDomainView?.key === 'devices' ? 'devices' : activeDomainView?.key === 'loyalty' ? 'loyalty' : 'extensions'} />)}
-          {activeNav === 'Storefront & Fulfillment' && <ExtensionsView token={token} mode="commerce" />}
-
-          {activeNav === 'Pembelian & Stok' && <>
+          {activeWorkspace.key === 'commerce' && <ExtensionsView token={token} mode="commerce" />}
+          {activeWorkspace.key === 'procurement' && <>
             <section className="grid2">
               <form className="panel" onSubmit={addPurchaseRequest}>
                 <div className="panelTitle"><div><span className="eyebrow">PURCHASE REQUEST</span><h2>Ajukan kebutuhan pembelian</h2></div><span>Approval sebelum PO</span></div>
@@ -427,19 +425,28 @@ export default function AdminPage() {
             </section>
           </>}
 
-          {activeNav === 'Tenant, User & Sistem' && (() => {
-            const platformMode = activeDomainView?.key ?? 'tenant';
-            if (platformMode === 'automation') return <AutomationWorkspace token={token} />;
-            if (platformMode === 'tenant') return <section className="grid2">
-              <div className="panel"><div className="panelTitle"><div><span className="eyebrow">COMPANY / TENANT</span><h2>{manifest?.company?.name ?? 'Tenant belum dimuat'}</h2></div><span>{manifest?.branch?.code ?? 'BRANCH'}</span></div><p className="sectionHelp">Identitas company/tenant berasal dari sesi tepercaya. Pengguna tidak memilih tenant bebas dari form transaksi.</p><div className="receipt"><div><strong>Company</strong><small>{manifest?.company?.id ?? '-'}</small></div><span>{manifest?.company?.name ?? '-'}</span></div><div className="receipt"><div><strong>Branch aktif</strong><small>{manifest?.branch?.id ?? '-'}</small></div><span>{manifest?.branch?.name ?? '-'}</span></div><div className="actionRow"><button type="button" onClick={() => navigateTo('/master-data/organization')}>Kelola cabang & gudang</button></div></div>
-              <div className="panel"><div className="panelTitle"><div><span className="eyebrow">TENANT SAFETY</span><h2>Batas akses</h2></div></div><p className="sectionHelp">Company, branch, gudang, role dan permission tetap diverifikasi API pada setiap operasi. Menu ini hanya menjelaskan konteks sesi dan jalur administrasinya.</p><div className="receipt"><div><strong>Role aktif</strong><small>Token + database reload</small></div><span>{identity?.roles.join(', ') || '-'}</span></div><div className="receipt"><div><strong>Permission</strong><small>Digunakan untuk visibility UI; backend tetap authoritative</small></div><span>{identity?.permissions.length ?? 0} permission</span></div></div>
-            </section>;
-            if (platformMode === 'features') return <section className="panel"><div className="panelTitle"><div><span className="eyebrow">RUNTIME MODULES</span><h2>Feature flags</h2></div><span>{Object.values(manifest?.features ?? {}).filter((feature) => feature.enabled).length} aktif</span></div><p className="sectionHelp">Perubahan flag memengaruhi kemampuan runtime. Gunakan hanya untuk feature yang memang memiliki implementasi backend/UI.</p><div className="table">{manifest?.modules.map((module) => { const enabled = module.isCore || !module.featureKey || manifest.features[module.featureKey]?.enabled; return <div className="receipt" key={module.code}><div><strong>{module.name}</strong><small>{module.category} · {module.code}</small></div>{module.featureKey ? <button type="button" className="secondary" onClick={() => setFeatureChange({ key: module.featureKey!, enabled: !enabled })}>{enabled ? 'Nonaktifkan' : 'Aktifkan'}</button> : <span className="okText">CORE</span>}</div>; })}</div></section>;
-            if (platformMode === 'users') return <section className="grid2"><form className="panel" onSubmit={addUser}><div className="panelTitle"><div><span className="eyebrow">MANAJEMEN USER</span><h2>Tambah pengguna</h2></div></div><label>Nama<input required value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} /></label><label>Email<input required type="email" autoComplete="off" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} /></label><label>Password<input required minLength={8} type="password" autoComplete="new-password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} /></label><label>Role<select value={userForm.roleName} onChange={(e) => setUserForm({ ...userForm, roleName: e.target.value })}>{roles.map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}</select></label><button>Simpan pengguna</button></form><div className="panel"><div className="panelTitle"><div><span className="eyebrow">AKSES SISTEM</span><h2>Daftar pengguna</h2></div><span>{users.length} akun</span></div>{users.length ? users.map((user) => <div className="receipt" key={user.id}><div><strong>{user.name}</strong><small>{user.email}</small></div><span>{user.roles.map((role) => role.role.name).join(', ') || 'Tanpa role'}</span></div>) : <div className="emptyState"><h4>Belum ada pengguna</h4><p>Akun yang dibuat akan tampil di sini.</p></div>}</div></section>;
-            if (platformMode === 'security') return <SecurityView token={token} />;
-            if (platformMode === 'api-keys') return <ApiKeysView token={token} />;
-            return null;
-          })()}
+          {activeWorkspace.key === 'inventory-control' && <OperationsView token={token} />}
+          {activeWorkspace.key === 'operations-control' && <OperationsControlView token={token} />}
+          {activeWorkspace.key === 'master-data' && <MasterDataView token={token} mode={activeDomainView?.key ?? 'products'} />}
+          {activeWorkspace.key === 'organization' && (activeDomainView?.key === 'organization' || !activeDomainView ? <OrganizationAdminView token={token} /> : <MasterDataView token={token} mode={activeDomainView.key} />)}
+          {activeWorkspace.key === 'finance' && <AccountingView token={token} mode={activeDomainView?.key ?? 'ledger'} />}
+          {activeWorkspace.key === 'reports' && (activeDomainView?.key === 'owner' ? <OwnerView token={token} /> : <ReportingWorkspace token={token} />)}
+          {activeWorkspace.key === 'people' && (activeDomainView?.key === 'employees' || !activeDomainView ? <EmployeeMasterView token={token} /> : <HrPayrollView token={token} />)}
+          {activeWorkspace.key === 'assets-fleet' && <AssetsFleetView token={token} />}
+          {activeWorkspace.key === 'intelligence' && (['automation','schedules'].includes(activeDomainView?.key ?? '') ? <AutomationWorkspace token={token} /> : <AiWorkspace token={token} />)}
+          {activeWorkspace.key === 'integrations' && <ExtensionsView token={token} mode="extensions" />}
+          {activeWorkspace.key === 'settings' && <>
+
+            {(!activeDomainView || activeDomainView.key === 'features') && <section className="panel">
+              <div className="panelTitle"><div><span className="eyebrow">RUNTIME MODULES</span><h2>Feature flags</h2></div><span>{Object.values(manifest?.features ?? {}).filter((feature) => feature.enabled).length} aktif</span></div>
+              <p className="sectionHelp">Perubahan flag memengaruhi kemampuan runtime. Gunakan hanya untuk feature yang memang memiliki implementasi backend/UI.</p>
+              <div className="table">{manifest?.modules.map((module) => { const enabled = module.isCore || !module.featureKey || manifest.features[module.featureKey]?.enabled; return <div className="receipt" key={module.code}><div><strong>{module.name}</strong><small>{module.category} · {module.code}</small></div>{module.featureKey ? <button type="button" className="secondary" onClick={() => setFeatureChange({ key: module.featureKey!, enabled: !enabled })}>{enabled ? 'Nonaktifkan' : 'Aktifkan'}</button> : <span className="okText">CORE</span>}</div>; })}</div>
+            </section>}
+            {activeDomainView?.key === 'users' && <AccessControlView token={token} canManageRoles={Boolean(identity?.roles.includes('SUPER_ADMIN'))} actorId={identity?.sub} />}
+            {(['platform','custom-fields','approvals','webhooks','ui-config','audit-ops'] as const).includes(activeDomainView?.key as never) && activeDomainView && <PlatformControlView token={token} mode={activeDomainView.key as 'platform'|'custom-fields'|'approvals'|'webhooks'|'ui-config'|'audit-ops'} />}
+            {activeDomainView?.key === 'security' && <SecurityView token={token} />}
+            {activeDomainView?.key === 'api-keys' && <ApiKeysView token={token} />}
+          </>}
 
         {featureChange && <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="feature-change-title">
           <div className="modalCard">

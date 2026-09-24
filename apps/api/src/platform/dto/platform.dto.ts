@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Allow, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, IsUrl, Min } from 'class-validator';
+import { Allow, IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, IsUrl, Matches, Min, MinLength } from 'class-validator';
+
+export class UpdateTenantProfileDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(2) name?: string;
+  @ApiPropertyOptional({ example: 'Asia/Makassar' }) @IsOptional() @IsString() @MinLength(3) timezone?: string;
+  @ApiPropertyOptional({ example: 'IDR' }) @IsOptional() @IsString() @Matches(/^[A-Za-z]{3}$/) currency?: string;
+}
 
 export class UpsertFeatureFlagDto {
   @ApiPropertyOptional({ description: 'Kompatibilitas lama; company tetap berasal dari token.' }) @IsOptional() @IsString() companyId?: string;

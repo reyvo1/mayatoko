@@ -37,6 +37,20 @@ RC0.5.3.1_EMBEDDED_INSTRUCTIONS_DYNAMIC_CHAT_HANDOFF
 - Jangan mengubah database production dengan `db push`, reset, atau seed demo.
 - Perbarui file ini hanya ketika checkpoint resmi baru diterbitkan.
 
-## Active reopening — 2026-09-23 F12R3
+## Active reopening — 2026-09-24 F12R4
 
-Human visual acceptance menolak F12/F12R/F12R2. Final UI dan release readiness dibuka kembali. Work item aktif `T360-20260923-221011` melakukan full repository/product-surface audit, migrasi empat frontend ke Tailwind CSS v4, perbaikan information architecture tenant/integration/AI, dan perluasan GitHub Full UAT. Automated green evidence dari commit sebelum perubahan ini adalah historical evidence dan tidak boleh dipakai untuk menyatakan source baru release-ready.
+Human visual acceptance kembali menolak presentasi F12R3 karena information architecture masih bertumpuk, beberapa capability sulit ditemukan, dan usability operator belum layak. Work item aktif `T360-20260923-221011` kini melakukan full UI architecture rebuild: satu Admin primary sidebar + satu contextual subnav, explicit Tenant/Organization, Settings/Access, Integrations/Notifications (Telegram/WhatsApp), AI/Automation, dan canonical Tailwind CSS v4 pada empat frontend. Deep GitHub Full UAT dari F12R3 tetap dipertahankan dan tidak boleh dilemahkan. Semua automated green evidence sebelum source rebuild ini adalah historical evidence dan tidak boleh dipakai untuk menyatakan source baru release-ready; Human Stage-20 tetap BLOCKED sampai visual acceptance baru lulus.
+
+## Recovery R0 — 2026-09-24
+
+Deep functional/UI/workflow audit reopened product completeness after human inspection and source reconciliation found 48 explicit gaps across truth/governance, tenant/access, HR/payroll, reporting/integrations, core hidden flows, assets/fleet, scale/AI, UI information architecture, and runtime UAT depth. The authoritative recovery work item is `T360-20260924-020700`. `config/recovery-finding-matrix.json` maps **48/48 findings, 0 unmapped** to R0–R8.
+
+Current source baseline is HEAD `c391fc9fd8c42cb6352317853718cba1415a9603` plus the preserved uncommitted F12R4 working-tree changes. F12R4 work item `T360-20260923-221011` is now **BLOCKED**, not rejected or reverted: its presentation changes remain available, but final UI verification cannot resume until R1–R6 functional/operator-flow prerequisites stabilize.
+
+Current generated counts: 180 Prisma models, 405 API handlers, 295 UI interactive elements; `audit:recovery` fails closed when these source-shape counts change without regenerating the R0 recovery matrix. Human Stage-20 remains BLOCKED/PENDING and no historical green run may be used as release evidence for recovered source.
+
+## Recovery R1 — 2026-09-24
+
+R0 truth reset is complete locally and R1 is in **VERIFICATION** under work item `T360-20260924-022400`. R1 closes F07–F10 at source level: current-company administration with deliberate `BOOTSTRAP_ONLY` provisioning, session-scoped same-company branch switching through `AuthSession.activeBranchId`, complete Admin user/role/permission/status operations, and explicit control-plane workspaces for settings/custom fields/webhooks/approvals/audit/outbox/UI schemas/ops health.
+
+The expand-only migration `T360-20260924-r1-session-branch-context` is appended after F11 for SQLite/PostgreSQL parity. GitHub Full System Simulation and Toko360 Full Automated UAT now require `ci:r1:probe` to prove tenant isolation, branch switch, access lifecycle, and control-plane reads on live PostgreSQL exact runtime. Until that evidence passes, F07–F10 remain `SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING`; R2 must not start and Human Stage-20 remains BLOCKED.

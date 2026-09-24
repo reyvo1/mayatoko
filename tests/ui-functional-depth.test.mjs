@@ -20,36 +20,23 @@ function assertContainsAll(source, values) {
   }
 }
 
-test('finance domain exposes enterprise workspaces', () => {
+test('finance and reporting expose enterprise workspaces without hiding reporting inside finance', () => {
   const source = read('apps/admin/app/domain-workspaces.ts');
-
+  const nav = read('apps/admin/app/navigation.ts');
   assertContainsAll(source, [
-    "key: 'ledger'",
-    "key: 'tax'",
-    "key: 'fiscal'",
-    "key: 'payables'",
-    "key: 'receivables'",
-    "key: 'banking'",
-    "key: 'reports'",
-    'Jurnal & Ledger',
-    'Periode Fiskal',
-    'Laporan Keuangan',
+    "key: 'ledger'", "key: 'tax'", "key: 'fiscal'", "key: 'payables'", "key: 'receivables'", "key: 'banking'",
+    "workspaceKey: 'reports'", "key: 'financial'", "key: 'operations'", "key: 'scheduled'", "key: 'owner'",
+    'Jurnal & accounting ledger', 'Fiscal period & close', 'Financial reports'
   ]);
+  assert.match(nav, /label: 'Laporan & Analitik'/);
 });
 
-test('master data exposes product multi-UOM and pricing as first-class workspaces', () => {
+test('master data and organization expose product multi-UOM, pricing, branch and warehouse as first-class workspaces', () => {
   const source = read('apps/admin/app/domain-workspaces.ts');
-
   assertContainsAll(source, [
-    "key: 'catalog'",
-    "key: 'products'",
-    "key: 'pricing'",
-    "key: 'organization'",
-    "key: 'locations'",
-    "key: 'references'",
-    'Produk & Satuan',
-    'multi-UOM',
-    'PCS/BOTOL/PACK/LUSIN/DUS',
+    "workspaceKey: 'master-data'", "key: 'catalog'", "key: 'products'", "key: 'pricing'", "key: 'references'",
+    "workspaceKey: 'organization'", "key: 'organization'", "key: 'locations'",
+    'Produk, variant, barcode & multi-UOM', 'Harga retail, grosir & unit', 'Cabang dan gudang tenant'
   ]);
 });
 

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
@@ -162,7 +162,7 @@ export class AuthService {
     const sessionExpiresAt = this.refreshExpiry();
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.authSession.create({ data: { id: sid, userId: user.id, expiresAt: sessionExpiresAt, refreshTokenHash, lastRotatedAt: new Date() } });
+      await tx.authSession.create({ data: { id: sid, userId: user.id, activeBranchId: user.branchId, expiresAt: sessionExpiresAt, refreshTokenHash, lastRotatedAt: new Date() } });
       await tx.auditLog.create({ data: {
         companyId: user.branch?.companyId,
         userId: user.id,
@@ -197,11 +197,22 @@ export class AuthService {
     if (session.user.branchId && (!session.user.branch || !session.user.branch.isActive)) {
       throw new UnauthorizedException('Refresh token tidak valid atau sudah kedaluwarsa.');
     }
+    const homeCompanyId = session.user.branch?.companyId ?? null;
+    const activeBranchId = session.activeBranchId ?? session.user.branchId;
+    const activeBranch = homeCompanyId && activeBranchId
+      ? await this.prisma.branch.findFirst({
+          where: { id: activeBranchId, companyId: homeCompanyId, isActive: true },
+          select: { id: true, code: true, name: true, companyId: true },
+        })
+      : null;
+    if (activeBranchId && !activeBranch) {
+      throw new UnauthorizedException('Branch context sesi tidak valid atau sudah tidak aktif.');
+    }
     const roles = session.user.roles.map((item) => item.role.name);
     const permissions = [...new Set(session.user.roles.flatMap((item) => item.role.permissions.map((entry) => entry.permission.code)))];
     const payload: AuthUser = {
       sub: session.user.id, sid: session.id, email: session.user.email, name: session.user.name,
-      companyId: session.user.branch?.companyId ?? null, branchId: session.user.branchId, roles, permissions,
+      companyId: homeCompanyId, branchId: activeBranch?.id ?? null, roles, permissions,
     };
     const nextRefreshToken = randomBytes(48).toString('base64url');
     const nextRefreshTokenHash = this.hashRefreshToken(nextRefreshToken);
@@ -216,12 +227,121 @@ export class AuthService {
       await tx.auditLog.create({ data: {
         companyId: session.user.branch?.companyId, userId: session.user.id, action: 'REFRESH_TOKEN_ROTATED',
         entityType: 'AuthSession', entityId: session.id,
-        payload: { branchId: session.user.branchId, clientIp, accessExpiresAt: accessExpiresAt.toISOString(), sessionExpiresAt: sessionExpiresAt.toISOString() },
+        payload: { branchId: payload.branchId, homeBranchId: session.user.branchId, clientIp, accessExpiresAt: accessExpiresAt.toISOString(), sessionExpiresAt: sessionExpiresAt.toISOString() },
       } });
       return true;
     });
     if (!rotated) throw new UnauthorizedException('Refresh token sudah digunakan atau dicabut.');
     return { accessToken, refreshToken: nextRefreshToken, accessExpiresAt, sessionExpiresAt, user: payload };
+  }
+
+  async branchContext(user: AuthUser) {
+    if (!user.companyId || !user.branchId) {
+      throw new ForbiddenException({
+        code: 'TENANT_CONTEXT_REQUIRED',
+        message: 'Pengguna belum memiliki company dan branch yang valid.',
+      });
+    }
+    const account = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { branchId: true, branch: { select: { companyId: true } } },
+    });
+    if (!account?.branchId || account.branch?.companyId !== user.companyId) {
+      throw new UnauthorizedException('Home branch pengguna tidak valid.');
+    }
+    const canSwitch = user.roles.includes('SUPER_ADMIN') || user.permissions.includes('branch.switch');
+    const branches = await this.prisma.branch.findMany({
+      where: { companyId: user.companyId, isActive: true, ...(canSwitch ? {} : { id: user.branchId }) },
+      select: { id: true, code: true, name: true, address: true, isActive: true },
+      orderBy: [{ name: 'asc' }, { code: 'asc' }],
+    });
+    const company = await this.prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: { id: true, name: true, slug: true, timezone: true, currency: true },
+    });
+    return {
+      company,
+      activeBranchId: user.branchId,
+      homeBranchId: account.branchId,
+      canSwitch,
+      branches,
+    };
+  }
+
+  async switchBranchContext(user: AuthUser, targetBranchId: string) {
+    if (!user.sid || !user.companyId || !user.branchId) {
+      throw new ForbiddenException({
+        code: 'TENANT_CONTEXT_REQUIRED',
+        message: 'Sesi, company, dan branch aktif wajib tersedia untuk berpindah cabang.',
+      });
+    }
+    if (!user.roles.includes('SUPER_ADMIN') && !user.permissions.includes('branch.switch')) {
+      throw new ForbiddenException({
+        code: 'BRANCH_SWITCH_DENIED',
+        message: 'Akun ini tidak memiliki izin berpindah cabang.',
+      });
+    }
+    const target = await this.prisma.branch.findFirst({
+      where: { id: targetBranchId, companyId: user.companyId, isActive: true },
+      select: { id: true, code: true, name: true, address: true, companyId: true },
+    });
+    if (!target) {
+      await this.prisma.auditLog.create({
+        data: {
+          companyId: user.companyId,
+          userId: user.sub,
+          action: 'BRANCH_CONTEXT_SWITCH_DENIED',
+          entityType: 'Branch',
+          entityId: targetBranchId,
+          payload: { activeBranchId: user.branchId },
+        },
+      });
+      throw new ForbiddenException({
+        code: 'BRANCH_SWITCH_DENIED',
+        message: 'Cabang tujuan tidak tersedia di company aktif.',
+      });
+    }
+
+    const account = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { branchId: true, branch: { select: { companyId: true, isActive: true } } },
+    });
+    if (!account?.branchId || !account.branch?.isActive || account.branch.companyId !== user.companyId) {
+      throw new UnauthorizedException('Home branch pengguna tidak valid.');
+    }
+
+    const now = new Date();
+    const updated = await this.prisma.authSession.updateMany({
+      where: { id: user.sid, userId: user.sub, revokedAt: null, expiresAt: { gt: now } },
+      data: { activeBranchId: target.id, lastSeenAt: now },
+    });
+    if (updated.count !== 1) throw new UnauthorizedException('Sesi tidak valid atau sudah kedaluwarsa.');
+
+    const payload: AuthUser = { ...user, branchId: target.id, companyId: target.companyId, authType: 'JWT' };
+    delete payload.apiKeyId;
+    const { accessToken, accessExpiresAt } = await this.signAccessToken(payload);
+    await this.prisma.auditLog.create({
+      data: {
+        companyId: user.companyId,
+        userId: user.sub,
+        action: 'BRANCH_CONTEXT_SWITCHED',
+        entityType: 'AuthSession',
+        entityId: user.sid,
+        payload: {
+          previousBranchId: user.branchId,
+          targetBranchId: target.id,
+          homeBranchId: account.branchId,
+          accessExpiresAt: accessExpiresAt.toISOString(),
+        },
+      },
+    });
+    return {
+      accessToken,
+      accessExpiresAt,
+      user: payload,
+      activeBranch: target,
+      homeBranchId: account.branchId,
+    };
   }
 
   async logout(user: AuthUser) {
@@ -403,7 +523,7 @@ export class AuthService {
       where: { userId: user.sub, expiresAt: { gt: new Date(Date.now() - 7 * 24 * 60 * 60_000) } },
       orderBy: { createdAt: 'desc' },
       take: 50,
-      select: { id: true, createdAt: true, lastSeenAt: true, expiresAt: true, revokedAt: true, revokeReason: true },
+      select: { id: true, activeBranchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, revokedAt: true, revokeReason: true },
     });
     return rows.map((row) => ({ ...row, current: row.id === user.sid }));
   }

@@ -1,3 +1,10 @@
+## 2026-09-24 — F12R4 full UI architecture rebuild
+
+- Rejected the accumulated F12/F12R presentation as a valid final UI baseline and rebuilt Admin information architecture around one primary sidebar, one contextual subnav, and one content surface.
+- Added explicit operator homes for Tenant & Organization, Settings & Access, Integrations & Notifications (Telegram/WhatsApp), AI & Automation, Reporting, and the other implemented business domains; inert decorative controls are forbidden by CI audit.
+- Replaced the four application global stylesheets with canonical Tailwind v4 layers instead of appending overrides, while preserving F12R3 deep GitHub API/provider/browser/worker/runtime gates.
+- Human Stage-20 and release readiness remain blocked until local type/build, GitHub full-system UAT, screenshot review, and operator visual acceptance pass on the rebuilt source.
+
 ## 2026-09-23 — F12R3 full Tailwind UI + deep GitHub UAT reopening
 
 - Reopened F12 after human visual review rejected the prior layered CSS/navigation result; release/human UAT remain blocked.
@@ -374,3 +381,9 @@
 - Admin removes the redundant workspace rail, constrains checkboxes to native compact controls, fits desktop tables to the viewport, and stacks table rows on narrow screens instead of forcing horizontal scrolling.
 - POS navigation and transaction surfaces now remain inside the viewport with denser product/cart layout; Employee Portal and Storefront receive the same no-horizontal-page-overflow/mobile-density correction.
 - No business/API/security logic changed. Targeted UI regression 7/7 PASS; workflow/repo validation PASS; dependency-free regression 841/841 PASS. Frontend lint/build still requires dependency-complete local repo because this sandbox has no `next` binary.
+
+## 2026-09-24 — R0 recovery truth reset
+- Reopened product completeness from a 48-finding deep functional/UI/workflow audit and mapped all findings to recovery waves R0–R8.
+- Added fail-closed `npm run audit:recovery` so the recovery baseline must be regenerated whenever Prisma/API/UI-control source shape changes.
+- Blocked F12R4 final verification behind R1–R6 functional prerequisites while preserving its current working-tree UI changes.
+- Human Stage-20 remains BLOCKED/PENDING; historical automated green evidence is not valid release evidence for recovered source.

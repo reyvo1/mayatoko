@@ -1,3 +1,16 @@
+# CURRENT AUTHORITATIVE RECOVERY — 2026-09-24
+
+Active work item: `T360-20260924-022400` — R1 tenant branch identity access and control-plane closure.
+
+- R0 `T360-20260924-020700` is CLOSED locally: 48/48 mapped and 854/854 dependency-free regression passed on the operator machine.
+- Baseline HEAD remains `c391fc9fd8c42cb6352317853718cba1415a9603`; working tree contains preserved F12R4 + R0 + R1 changes until operator commit/push.
+- R1 findings F07–F10 are SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING.
+- Company creation remains BOOTSTRAP_ONLY; current company profile is operator-manageable.
+- Branch switching is session-scoped (`AuthSession.activeBranchId`), same-company only, and does not mutate `User.branchId`.
+- User/role/permission/status and platform control-plane surfaces are now explicit Admin workspaces.
+- GitHub Full System Simulation and Full Automated UAT now require `ci:r1:probe`; R1 is not CLOSED until that live PostgreSQL probe passes.
+- F12R4 remains BLOCKED behind R1–R6; Human Stage-20 remains BLOCKED/PENDING.
+
 ## Final automation closure — 2026-09-22
 
 UI productization/hardening **UI-P1 through UI-P7 is closed from authoritative GitHub Full System Simulation evidence**.
@@ -288,3 +301,11 @@ UI-P7 sekarang VERIFICATION:
 - GitHub UAT diperluas dengan full repository audit, UI control audit, all-OpenAPI runtime sweep, browser all-navigation + 3-viewport geometry sweep + screenshots, Telegram/WhatsApp/owner-digest E2E provider simulator, serta optional protected live Telegram smoke.
 - Business/domain authority tidak dipindahkan atau dilemahkan. Human Stage-20 tetap BLOCKED sampai source baru lulus local/full GitHub gates dan visual acceptance.
 - Tailwind dependency lock/build belum dinyatakan PASS sampai dependency install dan production build benar-benar berhasil.
+
+## F12R4 full UI architecture rebuild — 2026-09-24
+- Operator rejected the prior F12/F12R layered presentation; visual acceptance is FAIL and Human Stage-20/release remain BLOCKED.
+- Admin is being rebuilt to one primary sidebar + one contextual secondary navigation + one content surface. Explicit top-level operator homes now include AI & Automation, Integrations & Notifications, Tenant & Organization, and Settings & Access.
+- All four presentation foundations are canonical Tailwind CSS v4 stylesheets rather than appended legacy overrides; primary horizontal scrolling and decorative gradients are forbidden.
+- UI source audit now locks 14 Admin top-level workspaces, critical Telegram/WhatsApp/AI/settings destinations, and rejects inert controls or reintroduced legacy navigation layers.
+- F12R3 deep GitHub UAT work remains authoritative and must not be weakened: repository/UI audit, PostgreSQL migration/runtime, exact build, all-navigation browser geometry/screenshots, API sweep, provider simulation, worker/report, Stage-18/19/20, staging/load/index/DR.
+- Verification still required before push: workflow/repo/full-repo/UI audit, focused F12R4 regression, full dependency-free regression, then local candidate TypeScript/DB/build on the operator repo.

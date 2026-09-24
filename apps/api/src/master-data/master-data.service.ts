@@ -269,7 +269,25 @@ export class MasterDataService {
 
   branches(user: AuthUser) { const scope = this.scope(user); return this.prisma.branch.findMany({ where: { companyId: scope.companyId }, orderBy: { name: 'asc' } }); }
   async createBranch(dto: CreateBranchDto, user: AuthUser) { const scope = this.scope(user); return this.prisma.$transaction(async (tx) => { const row = await tx.branch.create({ data: { companyId: scope.companyId, code: dto.code.trim().toUpperCase(), name: dto.name.trim(), address: dto.address?.trim() } }); await this.audit(tx, user, 'CREATE_BRANCH', 'Branch', row.id); return row; }); }
-  async updateBranch(id: string, dto: UpdateBranchDto, user: AuthUser) { await this.branch(this.prisma, user, id); return this.prisma.$transaction(async (tx) => { const row = await tx.branch.update({ where: { id }, data: { ...(dto.code !== undefined ? { code: dto.code.trim().toUpperCase() } : {}), ...(dto.name !== undefined ? { name: dto.name.trim() } : {}), ...(dto.address !== undefined ? { address: dto.address?.trim() || null } : {}), ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}) } }); await this.audit(tx, user, 'UPDATE_BRANCH', 'Branch', id); return row; }); }
+  async updateBranch(id: string, dto: UpdateBranchDto, user: AuthUser) {
+    const scope = this.scope(user);
+    await this.branch(this.prisma, user, id);
+    if (dto.isActive === false) {
+      if (id === scope.branchId) throw new BadRequestException('Cabang aktif saat ini tidak dapat dinonaktifkan. Pindahkan context ke cabang lain terlebih dahulu.');
+      const activeUsers = await this.prisma.user.count({ where: { branchId: id, isActive: true } });
+      if (activeUsers > 0) throw new BadRequestException('Cabang masih memiliki user aktif. Pindahkan/nonaktifkan user sebelum menonaktifkan cabang.');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.branch.update({ where: { id }, data: {
+        ...(dto.code !== undefined ? { code: dto.code.trim().toUpperCase() } : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.address !== undefined ? { address: dto.address?.trim() || null } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+      } });
+      await this.audit(tx, user, 'UPDATE_BRANCH', 'Branch', id, { isActive: row.isActive });
+      return row;
+    });
+  }
 
   async warehouses(user: AuthUser, branchId?: string) { const scope = this.scope(user); if (branchId) await this.branch(this.prisma, user, branchId); return this.prisma.warehouse.findMany({ where: { branch: { companyId: scope.companyId }, ...(branchId ? { branchId } : {}) }, include: { branch: true }, orderBy: [{ branchId: 'asc' }, { name: 'asc' }] }); }
   async createWarehouse(dto: CreateWarehouseDto, user: AuthUser) { await this.branch(this.prisma, user, dto.branchId); return this.prisma.$transaction(async (tx) => { if (dto.isDefault) await tx.warehouse.updateMany({ where: { branchId: dto.branchId }, data: { isDefault: false } }); const row = await tx.warehouse.create({ data: { branchId: dto.branchId, code: dto.code.trim().toUpperCase(), name: dto.name.trim(), address: dto.address?.trim(), isDefault: dto.isDefault ?? false } }); await this.audit(tx, user, 'CREATE_WAREHOUSE', 'Warehouse', row.id, { targetBranchId: dto.branchId }); return row; }); }

@@ -106,7 +106,9 @@
     "ci:api:sweep": "node scripts/ci-runtime-api-sweep.mjs",
     "ci:ui:audit": "node scripts/ci-ui-source-audit.mjs",
     "ci:provider:probe": "node scripts/ci-notification-provider-probe.mjs",
-    "ci:telegram:live": "node scripts/ci-live-telegram-smoke.mjs"
+    "ci:telegram:live": "node scripts/ci-live-telegram-smoke.mjs",
+    "audit:recovery": "node scripts/audit-recovery-coverage.mjs",
+    "ci:r1:probe": "node scripts/ci-r1-tenant-access-probe.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

@@ -22,19 +22,18 @@ const layouts = [
   '../apps/admin/app/layout.tsx', '../apps/pos/app/layout.tsx', '../apps/storefront/app/layout.tsx', '../apps/employee-portal/app/layout.tsx',
 ].map((path) => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
 
-test('admin navigation only exposes implemented work areas and has a mobile navigation path', () => {
-  for (const label of ['Dashboard', 'Owner Suite', 'Master Data', 'Pembelian & Stok', 'Storefront & Fulfillment', 'Retur & Transfer', 'Kontrol Operasional', 'Akuntansi & Kas', 'HRIS & Payroll', 'Aset & Fleet', 'Integrasi, Notifikasi & AI', 'Tenant, User & Sistem']) assert.match(admin, new RegExp(label.replace(/[&]/g, '\\&')));
-  assert.doesNotMatch(admin, /Business Intelligence|Laporan Operasional|Audit Trail|Pengaturan Sistem/);
-  assert.doesNotMatch(admin, /label: 'Kas & Bank'[\s\S]*label: 'Kas & Bank'/);
-  assert.match(admin, /className="mobileNav"/);
-  assert.match(adminCss, /\.mobileNav/);
+test('admin navigation exposes complete operator information architecture without duplicate fake areas', () => {
+  for (const label of ['Dashboard','Penjualan & Order','Pembelian','Persediaan','Kontrol Operasional','Produk & Master Data','Keuangan','Laporan & Analitik','HRIS & Payroll','Aset & Armada','AI & Otomasi','Integrasi & Notifikasi','Tenant & Organisasi','Pengaturan & Akses']) assert.match(admin, new RegExp(label.replace(/[&]/g, '\\&')));
+  assert.match(adminShell, /className="sidebar/);
+  assert.match(adminShell, /className="domainTabs"/);
+  assert.doesNotMatch(adminShell, /workspaceRail|domainDeck|Mode kerja:/);
 });
 
-test('admin removes decorative fake health controls and confirms high-impact feature flag changes', () => {
-  assert.doesNotMatch(admin, /Database Healthy|Queue Healthy|Storage Healthy|Cari menu, transaksi, laporan/);
+test('admin removes decorative fake health controls and keeps high-impact feature confirmation', () => {
+  assert.doesNotMatch(admin, /Database Healthy|Queue Healthy|Storage Healthy/);
   assert.match(admin, /featureChange/);
   assert.match(admin, /Perubahan ini memengaruhi kemampuan runtime/);
-  assert.match(admin, /API terhubung/);
+  assert.match(adminShell, /Terhubung/);
 });
 
 test('native browser prompts are removed from payroll and fulfillment workflows', () => {

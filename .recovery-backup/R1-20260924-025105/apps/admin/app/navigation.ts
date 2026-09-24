@@ -1,0 +1,136 @@
+import type { ComponentType } from 'react';
+import {
+  Activity,
+  BarChart3,
+  Boxes,
+  BrainCircuit,
+  Building2,
+  CircleGauge,
+  Landmark,
+  PackageSearch,
+  PlugZap,
+  Settings,
+  ShieldCheck,
+  ShoppingCart,
+  Truck,
+  Users,
+  Warehouse,
+} from 'lucide-react';
+
+export type AdminIdentity = { roles: string[]; permissions: string[] };
+export type RuntimeModule = { code: string; name: string; category: string; featureKey?: string | null; isCore: boolean };
+export type RuntimeUiSchema = { code: string; surface: string; version: number; schema: unknown };
+export type AdminRuntimeManifest = {
+  version?: string;
+  company?: { id: string; name: string };
+  branch?: { id: string; code?: string; name: string };
+  features: Record<string, { enabled: boolean; config?: unknown }>;
+  modules: RuntimeModule[];
+  navigation?: unknown[];
+  uiSchemas?: RuntimeUiSchema[];
+};
+
+type NavIcon = ComponentType<{ size?: number | string }>;
+export type AdminWorkspace = {
+  key: string;
+  route: string;
+  label: string;
+  group: 'Ringkasan' | 'Operasional' | 'Keuangan & SDM' | 'Intelligence' | 'Platform';
+  Icon: NavIcon;
+  eyebrow: string;
+  title: string;
+  description: string;
+  moduleCodes: string[];
+  permissionPrefixes?: string[];
+  roles?: string[];
+};
+
+export const ADMIN_WORKSPACES: AdminWorkspace[] = [
+  { key: 'dashboard', route: '/dashboard', label: 'Dashboard', group: 'Ringkasan', Icon: CircleGauge, eyebrow: 'OVERVIEW', title: 'Pusat kendali operasional', description: 'Status bisnis hari ini, exception penting, dan pintasan tindakan operator.', moduleCodes: ['catalog','orders','inventory'] },
+  { key: 'commerce', route: '/commerce', label: 'Penjualan & Order', group: 'Operasional', Icon: ShoppingCart, eyebrow: 'COMMERCE', title: 'Penjualan, order, pembayaran & fulfillment', description: 'Order website, pembayaran, packing, shipment, delivery, dan retur pelanggan.', moduleCodes: ['storefront','orders','shipping','marketplace'], permissionPrefixes: ['order','sale','shipment','payment'] },
+  { key: 'procurement', route: '/procurement', label: 'Pembelian', group: 'Operasional', Icon: PackageSearch, eyebrow: 'PROCUREMENT', title: 'Pembelian & penerimaan', description: 'Purchase request, approval, purchase order, supplier, dan penerimaan barang.', moduleCodes: ['suppliers','goods-receipts','reorder'], permissionPrefixes: ['purchase','goods_receipt','supplier'] },
+  { key: 'inventory-control', route: '/inventory-control', label: 'Persediaan', group: 'Operasional', Icon: Warehouse, eyebrow: 'INVENTORY', title: 'Persediaan & kontrol gudang', description: 'Saldo stok, batch/serial, transfer, stock opname, kondisi, dan traceability.', moduleCodes: ['inventory','stock-transfer','stock-opname','batch-expiry','serial-number'], permissionPrefixes: ['inventory','stock','return'] },
+  { key: 'operations-control', route: '/operations-control', label: 'Kontrol Operasional', group: 'Operasional', Icon: ShieldCheck, eyebrow: 'CONTROL', title: 'Inspeksi, gate & delivery control', description: 'Evidence, quality inspection, gate pass, trip, POD/COD, dan kontrol lifecycle.', moduleCodes: ['quality-inspection','gate-pass','fleet','shipping'], permissionPrefixes: ['operations','inspection','gate','fleet','shipment'] },
+  { key: 'master-data', route: '/master-data', label: 'Produk & Master Data', group: 'Operasional', Icon: Boxes, eyebrow: 'MASTER DATA', title: 'Produk, customer, pricing & reference', description: 'Produk, variant, multi-UOM, barcode, pricing, kategori, customer, dan reference master.', moduleCodes: ['catalog','suppliers','inventory'] },
+  { key: 'finance', route: '/finance', label: 'Keuangan', group: 'Keuangan & SDM', Icon: Landmark, eyebrow: 'FINANCE', title: 'Accounting, pajak, AP/AR, kas & bank', description: 'Jurnal, chart of accounts, pajak, fiscal period, settlement, reconciliation, dan kontrol integritas.', moduleCodes: ['accounting','accounting-core','finance-operations','bank-reconciliation','system-tax'], permissionPrefixes: ['finance','accounting','tax'] },
+  { key: 'reports', route: '/reports', label: 'Laporan & Analitik', group: 'Keuangan & SDM', Icon: BarChart3, eyebrow: 'REPORTING', title: 'Laporan & analitik', description: 'Financial report, inventory report, operational export, scheduled report, dan owner reporting.', moduleCodes: ['accounting','finance-operations','inventory','orders'], permissionPrefixes: ['report','finance','accounting'] },
+  { key: 'people', route: '/people', label: 'HRIS & Payroll', group: 'Keuangan & SDM', Icon: Users, eyebrow: 'PEOPLE', title: 'Karyawan, absensi & payroll', description: 'Employee master, attendance, leave/overtime, payroll, settlement, compliance, dan payslip.', moduleCodes: ['hris','attendance','payroll','tax-payroll'], permissionPrefixes: ['hr','employee','attendance','payroll'] },
+  { key: 'assets-fleet', route: '/assets-fleet', label: 'Aset & Armada', group: 'Keuangan & SDM', Icon: Truck, eyebrow: 'ASSET & FLEET', title: 'Aset, maintenance & armada', description: 'Fixed asset, depreciation, maintenance, kendaraan, trip, BBM, dan biaya operasional.', moduleCodes: ['fixed-assets','fleet'], permissionPrefixes: ['asset','fleet'] },
+  { key: 'intelligence', route: '/intelligence', label: 'AI & Otomasi', group: 'Intelligence', Icon: BrainCircuit, eyebrow: 'INTELLIGENCE', title: 'AI, forecast & automation', description: 'Forecast explainable, insight operator, assistant, business rules, scheduled report, dan execution history.', moduleCodes: ['forecasting','operations-automation'], permissionPrefixes: ['assistant','forecast','automation','report'] },
+  { key: 'integrations', route: '/integrations', label: 'Integrasi & Notifikasi', group: 'Platform', Icon: PlugZap, eyebrow: 'INTEGRATIONS', title: 'Telegram, WhatsApp, provider & devices', description: 'Provider notification, template, delivery history, external connection, device, dan offline sync.', moduleCodes: ['notifications','integrations','offline-pos','biometric-attendance','loyalty'], permissionPrefixes: ['notification','integration','device','loyalty'] },
+  { key: 'organization', route: '/organization', label: 'Tenant & Organisasi', group: 'Platform', Icon: Building2, eyebrow: 'ORGANIZATION', title: 'Company, cabang, gudang & lokasi', description: 'Konteks tenant aktif, cabang, warehouse, lokasi gudang, dan reference organisasi.', moduleCodes: ['catalog','inventory'], roles: ['SUPER_ADMIN','OWNER','ADMIN'] },
+  { key: 'settings', route: '/settings', label: 'Pengaturan & Akses', group: 'Platform', Icon: Settings, eyebrow: 'SETTINGS', title: 'Pengaturan sistem, user & security', description: 'Feature runtime, users, roles, security, API key, dan konfigurasi platform.', moduleCodes: ['approval','integrations','operations-automation'], roles: ['SUPER_ADMIN','OWNER','ADMIN'], permissionPrefixes: ['user','role','api_key','platform','integration'] },
+];
+
+const GROUP_ORDER: AdminWorkspace['group'][] = ['Ringkasan','Operasional','Keuangan & SDM','Intelligence','Platform'];
+export type ResolvedAdminNavigation = Array<{ group: AdminWorkspace['group']; items: AdminWorkspace[] }>;
+type NavigationOverride = { route?: unknown; label?: unknown; hidden?: unknown; order?: unknown };
+
+function enabledModuleCodes(manifest: AdminRuntimeManifest | null): Set<string> | null {
+  if (!manifest?.modules?.length) return null;
+  return new Set(manifest.modules.filter((module) => module.isCore || !module.featureKey || manifest.features?.[module.featureKey]?.enabled === true).map((module) => module.code));
+}
+
+function hasPermission(identity: AdminIdentity | null, workspace: AdminWorkspace): boolean {
+  if (!identity) return true;
+  if (workspace.roles?.some((role) => identity.roles.includes(role))) return true;
+  if (!workspace.permissionPrefixes?.length) return true;
+  if (!identity.permissions.length) return false;
+  return identity.permissions.some((permission) => workspace.permissionPrefixes!.some((prefix) => permission === prefix || permission.startsWith(`${prefix}.`) || permission.startsWith(`${prefix}_`)));
+}
+
+function readOverrides(manifest: AdminRuntimeManifest | null): Map<string, NavigationOverride> {
+  const result = new Map<string, NavigationOverride>();
+  const candidates = (manifest?.uiSchemas ?? []).filter((item) => item.surface.toLowerCase() === 'admin').sort((a,b) => b.version - a.version);
+  for (const candidate of candidates) {
+    if (!candidate.schema || typeof candidate.schema !== 'object' || Array.isArray(candidate.schema)) continue;
+    const navigation = (candidate.schema as Record<string, unknown>).navigation;
+    if (!Array.isArray(navigation)) continue;
+    for (const raw of navigation) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+      const override = raw as NavigationOverride;
+      if (typeof override.route !== 'string' || !override.route.startsWith('/')) continue;
+      if (!result.has(override.route)) result.set(override.route, override);
+    }
+  }
+  return result;
+}
+
+export function resolveAdminNavigation(manifest: AdminRuntimeManifest | null, identity: AdminIdentity | null): ResolvedAdminNavigation {
+  const activeModules = enabledModuleCodes(manifest);
+  const overrides = readOverrides(manifest);
+  const visible = ADMIN_WORKSPACES.filter((workspace) => {
+    const override = overrides.get(workspace.route);
+    if (override?.hidden === true || !hasPermission(identity, workspace)) return false;
+    if (!activeModules || ['dashboard','settings','organization'].includes(workspace.key)) return true;
+    return workspace.moduleCodes.some((code) => activeModules.has(code));
+  }).map((workspace) => {
+    const override = overrides.get(workspace.route);
+    return typeof override?.label === 'string' && override.label.trim() ? { ...workspace, label: override.label.trim() } : workspace;
+  });
+  return GROUP_ORDER.map((group) => ({ group, items: visible.filter((item) => item.group === group).sort((a,b) => {
+    const ao = overrides.get(a.route)?.order; const bo = overrides.get(b.route)?.order;
+    return (typeof ao === 'number' ? ao : ADMIN_WORKSPACES.findIndex((w) => w.route === a.route)) - (typeof bo === 'number' ? bo : ADMIN_WORKSPACES.findIndex((w) => w.route === b.route));
+  }) })).filter((group) => group.items.length > 0);
+}
+
+export function workspaceFromPath(pathname: string): AdminWorkspace {
+  const first = `/${pathname.split('/').filter(Boolean)[0] ?? 'dashboard'}`;
+  return ADMIN_WORKSPACES.find((workspace) => workspace.route === first) ?? ADMIN_WORKSPACES[0];
+}
+
+export function identityFromAccessToken(token: string | null | undefined): AdminIdentity | null {
+  if (!token) return null;
+  try {
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return null;
+    const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payloadPart.length / 4) * 4, '=');
+    const payload = JSON.parse(window.atob(normalized)) as Record<string, unknown>;
+    return {
+      roles: Array.isArray(payload.roles) ? payload.roles.filter((value): value is string => typeof value === 'string') : [],
+      permissions: Array.isArray(payload.permissions) ? payload.permissions.filter((value): value is string => typeof value === 'string') : [],
+    };
+  } catch {
+    return null;
+  }
+}

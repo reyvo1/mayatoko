@@ -16,6 +16,7 @@ const rows = [
   ['Browser UAT evidence', process.env.STEP_BROWSER],
   ['Runtime sweep start', process.env.STEP_RUNTIME_SWEEP_START],
   ['All OpenAPI runtime sweep', process.env.STEP_API_SWEEP],
+  ['R1 tenant/access runtime probe', process.env.STEP_R1_TENANT_ACCESS],
   ['Telegram/WhatsApp provider probe', process.env.STEP_PROVIDER_PROBE],
   ['Stage 18', process.env.STEP_STAGE18],
   ['Stage 19', process.env.STEP_STAGE19],

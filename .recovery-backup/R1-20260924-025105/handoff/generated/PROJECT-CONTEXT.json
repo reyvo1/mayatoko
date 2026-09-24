@@ -1,0 +1,127 @@
+{
+  "generatedAt": "2026-09-23T18:15:03.526Z",
+  "generatedAtLocal": "2026-09-24T02:15:03",
+  "timezone": "Asia/Makassar",
+  "repository": "toko360",
+  "version": "0.5.3",
+  "checkpoint": "RC0.5.3.1_EMBEDDED_INSTRUCTIONS_DYNAMIC_CHAT_HANDOFF",
+  "stateFingerprint": "e7ad7f5ec08776800681c1a6d030ac042d2b84a70d710810521de8bb5cf8be09",
+  "checkpointArtifact": {
+    "status": "BELUM_DIBUAT",
+    "fileName": "-",
+    "relativePath": "-",
+    "sha256": "-",
+    "sizeBytes": 0,
+    "commit": "-",
+    "workItemId": "-",
+    "source": "-"
+  },
+  "instructions": {
+    "relativePath": "instructions/SYSTEM-INSTRUCTIONS.md",
+    "chars": 5730,
+    "maxChars": 8000,
+    "sha256": "8f8227e1d6a2fcc42ec54d74bbdc8d36df8213c87e27e0b430e5279e33794840"
+  },
+  "git": {
+    "branch": "main",
+    "commit": "c391fc9fd8c4",
+    "status": "DIRTY",
+    "changes": [
+      "M CHANGELOG.md",
+      " M UI-DESIGN-SYSTEM.md",
+      " M apps/admin/app/app-shell.tsx",
+      " M apps/admin/app/domain-workspaces.ts",
+      " M apps/admin/app/globals.css",
+      " M apps/admin/app/navigation.ts",
+      " M apps/admin/app/page.tsx",
+      " M apps/admin/postcss.config.mjs",
+      " M apps/employee-portal/app/globals.css",
+      " M apps/employee-portal/postcss.config.mjs",
+      " M apps/pos/app/globals.css",
+      " M apps/pos/postcss.config.mjs",
+      " M apps/storefront/app/globals.css",
+      " M apps/storefront/postcss.config.mjs",
+      " M docs/PROJECT-STATE.md",
+      " M handoff/CURRENT-WORK.md",
+      " M package.json",
+      " M scripts/audit-full-repository.mjs",
+      " M scripts/ci-ui-source-audit.mjs",
+      " M tests/f1-hr-employee-master.test.mjs"
+    ]
+  },
+  "database": {
+    "profile": "sqlite",
+    "source": ".env"
+  },
+  "currentWork": {
+    "path": "handoff/CURRENT-WORK.md",
+    "content": "# CURRENT AUTHORITATIVE RECOVERY — 2026-09-24\n\nActive work item: `T360-20260924-020700` — R0 recovery truth reset and 48/48 audit closure governance.\n\n- Baseline HEAD: `c391fc9fd8c42cb6352317853718cba1415a9603` on `main`.\n- Working tree intentionally contains preserved F12R4 changes; do not discard them.\n- F12R4 work item `T360-20260923-221011` is BLOCKED behind recovery prerequisites.\n- Recovery matrix: `config/recovery-finding-matrix.json` — 48/48 mapped, 0 unmapped.\n- Master workflow: `docs/TOKO360-MASTER-RECOVERY-WORKFLOW.md`.\n- Required order: R0 → R1 → R2 → R3 → R4 → R5 → R6 → R7 → R8.\n- Human Stage-20 remains BLOCKED/PENDING.\n- Do not interpret old UI/productization closure notes below as current release readiness; they are historical chronology only.\n\n## Final automation closure — 2026-09-22\n\nUI productization/hardening **UI-P1 through UI-P7 is closed from authoritative GitHub Full System Simulation evidence**.\n\nFinal verified source:\n- commit: `97346eafe34b1cad9eb24f3072f04d7fd2c0150d`\n- regression: **708 PASS**\n- Built Browser UAT: **PASS**\n- Stage-18 / Stage-19 / Stage-20 automated: **PASS**\n- full-system aggregate: **PASS**\n- source fingerprint: `328cc5695ff3ab82fa8aaa5dffbbe5828a5e48c1b1f191e852a0881fd7a6c8ad`\n- build artifact: `3e5c9d075d12974b4a0e79ae90a639a23ce087549b5aaa4a4616467630b9cbe9`\n\nThere are no remaining active UI/productization work items after this closure.\n\nThis does **not** claim production readiness. Human Stage-20 UAT remains **PENDING 12/12** and `uat:candidate:verify` must remain fail-closed until valid manual evidence exists. After Human UAT, the remaining release path is UAT-candidate verification, promotion approval/security/DR/provider evidence, production deployment/schema/backup/smoke attestation, then final production-ready verification.\n\n# Toko360 — Current Work\n\nUpdated: 2026-09-22 Asia/Makassar\n\n## Last closed work item\nUI-P2 Admin Domain Workspaces is CLOSED from the user-confirmed green GitHub baseline:\n\n`b1c561d97813f5e0916d194e0146cbec147a741e`\n\n## Active work item\n`T360-20260922-152500` — UI-P3 POS modernization dan operator workspaces.\n\nPhase: VERIFICATION.\n\nImplemented scope:\n- reusable `PosShell`;\n- workspace Penjualan;\n- workspace Shift & Kas;\n- workspace Retur;\n- workspace Sinkronisasi;\n- desktop sticky cart dan responsive mobile workspace;\n- existing quote/payment/stock/shift/return/offline replay/idempotency/auth/tenant contracts tetap authoritative.\n\nNo database/schema/backend-business-logic change.\n\n## UAT invariant\nHuman Stage-20 UAT tetap PENDING 12/12 sampai ada human evidence yang sah. Automated simulation tidak boleh mengubah status itu dan `uat:candidate:verify` tetap fail-closed.\n\n## Next gate\nPush UI-P3 dari baseline source nyata `b1c561d97813f5e0916d194e0146cbec147a741e`, lalu gunakan GitHub Full System Simulation sebagai heavy validator. UI-P3 tetap VERIFICATION sampai run tersebut hijau.\n\n\n## UI-P4 current work — 2026-09-22\n\n- Baseline source: `be8007ba2f7ba7f8d98a09a3acb6a2c783\n\n...[dipotong oleh generator handoff]...\n\ninformation architecture memisahkan Tenant/User/System, Telegram/WhatsApp/provider/owner reporting, dan AI/Forecast agar operator tidak perlu mencari fitur di panel campur-aduk.\n- GitHub UAT diperluas dengan full repository audit, UI control audit, all-OpenAPI runtime sweep, browser all-navigation + 3-viewport geometry sweep + screenshots, Telegram/WhatsApp/owner-digest E2E provider simulator, serta optional protected live Telegram smoke.\n- Business/domain authority tidak dipindahkan atau dilemahkan. Human Stage-20 tetap BLOCKED sampai source baru lulus local/full GitHub gates dan visual acceptance.\n- Tailwind dependency lock/build belum dinyatakan PASS sampai dependency install dan production build benar-benar berhasil.\n\n## F12R4 full UI architecture rebuild — 2026-09-24\n- Operator rejected the prior F12/F12R layered presentation; visual acceptance is FAIL and Human Stage-20/release remain BLOCKED.\n- Admin is being rebuilt to one primary sidebar + one contextual secondary navigation + one content surface. Explicit top-level operator homes now include AI & Automation, Integrations & Notifications, Tenant & Organization, and Settings & Access.\n- All four presentation foundations are canonical Tailwind CSS v4 stylesheets rather than appended legacy overrides; primary horizontal scrolling and decorative gradients are forbidden.\n- UI source audit now locks 14 Admin top-level workspaces, critical Telegram/WhatsApp/AI/settings destinations, and rejects inert controls or reintroduced legacy navigation layers.\n- F12R3 deep GitHub UAT work remains authoritative and must not be weakened: repository/UI audit, PostgreSQL migration/runtime, exact build, all-navigation browser geometry/screenshots, API sweep, provider simulation, worker/report, Stage-18/19/20, staging/load/index/DR.\n- Verification still required before push: workflow/repo/full-repo/UI audit, focused F12R4 regression, full dependency-free regression, then local candidate TypeScript/DB/build on the operator repo.\n"
+  },
+  "workflow": {
+    "active": [
+      {
+        "id": "T360-20260924-020700",
+        "title": "R0 recovery truth reset and 48/48 audit closure governance",
+        "phase": "VERIFICATION",
+        "risk": "HIGH",
+        "module": "platform",
+        "wave": "W0",
+        "featureFlag": "-",
+        "updatedAt": "2026-09-24T02:12:00+08:00",
+        "file": "work-items/active/T360-20260924-020700-recovery-r0-truth-reset.json",
+        "task": "-",
+        "handoffPath": "-",
+        "handoff": "Belum ada SESSION-HANDOFF.md.",
+        "checklistPath": "-",
+        "checklist": "Belum ada IMPLEMENTATION-CHECKLIST.md."
+      },
+      {
+        "id": "T360-20260923-221011",
+        "title": "Full UI rebuild with Tailwind and GitHub full-system UAT expansion",
+        "phase": "BLOCKED",
+        "risk": "HIGH",
+        "module": "admin-ui",
+        "wave": "W7",
+        "featureFlag": "-",
+        "updatedAt": "2026-09-24T02:07:00+08:00",
+        "file": "work-items/active/T360-20260923-221011-full-ui-tailwind-and-github-uat-expansion.json",
+        "task": "-",
+        "handoffPath": "-",
+        "handoff": "Belum ada SESSION-HANDOFF.md.",
+        "checklistPath": "-",
+        "checklist": "Belum ada IMPLEMENTATION-CHECKLIST.md."
+      }
+    ],
+    "activeCount": 2,
+    "completedCount": 28,
+    "nextReady": null
+  },
+  "quality": {
+    "gate": "GITHUB_RUN7_SECURITY_FRESH_LOCK_PREP_20260921",
+    "status": "PASS_LOCAL_VALIDATION__HEAVY_AUTOMATION_PASS_EXCEPT_COMMITTED_SECURITY_AUDIT__GITHUB_RERUN_REQUIRED__NOT_UAT_CANDIDATE__NOT_PRODUCTION_READY",
+    "exitCode": 0,
+    "log": "handoff/quality/github-run7-security-fresh-lock-prep-20260921.md",
+    "summary": {
+      "githubHeavyAutomatedGates": "PASS except committed dependency audit",
+      "dependencyAudit": "FAIL — 12 high/critical findings remain on committed lock",
+      "builtBrowser": "PASS including authenticated POS and Employee Portal",
+      "stage19": "PASS 11/11",
+      "workerProbe": "PASS",
+      "stagingCertification": "PASS",
+      "loadSmoke": "PASS — 600/600, 0 errors, p95 30.59 ms",
+      "indexProfile": "PASS",
+      "dr": "PASS",
+      "stage20Automated": "PASS",
+      "humanUat": "PENDING",
+      "securityProposalPatch": "fresh lock from patched manifests + exact override-resolution verification; committed lock untouched",
+      "focusedRegression": "4/4 PASS",
+      "fullDependencyFreeRegression": "673/673 PASS",
+      "workflowValidator": "PASS — 21 work items / 8 delivery waves",
+      "repositoryValidator": "PASS — 783 files / 173 Prisma models",
+      "sourceFingerprint": "cc90588955a6d1508e2fc3bc8abe65b9659560250a0d00b4075b54824fc2c17f",
+      "uatCandidate": false,
+      "productionReady": false,
+      "productionTouched": false
+    }
+  }
+}

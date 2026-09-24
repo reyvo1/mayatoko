@@ -7,6 +7,26 @@ const root=process.cwd();
 const apps=['admin','pos','storefront','employee-portal'];
 const output=path.join(root,'handoff/quality/ui-interaction-audit-latest.json');
 const failures=[]; const result={};
+
+const adminNavigation=src(path.join(root,'apps/admin/app/navigation.ts'));
+const adminDomains=src(path.join(root,'apps/admin/app/domain-workspaces.ts'));
+const adminShell=src(path.join(root,'apps/admin/app/app-shell.tsx'));
+const requiredAdminWorkspaces=[
+ ['dashboard','/dashboard','Dashboard'],['commerce','/commerce','Penjualan & Order'],['procurement','/procurement','Pembelian'],
+ ['inventory-control','/inventory-control','Persediaan'],['operations-control','/operations-control','Kontrol Operasional'],
+ ['master-data','/master-data','Produk & Master Data'],['finance','/finance','Keuangan'],['reports','/reports','Laporan & Analitik'],
+ ['people','/people','HRIS & Payroll'],['assets-fleet','/assets-fleet','Aset & Armada'],['intelligence','/intelligence','AI & Otomasi'],
+ ['integrations','/integrations','Integrasi & Notifikasi'],['organization','/organization','Tenant & Organisasi'],['settings','/settings','Pengaturan & Akses'],
+];
+for(const [key,route,label] of requiredAdminWorkspaces){
+ if(!adminNavigation.includes(`key: '${key}'`)||!adminNavigation.includes(`route: '${route}'`)||!adminNavigation.includes(`label: '${label}'`)) failures.push(`admin: workspace ${label} tidak eksplisit`);
+}
+for(const marker of ["key: 'providers'",'Telegram & WhatsApp',"key: 'ai'","key: 'forecast'","key: 'automation'","workspaceKey: 'organization'","workspaceKey: 'settings'","key: 'security'","key: 'api-keys'"]){
+ if(!adminDomains.includes(marker)) failures.push(`admin: sub-area penting hilang (${marker})`);
+}
+for(const legacy of ['className="workspaceRail"','className="domainDeck"','className="domainContext"','className="statusbar"']){
+ if(adminShell.includes(legacy)) failures.push(`admin: navigasi/layer legacy masih dirender (${legacy})`);
+}
 function walk(dir,out=[]){if(!fs.existsSync(dir))return out;for(const e of fs.readdirSync(dir,{withFileTypes:true})){if(['node_modules','.next','dist'].includes(e.name))continue;const p=path.join(dir,e.name);e.isDirectory()?walk(p,out):out.push(p)}return out}
 function src(file){return fs.readFileSync(file,'utf8')}
 for(const app of apps){

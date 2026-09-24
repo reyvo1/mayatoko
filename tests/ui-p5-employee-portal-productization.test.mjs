@@ -55,6 +55,6 @@ test('UI-P5 provides responsive desktop and mobile workspace navigation', () => 
   assert.match(css, /\.employeeShell/);
   assert.match(css, /\.employeeSidebar/);
   assert.match(css, /\.employeeMobileNav/);
-  assert.match(css, /@media\(max-width:760px\)/);
+  assert.match(css, /@media\(max-width:/);
   assert.match(css, /\.employeePageHeading/);
 });

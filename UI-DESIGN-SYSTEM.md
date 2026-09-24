@@ -38,9 +38,9 @@ Kalau tidak ada → terapkan standar file ini. Ragu referensi? cari contoh dashb
 SaaS terkini di internet sebelum coding.
 
 ## UI-P2 — Domain workspace navigation
-- Domain besar memakai secondary navigation yang sticky dan deep-linkable.
-- Overview domain memakai deck/card yang menjelaskan operator area sebelum masuk ke transaksi.
-- Breadcrumb boleh tiga tingkat: product / domain / operator workspace.
+- Domain besar memakai satu secondary navigation yang sticky dan deep-linkable.
+- Secondary navigation tidak boleh digandakan dengan workspace rail/deck/context strip tambahan.
+- Breadcrumb hanya dipakai bila benar-benar membantu orientasi dan tidak menggandakan judul/subnav.
 - Nested route tidak boleh mengubah security boundary atau menggandakan business logic di client.
 
 ## UI-P3 POS operator workspaces
@@ -52,7 +52,7 @@ POS menggunakan flat workspace navigation: Penjualan, Shift & Kas, Retur, dan Si
 Storefront memakai sticky global header, desktop/mobile primary navigation, view context, customer-focused progressive disclosure, catalog controls, product-detail surface, dan pemisahan cart/checkout dari account/order tracking. Mobile memakai bottom navigation dan seluruh action tetap mempunyai focus/disabled semantics native.
 
 ## Employee Portal productization
-Employee self-service memakai desktop sidebar + mobile horizontal navigation, page heading per workspace, progressive disclosure, status pills, responsive forms/tables, dan flat dark surfaces. Browser contract `TOKO360 HR` / `Portal Karyawan` tetap dipertahankan.
+Employee self-service memakai desktop sidebar + mobile grid navigation yang wrap ke viewport, page heading per workspace, progressive disclosure, status pills, responsive forms/tables, dan flat dark surfaces. Browser contract `TOKO360 HR` / `Portal Karyawan` tetap dipertahankan.
 
 ## UI-P6 — server-driven Admin surfaces
 Nested Admin tabs/cards mengikuti resolved runtime surface: module aktif, identity visibility, dan UiSchema admin. Runtime override tidak boleh menciptakan action atau route baru.
@@ -74,3 +74,14 @@ Nested Admin tabs/cards mengikuti resolved runtime surface: module aktif, identi
 - Tabel desktop harus berada di viewport; narrow viewport mengubah row menjadi stacked labeled cells bila kolom tidak muat.
 - Lucide React adalah canonical icon set untuk empat operator surfaces. Emoji/simbol teks tidak boleh dipakai sebagai ikon aksi.
 - Visual acceptance harus dibuktikan oleh Browser UAT geometry matrix + screenshot artifact, bukan static CSS test saja.
+
+
+## F12R4 — Full UI rebuild after operator visual rejection
+- F12R3 automated green evidence tidak dianggap visual acceptance; operator review membuka kembali F12 karena struktur informasi dan usability masih gagal.
+- Admin canonical information architecture adalah **satu primary sidebar + satu contextual secondary navigation + satu content surface**. `workspaceRail`, `domainDeck`, `domainContext`, statusbar dekoratif, atau layer navigasi paralel dilarang dirender.
+- Top-level Admin wajib mengekspos secara eksplisit: Dashboard, Penjualan & Order, Pembelian, Persediaan, Kontrol Operasional, Produk & Master Data, Keuangan, Laporan & Analitik, HRIS & Payroll, Aset & Armada, AI & Otomasi, Integrasi & Notifikasi, Tenant & Organisasi, serta Pengaturan & Akses.
+- Telegram/WhatsApp/provider configuration, notification history, AI/forecast/automation, tenant/company/branch/warehouse, user/security/API key tidak boleh tersembunyi di domain yang tidak relevan.
+- Kontrol visual yang terlihat interaktif wajib mempunyai aksi nyata atau semantik non-button; tombol dekoratif/inert dilarang.
+- Empat surface tetap memakai Tailwind CSS v4 + Lucide, flat one-accent visual language, tanpa decorative gradient, tanpa primary horizontal navigation, dan tanpa accumulated override CSS lama.
+- GitHub Browser UAT wajib mengunjungi route/workspace yang tersedia pada desktop/tablet/mobile, memeriksa geometry/no-overflow, menyimpan screenshot sukses/gagal, dan tetap menjadi companion bagi source/API/provider/worker/runtime gates.
+- Human Stage-20 tetap BLOCKED sampai operator menerima visual/usability hasil rebuild.

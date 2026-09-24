@@ -22,13 +22,12 @@ test('full UI migration makes Tailwind v4 canonical and audit commands mandatory
 });
 
 test('Admin information architecture exposes tenant, provider, Telegram/WhatsApp and AI explicitly',()=>{
-  assert.match(adminNav,/Integrasi, Notifikasi & AI/);
-  assert.match(adminNav,/Tenant, User & Sistem/);
-  for(const label of ['Telegram & WhatsApp','Integrasi Provider','AI & Forecast','Company / Tenant']) assert.match(adminDomains,new RegExp(label.replace(/[&/]/g,'\\$&')));
-  assert.match(adminPage,/mode=\{activeDomainView\?\.key === 'notifications' \? 'notifications'/);
-  assert.match(adminPage,/platformMode === 'tenant'/);
-  assert.match(adminPage,/platformMode === 'users'/);
-  assert.match(adminPage,/platformMode === 'security'/);
+  for (const label of ['AI & Otomasi','Integrasi & Notifikasi','Tenant & Organisasi','Pengaturan & Akses','Laporan & Analitik']) assert.match(adminNav,new RegExp(label.replace(/[&/]/g,'\\$&')));
+  for(const label of ['Telegram & WhatsApp','AI Assistant','Forecast','Cabang & Gudang','User & Role']) assert.match(adminDomains,new RegExp(label.replace(/[&/]/g,'\\$&')));
+  assert.match(adminPage,/activeWorkspace\.key === 'integrations'/);
+  assert.match(adminPage,/activeWorkspace\.key === 'intelligence'/);
+  assert.match(adminPage,/activeWorkspace\.key === 'organization'/);
+  assert.match(adminPage,/activeWorkspace\.key === 'settings'/);
 });
 
 test('GitHub full-system and manual UAT require repository/UI/API/provider deep gates',()=>{

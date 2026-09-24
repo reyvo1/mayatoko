@@ -15,7 +15,8 @@ test('F1 HR-01 employee master exposes real create edit and lifecycle actions', 
   assert.match(admin, /toggleActive/);
   assert.match(admin, /Aktifkan/);
   assert.match(admin, /Nonaktifkan/);
-  assert.match(page, /activeDomainView\?\.key === 'employees' \? <EmployeeMasterView/);
+  assert.match(page, /activeWorkspace\.key === 'people'[\s\S]*EmployeeMasterView/);
+  assert.match(page, /activeDomainView\?\.key === 'employees'/);
 });
 
 test('F1 HR-01 employee edit can clear optional organization links without changing tenant scope', () => {

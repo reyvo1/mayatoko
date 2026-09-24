@@ -71,6 +71,19 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Cabang pengguna tidak aktif atau tidak ditemukan.');
     }
 
+    const session = persistedUser.sessions[0];
+    const homeCompanyId = persistedUser.branch?.companyId ?? null;
+    const activeBranchId = session?.activeBranchId ?? persistedUser.branchId;
+    const activeBranch = homeCompanyId && activeBranchId
+      ? await this.prisma.branch.findFirst({
+          where: { id: activeBranchId, companyId: homeCompanyId, isActive: true },
+          select: { id: true },
+        })
+      : null;
+    if (activeBranchId && !activeBranch) {
+      throw new UnauthorizedException('Branch context sesi tidak valid atau sudah tidak aktif.');
+    }
+
     const roles = persistedUser.roles.map((item) => item.role.name);
     const permissions = [...new Set(
       persistedUser.roles.flatMap((item) => item.role.permissions.map((entry) => entry.permission.code)),
@@ -80,13 +93,12 @@ export class JwtAuthGuard implements CanActivate {
       sid: tokenUser.sid,
       email: persistedUser.email,
       name: persistedUser.name,
-      companyId: persistedUser.branch?.companyId ?? null,
-      branchId: persistedUser.branchId,
+      companyId: homeCompanyId,
+      branchId: activeBranch?.id ?? null,
       roles,
       permissions,
       authType: 'JWT',
     };
-    const session = persistedUser.sessions[0];
     if (session && Date.now() - session.lastSeenAt.getTime() >= 5 * 60_000) {
       await this.prisma.authSession.updateMany({ where: { id: session.id, revokedAt: null }, data: { lastSeenAt: new Date() } });
     }

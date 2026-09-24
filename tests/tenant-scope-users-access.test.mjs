@@ -73,7 +73,11 @@ test('JWT guard reloads active user branch roles and permissions from database',
   assert.match(guard, /this\.prisma\.user\.findUnique/);
   assert.match(guard, /!persistedUser \|\| !persistedUser\.isActive/);
   assert.match(guard, /persistedUser\.branchId && \(!persistedUser\.branch \|\| !persistedUser\.branch\.isActive\)/);
-  assert.match(guard, /companyId: persistedUser\.branch\?\.companyId \?\? null/);
+  assert.match(guard, /const homeCompanyId = persistedUser\.branch\?\.companyId \?\? null/);
+  assert.match(guard, /const activeBranchId = session\?\.activeBranchId \?\? persistedUser\.branchId/);
+  assert.match(guard, /where: \{ id: activeBranchId, companyId: homeCompanyId, isActive: true \}/);
+  assert.match(guard, /companyId: homeCompanyId/);
+  assert.match(guard, /branchId: activeBranch\?\.id \?\? null/);
   assert.match(guard, /roles = persistedUser\.roles\.map/);
   assert.match(guard, /permissions = \[\.\.\.new Set/);
   assert.doesNotMatch(guard, /request\.user = await this\.jwt\.verifyAsync<AuthUser>\(token\)/);

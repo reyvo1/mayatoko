@@ -7,6 +7,8 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ConfirmPasswordResetDto, RequestPasswordResetDto } from './dto/password-reset.dto';
 import { ConfirmTwoFactorSetupDto, DisableTwoFactorDto, RegenerateRecoveryCodesDto } from './dto/two-factor.dto';
+import { SwitchBranchContextDto } from './dto/branch-context.dto';
+import { Permissions } from './permissions.decorator';
 import { Public } from './public.decorator';
 
 @ApiTags('auth')
@@ -62,6 +64,19 @@ export class AuthController {
   @Post('2fa/disable')
   disableTwoFactor(@CurrentUser() user: AuthUser, @Body() dto: DisableTwoFactorDto) {
     return this.auth.disableTwoFactor(user, dto.password, dto.code);
+  }
+
+  @ApiBearerAuth()
+  @Get('branch-context')
+  branchContext(@CurrentUser() user: AuthUser) {
+    return this.auth.branchContext(user);
+  }
+
+  @ApiBearerAuth()
+  @Permissions('branch.switch')
+  @Post('branch-context')
+  switchBranchContext(@CurrentUser() user: AuthUser, @Body() dto: SwitchBranchContextDto) {
+    return this.auth.switchBranchContext(user, dto.branchId);
   }
 
   @ApiBearerAuth()

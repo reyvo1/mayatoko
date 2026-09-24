@@ -1,0 +1,64 @@
+{
+  "id": "T360-20260923-221011",
+  "title": "Full UI rebuild with Tailwind and GitHub full-system UAT expansion",
+  "type": "feature",
+  "module": "admin-ui",
+  "wave": "W7",
+  "phase": "VERIFICATION",
+  "risk": "HIGH",
+  "owner": "openai",
+  "featureFlag": "",
+  "dependencies": [],
+  "impacts": {
+    "database": "NONE",
+    "inventory": "NONE",
+    "accounting": "NONE",
+    "tax": "NONE",
+    "payment": "NONE",
+    "payroll": "NONE",
+    "sync": "LOW",
+    "security": "LOW",
+    "performance": "MEDIUM"
+  },
+  "businessRules": [
+    "Presentation and information architecture are being rebuilt, not patched; existing backend/API business authority remains unchanged.",
+    "Admin must use exactly one primary navigation plus at most one contextual secondary navigation layer; redundant workspace rails/decks/context strips are forbidden.",
+    "Every implemented operator capability must have a discoverable UI home, including tenant/organization, Telegram/WhatsApp, AI/forecasting, reports, automation, users/roles, and settings/security.",
+    "Admin, POS, Storefront, and Employee Portal use Tailwind CSS v4 with one visual language, Lucide icons, responsive no-horizontal-page-overflow behavior, and progressive disclosure.",
+    "GitHub UAT remains fail-closed and continues to test exact artifacts, PostgreSQL runtime, API/provider flows, browser geometry, worker/reporting, staging, load/index, DR, and automated Stage-20.",
+    "Human UAT remains separate and blocked until visual acceptance of the rebuilt UI."
+  ],
+  "acceptanceCriteria": [
+    "Legacy accumulated UI overrides are replaced rather than appended; all four app globals are Tailwind v4 canonical stylesheets.",
+    "Admin information architecture explicitly exposes sales/orders, procurement, inventory, master data, finance, reporting, HR/payroll, assets/fleet, AI/automation, integrations/notifications, tenant/organization, and settings/access.",
+    "Telegram/WhatsApp provider configuration is reachable from an explicit Integrations & Notifications workspace; AI is reachable from an explicit AI & Automation workspace.",
+    "Admin shell contains one sidebar, one contextual subnav, and one content surface without duplicate navigation layers.",
+    "POS sale/cart hierarchy is optimized for high mobility and collapses cleanly at tablet/mobile without page horizontal scrolling.",
+    "Storefront and Employee Portal use the same restrained flat visual system and fit supported viewports without page horizontal scrolling.",
+    "Existing business regression remains green and the expanded GitHub UAT gates are preserved or strengthened, never skipped."
+  ],
+  "testPlan": [
+    "Run workflow:validate and validate:repo.",
+    "Run source audits for all UI routes/navigation/API references and forbidden visual anti-patterns.",
+    "Run focused F12R3/F12R4 UI regression.",
+    "Run full dependency-free regression.",
+    "Run sync idempotency/retry/conflict regression unchanged because provider/device/offline navigation remains in scope.",
+    "Run local candidate gate for TypeScript, SQLite DB smoke, and six-app build.",
+    "Run GitHub Full System Simulation with API sweep, provider simulation, browser desktop/tablet/mobile geometry, worker/report, staging/load/index/DR, and automated Stage-20.",
+    "Human Stage-20 remains blocked until visual acceptance."
+  ],
+  "migrationPlan": "No database schema change is planned. Tailwind/PostCSS and CI/UAT changes are source/build tooling only; existing expand-only database migration chain remains unchanged and must still be rehearsed.",
+  "rollbackPlan": "Revert this work item commit set to the last source-bound automated-GitHub-PASS commit. No database rollback is required because schema is unchanged. If the new UAT gate itself is defective, fix the gate while preserving or strengthening its assertions; never bypass it to release.",
+  "monitoringPlan": "GitHub job summary and uploaded source-bound evidence will report API coverage, browser viewport coverage, provider simulation results, exact artifact identity, worker/report probe, staging/load/index/DR and Stage-20 automated state. UI regressions are additionally checked by local candidate gate before push.",
+  "securityNotes": "All runtime identity continues to come from authenticated server context. CI uses non-production PostgreSQL and synthetic provider endpoints. GitHub secrets/environment secrets are never echoed, browser/localStorage evidence is sanitized, provider mocks validate headers/payloads without storing real tokens, and Human Stage-20 remains separately approved.",
+  "documentation": [
+    "UI-DESIGN-SYSTEM.md",
+    "docs/DEVELOPMENT-KIT.md",
+    "docs/DEVELOPMENT-WORKFLOW.md",
+    "docs/ADMIN-DOMAIN-WORKSPACES.md",
+    ".github/workflows/full-system-simulation.yml",
+    ".github/workflows/toko360-full-uat.yml"
+  ],
+  "createdAt": "2026-09-23T14:10:11.719Z",
+  "updatedAt": "2026-09-24T00:50:00+08:00"
+}

@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateApprovalPolicyDto, CreateApprovalRequestDto, CreateBusinessRuleDto, CreateCustomFieldDto,
   CreateIntegrationDto, CreateUiSchemaDto, CreateWebhookDto, DecideApprovalDto, DelegateApprovalDto, UpdateBusinessRuleDto, UpdateIntegrationDto,
-  SetCustomFieldValueDto, UpsertFeatureFlagDto, UpsertSettingDto,
+  SetCustomFieldValueDto, UpdateTenantProfileDto, UpsertFeatureFlagDto, UpsertSettingDto,
 } from './dto/platform.dto';
 import { PluginRegistryService } from './plugin-registry.service';
 import { SecretProtectorService } from './secret-protector.service';
@@ -231,6 +231,76 @@ export class PlatformService {
       navigation: modules.flatMap((module) => Array.isArray(module.navigation) ? module.navigation : module.navigation ? [module.navigation] : []),
       uiSchemas, plugins: this.plugins.list(),
     };
+  }
+
+  async tenantProfile(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const [company, branches] = await Promise.all([
+      this.prisma.company.findUnique({
+        where: { id: scope.companyId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          timezone: true,
+          currency: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.branch.findMany({
+        where: { companyId: scope.companyId },
+        select: { id: true, code: true, name: true, address: true, isActive: true, createdAt: true, updatedAt: true },
+        orderBy: [{ name: 'asc' }, { code: 'asc' }],
+      }),
+    ]);
+    if (!company) return this.denyTenantAccess(this.prisma, user, scope, 'Company', scope.companyId);
+    return {
+      company,
+      branches,
+      activeBranchId: scope.branchId,
+      provisioningMode: 'BOOTSTRAP_ONLY',
+      provisioningNote: 'Pembuatan company baru dilakukan melalui bootstrap/deployment terkontrol. Operator hanya mengelola company aktif.',
+    };
+  }
+
+  async updateTenantProfile(dto: UpdateTenantProfileDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    if (dto.name === undefined && dto.timezone === undefined && dto.currency === undefined) {
+      throw new BadRequestException('Minimal satu field tenant harus diubah.');
+    }
+    const name = dto.name?.trim();
+    const timezone = dto.timezone?.trim();
+    const currency = dto.currency?.trim().toUpperCase();
+    if (timezone) {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+      } catch {
+        throw new BadRequestException('Timezone IANA tidak valid.');
+      }
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.company.findUnique({ where: { id: scope.companyId }, select: { id: true } });
+      if (!existing) return this.denyTenantAccess(tx, user, scope, 'Company', scope.companyId);
+      const row = await tx.company.update({
+        where: { id: scope.companyId },
+        data: {
+          ...(name !== undefined ? { name } : {}),
+          ...(timezone !== undefined ? { timezone } : {}),
+          ...(currency !== undefined ? { currency } : {}),
+        },
+        select: { id: true, name: true, slug: true, timezone: true, currency: true, createdAt: true, updatedAt: true },
+      });
+      await this.auditMutation(tx, user, scope, 'UPDATE_TENANT_PROFILE', 'Company', row.id, {
+        branchId: scope.branchId,
+        changedFields: [
+          ...(dto.name !== undefined ? ['name'] : []),
+          ...(dto.timezone !== undefined ? ['timezone'] : []),
+          ...(dto.currency !== undefined ? ['currency'] : []),
+        ],
+      });
+      return row;
+    });
   }
 
   async listFeatures(user: AuthUser, requestedCompanyId?: string) {
