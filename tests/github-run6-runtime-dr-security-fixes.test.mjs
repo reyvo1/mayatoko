@@ -4,22 +4,36 @@ import fs from 'node:fs';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const workflow = read('.github/workflows/full-system-simulation.yml');
+const fullUatWorkflow = read('.github/workflows/toko360-full-uat.yml');
 const prepare = read('scripts/ci-prepare-github-simulation.mjs');
 const dr = read('scripts/run-postgres-dr-drill.mjs');
 const plan = JSON.parse(read('.github/ci/security-dependency-plan.json'));
 
 test('GitHub browser/runtime URLs use localhost consistently with configured CORS origins', () => {
-  for (const value of [
+  const runtimeUrls = [
     'T360_API_URL: http://localhost:4000/api/v1',
     'T360_STOREFRONT_URL: http://localhost:3000',
     'T360_ADMIN_URL: http://localhost:3001',
     'T360_POS_URL: http://localhost:3002',
     'T360_EMPLOYEE_URL: http://localhost:3003',
-  ]) assert.match(workflow, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.doesNotMatch(workflow, /T360_(?:API|STOREFRONT|ADMIN|POS|EMPLOYEE)_URL: http:\/\/127\.0\.0\.1/);
+  ];
+  for (const [label, source] of [
+    ['full-system simulation', workflow],
+    ['full automated UAT', fullUatWorkflow],
+  ]) {
+    for (const value of runtimeUrls) {
+      assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${label} must use ${value}`);
+    }
+    assert.doesNotMatch(
+      source,
+      /T360_(?:API|STOREFRONT|ADMIN|POS|EMPLOYEE)_URL: http:\/\/127\.0\.0\.1/,
+      `${label} must not split browser origins between localhost and 127.0.0.1`,
+    );
+  }
   assert.match(prepare, /origin .* tidak tercakup CORS_ORIGINS GitHub simulation/);
   assert.match(prepare, /NEXT_PUBLIC_API_URL dan T360_API_URL wajib menunjuk API base yang sama/);
 });
+
 
 test('DR keeps source stage/test marker strict but permits isolated restore/dr/scratch database names', () => {
   assert.match(dr, /function lockedTarget\([^)]*\{ scratch = false \}/);
