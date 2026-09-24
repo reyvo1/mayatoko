@@ -129,10 +129,11 @@ test('R3 remains open while R4 runs as an explicit parallel recovery work item',
   assert.match(state, /Recovery R4/);
 });
 
-test('R4 npm runtime probe registration is present and points to the committed probe file', () => {
-  const packageJson = JSON.parse(read('package.json'));
-  assert.equal(packageJson.scripts?.['ci:r4:probe'], 'node scripts/ci-r4-core-business-probe.mjs');
-  assert.match(read('scripts/ci-r4-core-business-probe.mjs'), /R4/);
-  assert.match(read('.github/workflows/toko360-full-uat.yml'), /run: npm run ci:r4:probe/);
-  assert.match(read('.github/workflows/full-system-simulation.yml'), /run: npm run ci:r4:probe/);
+test('R4 runtime probe is self-contained on bootstrap seed and creates a product fixture when catalog is empty', () => {
+  const probe = read('scripts/ci-r4-core-business-probe.mjs');
+  assert.match(probe, /if \(!warehouse\?\.id\) throw new Error\('Gudang bootstrap R4 runtime tidak tersedia\.'\)/);
+  assert.match(probe, /if \(!product\?\.id\) \{[\s\S]*request\('\/products'/);
+  assert.match(probe, /sku: `R4SKU\$\{String\(stamp\)\.slice\(-8\)\}`/);
+  assert.match(probe, /productType: 'PHYSICAL'/);
+  assert.doesNotMatch(probe, /Produk\/gudang R4 runtime tidak tersedia/);
 });

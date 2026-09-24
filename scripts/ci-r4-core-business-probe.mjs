@@ -38,9 +38,30 @@ const [productsPage, warehouses, manifest] = await Promise.all([
   request('/inventory/warehouses', { token }),
   request('/platform/manifest', { token }),
 ]);
-const product = (productsPage?.items || []).find((item) => !item.trackBatch && !item.trackSerial) || productsPage?.items?.[0];
+let product = (productsPage?.items || []).find((item) => !item.trackBatch && !item.trackSerial) || productsPage?.items?.[0];
 const warehouse = warehouses?.[0];
-if (!product?.id || !warehouse?.id) throw new Error('Produk/gudang R4 runtime tidak tersedia.');
+if (!warehouse?.id) throw new Error('Gudang bootstrap R4 runtime tidak tersedia.');
+if (!product?.id) {
+  product = await request('/products', {
+    method: 'POST',
+    token,
+    body: {
+      sku: `R4SKU${String(stamp).slice(-8)}`,
+      name: `R4 Runtime Product ${stamp}`,
+      unit: 'pcs',
+      productType: 'PHYSICAL',
+      trackBatch: false,
+      trackExpiry: false,
+      trackSerial: false,
+      allowNegativeStock: false,
+      costPrice: 1000,
+      salePrice: 1500,
+      minStock: 1,
+      isActive: true,
+    },
+  });
+}
+if (!product?.id) throw new Error('Fixture product R4 runtime gagal dibuat.');
 
 const supplier = await request('/suppliers', {
   method: 'POST', token,
