@@ -214,6 +214,16 @@ import { ExtensionsService } from './extensions.service';
     return this.service.syncPull(user, since, cursor, deviceId);
   }
 
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Get('devices/:id/sync/diagnostics')
+  @Permissions('integration.view')
+  deviceSyncDiagnostics(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('limit') limit?: string,
+  ) {
+    return this.service.deviceSyncDiagnostics(id, user, limit);
+  }
+
   @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('devices/:id/credentials/rotate')
   @Permissions('integration.manage')
   rotateDeviceCredential(@Param('id') id: string, @Body() dto: RotateDeviceCredentialDto, @CurrentUser() user: AuthUser) {

@@ -4,7 +4,7 @@
   "type": "feature",
   "module": "platform-scale",
   "wave": "W6",
-  "phase": "VERIFICATION",
+  "phase": "CLOSED",
   "risk": "HIGH",
   "owner": "openai",
   "featureFlag": "",
@@ -63,5 +63,14 @@
     "config/recovery-finding-matrix.json"
   ],
   "createdAt": "2026-09-25T00:30:00+08:00",
-  "updatedAt": "2026-09-25T00:30:00+08:00"
+  "updatedAt": "2026-09-25T01:30:00+08:00",
+  "releaseEvidence": [
+    "Commit bd4abf386c56bce283f10c08ff988ea109909b54 on origin/main",
+    "GitHub Full System Simulation PASS",
+    "GitHub Full Automated UAT PASS",
+    "ci:r6:probe PASS on exact PostgreSQL runtime",
+    "R6 source fingerprint 1d07234c2f58891d1cf95309c65d4465d8c1bb4cb67b77bc4e9e233ae2c274c6 (631 files)",
+    "Stage-20 automated PASS after diagnostic correction",
+    "Human Stage-20 remains PENDING 12/12 and separate"
+  ]
 }

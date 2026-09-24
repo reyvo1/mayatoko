@@ -82,3 +82,9 @@ R5 reuses the existing AssetMaintenancePlan and VehicleDriverAssignment schemas 
 R5 F31/F32/F33 is runtime-closed on origin/main commit `708d34cb7afd259c507844cadf065b23029797ec`. GitHub `ci:r5:probe` PASS is bound to source fingerprint `91f5b3910bed430d5a682fb53a3ce8baf050884674be56269eb39af309781655` (629 files); both full-system workflows are green and Human Stage-20 remains PENDING.
 
 R6 is now the active recovery wave. F26-F29 are source-implemented but require exact PostgreSQL runtime evidence before closure. F30 is recognized as runtime-closed by the R4 AccountingCloseControl close/block/reopen/post probe. R3 remains open for F37/F39/F42/F43; F29 moves to R6 verification because its secondary-wave runtime contract is now implemented here.
+
+## 2026-09-25 — R6 runtime closure / R3 residual verification
+
+R6 F26/F27/F28/F29 is **RUNTIME CLOSED** on exact GitHub commit `bd4abf386c56bce283f10c08ff988ea109909b54`, source fingerprint `1d07234c2f58891d1cf95309c65d4465d8c1bb4cb67b77bc4e9e233ae2c274c6` (631 files). Full System Simulation, Full Automated UAT, `ci:r6:probe`, aggregate release gates, and automated Stage-20 PASS. F30 remains runtime-closed by canonical R4 AccountingCloseControl evidence. Human Stage-20 remains **PENDING 12/12** and is not replaced by automation.
+
+R3 is now **VERIFICATION** for residual F37/F39/F42/F43. Admin Integrations exposes payment-provider diagnostics, multi-outlet and cashier-target reporting, device sync receipt/offline-transaction diagnostics with acknowledgement/requeue operations, and marketplace order list/import. The new device diagnostics read route is authenticated tenant/branch scoped. Both PostgreSQL GitHub workflows execute `ci:r3:residual-probe`; these four HIGH findings remain `SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING` until exact-source runtime evidence passes. R7 remains blocked on R3 closure.

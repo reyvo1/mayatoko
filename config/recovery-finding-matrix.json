@@ -1,18 +1,18 @@
 {
-  "version": "2026-09-25-r6.1",
+  "version": "2026-09-25-r3-residual.1",
   "sourceSnapshot": {
-    "gitHead": "708d34cb7afd259c507844cadf065b23029797ec",
+    "gitHead": "bd4abf386c56bce283f10c08ff988ea109909b54",
     "branch": "main",
-    "workingTree": "DIRTY_R6_UNCOMMITTED",
+    "workingTree": "DIRTY_R3_RESIDUAL_UNCOMMITTED",
     "prismaModels": 180,
-    "apiHandlers": 455,
-    "uiInteractiveElements": 337,
-    "fullRepositoryAuditFiles": 953,
-    "repoValidationFiles": 953,
+    "apiHandlers": 456,
+    "uiInteractiveElements": 341,
+    "fullRepositoryAuditFiles": 955,
+    "repoValidationFiles": 955,
     "tailwindcss": "4.3.3",
     "postcss": "8.5.28"
   },
-  "status": "R6_VERIFICATION",
+  "status": "R3_RESIDUAL_VERIFICATION",
   "findingCount": 48,
   "unmappedFindingCount": 0,
   "waves": [
@@ -376,7 +376,7 @@
       "title": "Label AI lebih besar dari capability aktual",
       "primaryWave": "R6",
       "secondaryWave": "R7",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R6",
       "closureRequirement": "Align AI labels to deterministic capability or implement provider-neutral AI if it is a real product requirement.",
       "runtimeEvidenceRequired": true
     },
@@ -387,7 +387,7 @@
       "title": "DailySalesSummary/DailyFinanceSummary tidak dipakai runtime",
       "primaryWave": "R6",
       "secondaryWave": "R8",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R6",
       "closureRequirement": "Implement and verify sales/finance summary materialization/read paths.",
       "runtimeEvidenceRequired": true
     },
@@ -398,7 +398,7 @@
       "title": "Retention/archive hanya model",
       "primaryWave": "R6",
       "secondaryWave": "R8",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R6",
       "closureRequirement": "Implement retention/archive runtime lifecycle or downgrade/remove the implementation claim.",
       "runtimeEvidenceRequired": true
     },
@@ -409,7 +409,7 @@
       "title": "ExternalMapping model tidak dipakai runtime",
       "primaryWave": "R3",
       "secondaryWave": "R6",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
+      "status": "RUNTIME_CLOSED_R6",
       "closureRequirement": "Implement ExternalMapping lifecycle where adapters need it or deprecate the stale contract.",
       "runtimeEvidenceRequired": true
     },
@@ -497,7 +497,7 @@
       "title": "Payment provider event diagnostics tidak punya UI",
       "primaryWave": "R3",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Expose payment provider event diagnostics.",
       "runtimeEvidenceRequired": true
     },
@@ -519,7 +519,7 @@
       "title": "Daily digest, multi-outlet, cashier target tersembunyi",
       "primaryWave": "R3",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Expose daily digest/multi-outlet/cashier-target reporting in IA.",
       "runtimeEvidenceRequired": true
     },
@@ -552,7 +552,7 @@
       "title": "Device/sync backend lebih dalam daripada UI",
       "primaryWave": "R3",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Expose device sync/conflict/dead-letter/replay operations.",
       "runtimeEvidenceRequired": true
     },
@@ -563,7 +563,7 @@
       "title": "MarketplaceOrder API tidak punya Admin UI",
       "primaryWave": "R3",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Expose marketplace import/list/error/replay flow.",
       "runtimeEvidenceRequired": true
     },

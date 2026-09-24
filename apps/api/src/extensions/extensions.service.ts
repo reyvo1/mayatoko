@@ -1176,6 +1176,41 @@ export class ExtensionsService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
+  async deviceSyncDiagnostics(deviceId: string, user: AuthUser, limitInput?: string) {
+    const scope = this.requireTenantScope(user);
+    const device = await this.scopedDevice(this.prisma, user, scope, deviceId);
+    const limit = Math.min(Math.max(Number.parseInt(limitInput ?? '100', 10) || 100, 1), 500);
+    const [receipts, offlineTransactions] = await Promise.all([
+      this.prisma.syncReceipt.findMany({
+        where: { deviceId: device.id, companyId: scope.companyId, branchId: scope.branchId },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        select: {
+          id: true, since: true, checkpoint: true, nextCursor: true, eventCount: true,
+          status: true, acknowledgedAt: true, createdAt: true,
+        },
+      }),
+      this.prisma.offlineTransaction.findMany({
+        where: { deviceId: device.id },
+        orderBy: { receivedAt: 'desc' },
+        take: limit,
+        select: {
+          id: true, localId: true, sequence: true, transactionType: true, status: true,
+          serverEntityType: true, serverEntityId: true, conflict: true, errorMessage: true,
+          attempts: true, nextRetryAt: true, deadLetteredAt: true, receivedAt: true, processedAt: true,
+        },
+      }),
+    ]);
+    return {
+      device: {
+        id: device.id, code: device.code, name: device.name, platform: device.platform,
+        appVersion: device.appVersion, lastSeenAt: device.lastSeenAt, isActive: device.isActive,
+      },
+      receipts,
+      offlineTransactions,
+    };
+  }
+
   async rotateDeviceCredential(deviceId: string, dto: RotateDeviceCredentialDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;

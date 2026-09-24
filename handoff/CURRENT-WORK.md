@@ -328,3 +328,12 @@ R4 scope is F30/F34/F35/F36/F38/F40/F41: AccountingCloseControl runtime enforcem
 - R6 scope: F26/F27/F28 plus secondary F29; F30 is canonical runtime-closed from R4 evidence.
 - Human Stage-20 remains PENDING. R3 remains OPEN for F37/F39/F42/F43.
 - Atomic wave rule remains mandatory: no next fix/wave until R6 source is fully tested, committed, pushed, clean, and HEAD equals origin/main.
+
+## R3 residual verification — 2026-09-25
+
+- Exact pre-wave checkpoint: commit `bd4abf386c56bce283f10c08ff988ea109909b54`, source fingerprint `1d07234c2f58891d1cf95309c65d4465d8c1bb4cb67b77bc4e9e233ae2c274c6` (631 files).
+- R6 is CLOSED on exact PostgreSQL `ci:r6:probe` plus green aggregate gates; automated Stage-20 PASS. Human Stage-20 remains PENDING 12/12.
+- Active R3 work item `T360-20260924-195500` is VERIFICATION for residual F37/F39/F42/F43 only. F29 is runtime-closed by R6.
+- Residual source now exposes payment provider diagnostics, multi-outlet/cashier-target reporting, tenant-scoped device sync diagnostics with ack/requeue, and marketplace order list/import in Admin Integrations.
+- `ci:r3:residual-probe` is required in both PostgreSQL workflows and aggregate evidence. F37/F39/F42/F43 may not close until exact-source runtime probe PASS.
+- R7 remains BLOCKED until R3 residual runtime closure. Atomic wave rule remains mandatory.

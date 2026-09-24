@@ -129,7 +129,7 @@ export class PaymentsService {
     const scope = this.scope(user);
     const limit = Math.min(Math.max(Number.parseInt(query.limit ?? '100', 10) || 100, 1), 500);
     const status = query.status?.trim().toUpperCase();
-    const provider = query.provider?.trim().toLowerCase();
+    const provider = query.provider?.trim();
     return this.prisma.paymentProviderEvent.findMany({
       where: {
         companyId: scope.companyId,

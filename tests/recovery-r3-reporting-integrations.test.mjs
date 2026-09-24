@@ -68,3 +68,28 @@ test('R3 provider simulation uses a real dedicated bootstrap employee fixture in
   assert.match(probe, /process\.env\.SEED_EMPLOYEE_PASSWORD\|\|'CI-Only-Employee-Password-2026!'/);
   assert.match(probe, /const employeeLogin=await request\('\/auth\/login'/);
 });
+
+
+test('R3 residual F37/F39/F42/F43 operator surfaces are wired to real APIs', () => {
+  const residual = fs.readFileSync('apps/admin/app/modules/r3-operations.tsx', 'utf8');
+  const page = fs.readFileSync('apps/admin/app/page.tsx', 'utf8');
+  const extensionsController = fs.readFileSync('apps/api/src/extensions/extensions.controller.ts', 'utf8');
+  const extensionsService = fs.readFileSync('apps/api/src/extensions/extensions.service.ts', 'utf8');
+
+  assert.match(page, /R3OperationsView/);
+  assert.match(residual, /\/payments\/provider-events\?limit=100/);
+  assert.match(residual, /\/reports\/multi-outlet/);
+  assert.match(residual, /\/sales\/cashier-targets/);
+  assert.match(residual, /\/devices\/\$\{deviceId\}\/sync\/diagnostics\?limit=100/);
+  assert.match(residual, /\/devices\/\$\{selectedDeviceId\}\/sync\/ack/);
+  assert.match(residual, /offline-transactions\/\$\{transaction\.id\}\/requeue/);
+  assert.match(residual, /\/marketplace-orders\/import/);
+  assert.match(residual, /request<MarketplaceOrder\[\]>\(token, '\/marketplace-orders'\)/);
+
+  assert.match(extensionsController, /@Get\('devices\/:id\/sync\/diagnostics'\)/);
+  assert.match(extensionsController, /@Permissions\('integration\.view'\)/);
+  assert.match(extensionsService, /async deviceSyncDiagnostics/);
+  assert.match(extensionsService, /syncReceipt\.findMany/);
+  assert.match(extensionsService, /offlineTransaction\.findMany/);
+  assert.match(extensionsService, /companyId: scope\.companyId, branchId: scope\.branchId/);
+});

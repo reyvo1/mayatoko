@@ -4,7 +4,7 @@
   "type": "feature",
   "module": "integrations",
   "wave": "W6",
-  "phase": "IMPLEMENTATION",
+  "phase": "VERIFICATION",
   "risk": "HIGH",
   "owner": "openai",
   "featureFlag": "",
@@ -27,7 +27,8 @@
     "Owner digest recipients must resolve to verified non-revoked Telegram bindings; raw destination strings are not configuration authority.",
     "Low-stock digest compares actual branch inventory against each product minStock without a hard-coded prefilter.",
     "Provider, payment diagnostic, marketplace, and edge operations remain tenant scoped, auditable, retryable, and fail closed.",
-    "R3 CRITICAL/HIGH findings require live GitHub runtime evidence before CLOSED."
+    "R3 CRITICAL/HIGH findings require live GitHub runtime evidence before CLOSED.",
+    "Residual closure for F37/F39/F42/F43 adds operator surfaces and tenant-scoped diagnostics only; R7 remains blocked until exact-source PostgreSQL runtime evidence passes."
   ],
   "acceptanceCriteria": [
     "F22 owner digest has an operator configuration surface.",
@@ -40,7 +41,9 @@
     "F42 edge device/sync operations have complete operator workflow.",
     "F43 marketplace order operations have Admin UI.",
     "F44 owner digest uses verified recipient bindings rather than raw recipient strings.",
-    "GitHub provider/runtime probe exercises verified recipient plus digest delivery on PostgreSQL exact source."
+    "GitHub provider/runtime probe exercises verified recipient plus digest delivery on PostgreSQL exact source.",
+    "F42 device diagnostics read path is tenant/branch scoped and exposes receipt/offline transaction status required for acknowledgement and requeue operations.",
+    "Both GitHub PostgreSQL workflows run ci:r3:residual-probe and aggregate evidence requires the residual R3 probe PASS."
   ],
   "testPlan": [
     "node --test tests/recovery-r3-reporting-integrations.test.mjs",
@@ -50,7 +53,9 @@
     "npm run test:dependency-free",
     "Inventory low-stock regression verifies branch stock/minStock reporting without inventory movement mutation.",
     "Edge sync regression verifies idempotency, retry, duplicate packet, conflict, receipt acknowledgement, and dead-letter requeue.",
-    "GitHub full-system runtime/provider/browser evidence"
+    "GitHub full-system runtime/provider/browser evidence",
+    "npm run ci:r3:residual-probe",
+    "GitHub ci:r3:residual-probe on exact PostgreSQL runtime"
   ],
   "migrationPlan": "No schema change in the first R3 cluster; reuse EmployeeChannelBinding, SystemSetting, Notification, IntegrationConnection, and existing edge/payment/marketplace models. Any later schema requirement must be expand-only and parity-safe.",
   "rollbackPlan": "Revert R3 source while preserving existing verified bindings, notification history, and integration records. Do not delete delivery/audit history.",
@@ -62,5 +67,5 @@
     "docs/FULL-GITHUB-UAT.md"
   ],
   "createdAt": "2026-09-24T19:55:00+08:00",
-  "updatedAt": "2026-09-24T19:55:00+08:00"
+  "updatedAt": "2026-09-25T01:30:00+08:00"
 }

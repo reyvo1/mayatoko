@@ -13,6 +13,7 @@ import EmployeeMasterView from './modules/employee-master';
 import OperationsView from './modules/operations';
 import AssetsFleetView from './modules/assets-fleet';
 import ExtensionsView from './modules/extensions';
+import R3OperationsView from './modules/r3-operations';
 import OperationsControlView from './modules/operations-control';
 import MasterDataView from './modules/master-data';
 import ApiKeysView from './modules/api-keys';
@@ -474,7 +475,7 @@ export default function AdminPage() {
           {activeWorkspace.key === 'people' && (activeDomainView?.key === 'employees' || !activeDomainView ? <EmployeeMasterView token={token} /> : <HrPayrollView token={token} mode={activeDomainView?.key ?? 'payroll'} />)}
           {activeWorkspace.key === 'assets-fleet' && <AssetsFleetView token={token} />}
           {activeWorkspace.key === 'intelligence' && (['automation','schedules'].includes(activeDomainView?.key ?? '') ? <AutomationWorkspace token={token} /> : <AiWorkspace token={token} />)}
-          {activeWorkspace.key === 'integrations' && <ExtensionsView token={token} mode="extensions" />}
+          {activeWorkspace.key === 'integrations' && <><ExtensionsView token={token} mode="extensions" /><R3OperationsView token={token} /></>}
           {activeWorkspace.key === 'settings' && <>
 
             {(!activeDomainView || activeDomainView.key === 'features') && <section className="panel">
