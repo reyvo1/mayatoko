@@ -104,7 +104,7 @@ const checks = {
   workShift: shifts.some((item) => item.id === shift.id), roster: schedules.some((item) => item.employeeId === employee.id), attendancePolicy: policies.some((item) => item.id === policy.id),
   correctionApproved: corrections.some((item) => item.id === correction.id && item.status === 'APPROVED'), device: devices.some((item) => item.id === device.id), geofence: geofences.some((item) => item.id === geofence.id),
   biometricRevoked: biometrics.some((item) => item.id === biometric.id && item.status === 'REVOKED'), assignment: assignments.some((item) => item.id === assignment.id),
-  grossTaxProfile: profiles?.taxProfiles?.some((item) => item.id === taxProfile.id && item.taxMethod === 'GROSS'), socialProfile: profiles?.socialProfiles?.some((item) => item.id === socialProfile.id),
+  grossTaxProfile: profiles?.taxProfiles?.some((item) => item.id === taxProfile.id && item.taxMethod === 'GROSS'), socialProfile: profiles?.socialSecurityProfiles?.some((item) => item.id === socialProfile.id),
   accountingMapping: mappings.some((item) => item.id === mapping.id), telegramVerified: channels.some((item) => item.channel === 'TELEGRAM' && item.verifiedAt),
   notificationPreference: preferences.some((item) => item.eventCode === 'PAYSLIP_PUBLISHED' && item.channel === 'TELEGRAM' && item.enabled), unsupportedNetRejected: true,
 };

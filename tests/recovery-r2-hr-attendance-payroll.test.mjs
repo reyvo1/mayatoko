@@ -80,6 +80,8 @@ test('R2 GitHub runtime probe is mandatory in both full workflows and aggregate 
   assert.match(probe, /attendance\/corrections\/\$\{correction\.id\}\/review/);
   assert.match(probe, /channels\/verify/);
   assert.match(probe, /accounting-mappings/);
+  assert.match(probe, /profiles\?\.socialSecurityProfiles\?\.some/);
+  assert.doesNotMatch(probe, /profiles\?\.socialProfiles\?\.some/);
   for (const workflow of [full, uat]) {
     assert.match(workflow, /id: r2_hr_payroll/);
     assert.match(workflow, /npm run ci:r2:probe/);
