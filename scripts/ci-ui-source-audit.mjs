@@ -15,7 +15,7 @@ const requiredAdminWorkspaces=[
  ['dashboard','/dashboard','Dashboard'],['commerce','/commerce','Penjualan & Order'],['procurement','/procurement','Pembelian'],
  ['inventory-control','/inventory-control','Persediaan'],['operations-control','/operations-control','Kontrol Operasional'],
  ['master-data','/master-data','Produk & Master Data'],['finance','/finance','Keuangan'],['reports','/reports','Laporan & Analitik'],
- ['people','/people','HRIS & Payroll'],['assets-fleet','/assets-fleet','Aset & Armada'],['intelligence','/intelligence','AI & Otomasi'],
+ ['people','/people','HRIS & Payroll'],['assets-fleet','/assets-fleet','Aset & Armada'],['intelligence','/intelligence','Forecast & Otomasi'],
  ['integrations','/integrations','Integrasi & Notifikasi'],['organization','/organization','Tenant & Organisasi'],['settings','/settings','Pengaturan & Akses'],
 ];
 for(const [key,route,label] of requiredAdminWorkspaces){

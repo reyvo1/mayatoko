@@ -10,7 +10,7 @@ type ForecastSuggestion = { id: string; productId: string; currentStock: number;
 type ForecastRun = { id: string; warehouseId?: string | null; model: string; horizonDays: number; parameters?: Record<string, unknown> | null; status: string; createdAt: string; completedAt?: string | null; suggestions: ForecastSuggestion[] };
 type OperatorInsight = { id: string; category: string; severity: string; title: string; summary: string; explanation: Record<string, unknown>; sourceLinks: Array<Record<string, unknown>>; recommendedAction?: Record<string, unknown> | null; status: string; lastObservedAt: string };
 type AssistantInteraction = { id: string; question: string; intent: string; response: { answer?: string; confidence?: number; guardrail?: string }; sourceLinks: Array<Record<string, unknown>>; confidence: string | number; createdAt: string };
-type AssistantAnswer = { id: string; answer: string; intent: string; confidence: number; guardrail: string; recommendedNextStep?: { execution?: string; deepLink?: string | null } | null; sources: Array<Record<string, unknown>> };
+type AssistantAnswer = { id: string; answer: string; intent: string; confidence: number; capabilityType: 'DETERMINISTIC_RULE_BASED'; aiProvider: null; guardrail: string; recommendedNextStep?: { execution?: string; deepLink?: string | null } | null; sources: Array<Record<string, unknown>> };
 
 async function api<T>(token: string, path: string, init?: RequestInit): Promise<T> {
   const response = await authFetch(`${API}${path}`, token, { ...init, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) } });
@@ -42,7 +42,7 @@ export default function AiWorkspace({ token }: { token: string }) {
       setForecasts(fc); setInsights(ins); setHistory(hist); setWarehouses(wh);
       setForecastForm((current) => ({ ...current, warehouseId: current.warehouseId || wh[0]?.id || '' }));
       setMessage('');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal memuat AI & forecast workspace.'); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal memuat forecast & automation workspace.'); }
   }
 
   useEffect(() => { void load(); }, [token]);
@@ -88,7 +88,7 @@ export default function AiWorkspace({ token }: { token: string }) {
     <section className="stats">
       <article className="statCard"><small>Forecast run</small><strong>{forecasts.length}</strong><span className="delta">{latestForecast?.model ?? 'belum ada model'}</span></article>
       <article className="statCard"><small>Insight terbuka</small><strong>{openInsights.length}</strong><span className={highInsights ? 'delta warnText' : 'delta'}>{highInsights} high/critical</span></article>
-      <article className="statCard"><small>Assistant history</small><strong>{history.length}</strong><span className="delta">grounded & tenant scoped</span></article>
+      <article className="statCard"><small>Assistant deterministik</small><strong>{history.length}</strong><span className="delta">rule-based · tanpa LLM/provider AI</span></article>
     </section>
 
     <section className="grid2">
@@ -101,13 +101,13 @@ export default function AiWorkspace({ token }: { token: string }) {
         </form>
       </Panel>
 
-      <Panel eyebrow="OPERATOR ASSISTANT" title="Tanya berdasarkan sumber" badge="read only">
+      <Panel eyebrow="DETERMINISTIC ASSISTANT" title="Tanya berdasarkan rule & sumber" badge="tanpa LLM">
         <form className="formStack" onSubmit={askAssistant}>
           <label>Intent<select value={intent} onChange={(e) => setIntent(e.target.value)}>{['AUTO','STOCK','FINANCE','AUTOMATION','REPORTING'].map((value) => <option key={value}>{value}</option>)}</select></label>
           <label>Pertanyaan<textarea required maxLength={500} value={question} onChange={(e) => setQuestion(e.target.value)} /></label>
           <button disabled={busy}>Analisis sumber</button>
         </form>
-        {answer && <div className="notice"><strong>{answer.intent} · confidence {Math.round(answer.confidence * 100)}%</strong><p>{answer.answer}</p><small>{answer.guardrail}</small><div className="rowActions">{answer.sources.map((source, index) => <span key={index} className="pill">{String(source.type ?? 'source')} {source.id ? `· ${String(source.id).slice(0,8)}` : ''}</span>)}</div></div>}
+        {answer && <div className="notice"><strong>{answer.intent} · deterministic · confidence {Math.round(answer.confidence * 100)}%</strong><p>{answer.answer}</p><small>{answer.guardrail}</small><div className="rowActions">{answer.sources.map((source, index) => <span key={index} className="pill">{String(source.type ?? 'source')} {source.id ? `· ${String(source.id).slice(0,8)}` : ''}</span>)}</div></div>}
       </Panel>
     </section>
 
@@ -120,7 +120,7 @@ export default function AiWorkspace({ token }: { token: string }) {
       <Table head={['Product','Available','Reserved','Avg/day','Safety','Suggestion','Status']} rows={(latestForecast?.suggestions ?? []).map((item) => [item.productId.slice(0,8),String(item.currentStock),String(item.reservedStock),String(item.averageDailySales),String(item.safetyStock),<strong key={item.id}>{item.suggestedQty}</strong>,<StatusChip status={item.status}/>])} empty="Belum ada reorder suggestion." />
     </Panel>
 
-    <Panel eyebrow="ASSISTANT AUDIT" title="Interaction history" badge={`${history.length} query`}>
+    <Panel eyebrow="RULE-BASED ASSISTANT AUDIT" title="Interaction history" badge={`${history.length} query`}>
       <Table head={['Waktu','Intent','Pertanyaan','Jawaban','Confidence']} rows={history.slice(0,30).map((item) => [tanggal(item.createdAt),item.intent,item.question,item.response?.answer ?? '-',`${Math.round(Number(item.confidence) * 100)}%`])} empty="Belum ada interaction history." />
     </Panel>
 

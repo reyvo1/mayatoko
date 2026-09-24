@@ -23,7 +23,7 @@ const layouts = [
 ].map((path) => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
 
 test('admin navigation exposes complete operator information architecture without duplicate fake areas', () => {
-  for (const label of ['Dashboard','Penjualan & Order','Pembelian','Persediaan','Kontrol Operasional','Produk & Master Data','Keuangan','Laporan & Analitik','HRIS & Payroll','Aset & Armada','AI & Otomasi','Integrasi & Notifikasi','Tenant & Organisasi','Pengaturan & Akses']) assert.match(admin, new RegExp(label.replace(/[&]/g, '\\&')));
+  for (const label of ['Dashboard','Penjualan & Order','Pembelian','Persediaan','Kontrol Operasional','Produk & Master Data','Keuangan','Laporan & Analitik','HRIS & Payroll','Aset & Armada','Forecast & Otomasi','Integrasi & Notifikasi','Tenant & Organisasi','Pengaturan & Akses']) assert.match(admin, new RegExp(label.replace(/[&]/g, '\\&')));
   assert.match(adminShell, /className="sidebar/);
   assert.match(adminShell, /className="domainTabs"/);
   assert.doesNotMatch(adminShell, /workspaceRail|domainDeck|Mode kerja:/);

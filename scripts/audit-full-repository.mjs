@@ -61,7 +61,7 @@ for (const app of uiRoots) {
 
 const navigation = text(path.join(root,'apps/admin/app/navigation.ts'));
 const domains = text(path.join(root,'apps/admin/app/domain-workspaces.ts'));
-for (const expected of ['AI & Otomasi','Integrasi & Notifikasi','Tenant & Organisasi','Pengaturan & Akses']) if (!navigation.includes(expected)) critical.push(`Admin navigation belum memuat ${expected}`);
+for (const expected of ['Forecast & Otomasi','Integrasi & Notifikasi','Tenant & Organisasi','Pengaturan & Akses']) if (!navigation.includes(expected)) critical.push(`Admin navigation belum memuat ${expected}`);
 for (const expected of ['Telegram & WhatsApp','Notification Center','Integrasi Eksternal','AI Assistant','Forecast','Cabang & Gudang','User & Role','Security','API Key']) if (!domains.includes(expected)) critical.push(`Admin domain workspace belum memuat ${expected}`);
 for (const legacy of ['className="workspaceRail"','className="domainDeck"','className="domainContext"','className="statusbar"']) if (text(path.join(root,'apps/admin/app/app-shell.tsx')).includes(legacy)) critical.push(`Admin shell masih merender legacy layer ${legacy}`);
 
@@ -82,7 +82,7 @@ const audit = {
     telegramWhatsapp: 'Integrasi & Notifikasi > Telegram & WhatsApp',
     providerIntegrations: 'Integrasi & Notifikasi > Integrasi Eksternal',
     notifications: 'Integrasi & Notifikasi > Notification Center',
-    ai: 'AI & Otomasi > AI Assistant / Forecast',
+    ai: 'Forecast & Otomasi > AI Assistant / Forecast',
   },
   blockers: critical,
   note: 'Machine audit covers the full repository tree excluding generated/cache/dependency directories. PASS means repository-wide structural UI foundation checks passed; semantic business UAT remains separate.',

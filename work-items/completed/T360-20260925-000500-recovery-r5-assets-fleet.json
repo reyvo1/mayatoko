@@ -4,7 +4,7 @@
   "type": "feature",
   "module": "assets-fleet",
   "wave": "W5",
-  "phase": "VERIFICATION",
+  "phase": "CLOSED",
   "risk": "HIGH",
   "owner": "openai",
   "featureFlag": "",
@@ -64,5 +64,14 @@
     ".github/workflows/toko360-full-uat.yml"
   ],
   "createdAt": "2026-09-25T00:05:00+08:00",
-  "updatedAt": "2026-09-25T00:05:00+08:00"
+  "updatedAt": "2026-09-25T00:30:00+08:00",
+  "releaseEvidence": [
+    "Commit 708d34cb7afd259c507844cadf065b23029797ec on origin/main",
+    "GitHub Full System Simulation PASS",
+    "GitHub Full Automated UAT PASS",
+    "ci:r5:probe PASS",
+    "R5 source fingerprint 91f5b3910bed430d5a682fb53a3ce8baf050884674be56269eb39af309781655 (629 files)",
+    "Dependency-free 902/902 PASS",
+    "Human Stage-20 remains PENDING and separate"
+  ]
 }

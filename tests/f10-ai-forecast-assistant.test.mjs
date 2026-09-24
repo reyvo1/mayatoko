@@ -33,7 +33,7 @@ test('F10 assistant is permission-scoped, source-linked and read-only', () => {
   assert.match(service, /this\.hasPermission\(user, 'automation\.manage'\)/);
   assert.match(service, /this\.hasPermission\(user, 'report\.view'\)/);
   assert.match(service, /HUMAN_CONFIRMATION_REQUIRED/);
-  assert.match(service, /Assistant hanya merangkum sumber tenant\/branch yang diizinkan dan tidak mengeksekusi mutasi bisnis/);
+  assert.match(service, /Assistant deterministik hanya merangkum sumber tenant\/branch yang diizinkan; tidak memakai model AI\/LLM eksternal dan tidak mengeksekusi mutasi bisnis/);
   assert.doesNotMatch(service.slice(service.indexOf('async operatorAssistantQuery'), service.indexOf('async shipments')), /purchaseOrder\.create|journalEntry\.create|inventory\.update/);
 });
 
@@ -56,7 +56,7 @@ test('F10 API permissions separate forecast read-run and assistant use-manage', 
 test('F10 Admin exposes forecast insight assistant and interaction history', () => {
   assert.match(admin, /Explainable stock forecast/);
   assert.match(admin, /Operator insights/);
-  assert.match(admin, /Tanya berdasarkan sumber/);
+  assert.match(admin, /Tanya berdasarkan rule & sumber/);
   assert.match(admin, /Interaction history/);
   assert.match(admin, /\/operator-assistant\/query/);
   assert.match(admin, /\/operator-insights\/refresh/);

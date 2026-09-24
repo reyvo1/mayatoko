@@ -29,7 +29,7 @@ test('F12R4 Admin exposes the complete operator information architecture explici
     ['reports', '/reports', 'Laporan & Analitik'],
     ['people', '/people', 'HRIS & Payroll'],
     ['assets-fleet', '/assets-fleet', 'Aset & Armada'],
-    ['intelligence', '/intelligence', 'AI & Otomasi'],
+    ['intelligence', '/intelligence', 'Forecast & Otomasi'],
     ['integrations', '/integrations', 'Integrasi & Notifikasi'],
     ['organization', '/organization', 'Tenant & Organisasi'],
     ['settings', '/settings', 'Pengaturan & Akses'],

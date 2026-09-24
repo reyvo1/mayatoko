@@ -1,6 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { LoyaltyTransactionType, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { SecretProtectorService } from '../platform/secret-protector.service';
 import type { EdgeDeviceIdentity } from './edge-device-auth.service';
 import { AuthUser } from '../auth/auth.types';
@@ -17,6 +19,7 @@ import {
   CreateSaleReturnDto, CreateSerialDto, CreateShipmentDto, ImportBankStatementDto, ImportMarketplaceOrderDto,
   LoyaltyTransactionDto, MatchBankReconciliationDto, QueueNotificationDto, RegisterDeviceDto, RunForecastDto, UpsertNotificationTemplateDto,
   AcknowledgeSyncReceiptDto, OperatorAssistantQueryDto, RotateDeviceCredentialDto, SubmitOfflineTransactionsDto, UnmatchBankReconciliationDto,
+  MaterializeDailySummariesDto, RunDataArchiveDto, UpsertDataRetentionPolicyDto, UpsertExternalMappingDto,
 } from './dto/extensions.dto';
 
 const json = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
@@ -1345,6 +1348,165 @@ export class ExtensionsService {
     return this.submitOfflineTransactionsScoped({ companyId: identity.companyId, branchId: identity.branchId }, identity.deviceId, dto);
   }
 
+  async dailySummaries(user: AuthUser, from?: string, to?: string) {
+    const scope = this.requireTenantScope(user);
+    const end = to ? boundaryDate(to, true) : new Date();
+    const start = from ? boundaryDate(from) : new Date(end.getTime() - 30 * 86400000);
+    if (start > end) throw new BadRequestException('Rentang summary tidak valid.');
+    const [sales, finance] = await Promise.all([
+      this.prisma.dailySalesSummary.findMany({
+        where: { companyId: scope.companyId, branchId: scope.branchId, businessDate: { gte: start, lte: end } },
+        orderBy: [{ businessDate: 'desc' }, { channel: 'asc' }], take: 1000,
+      }),
+      this.prisma.dailyFinanceSummary.findMany({
+        where: { companyId: scope.companyId, branchId: scope.branchId, businessDate: { gte: start, lte: end } },
+        orderBy: [{ businessDate: 'desc' }, { accountId: 'asc' }], take: 5000,
+      }),
+    ]);
+    return { sales, finance, from: start.toISOString(), to: end.toISOString() };
+  }
+
+  async materializeDailySummaries(dto: MaterializeDailySummariesDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const requested = dto.businessDate ? boundaryDate(dto.businessDate) : new Date();
+    const businessDate = new Date(Date.UTC(requested.getUTCFullYear(), requested.getUTCMonth(), requested.getUTCDate()));
+    const nextDate = new Date(businessDate.getTime() + 86400000);
+    return this.prisma.$transaction(async (tx) => {
+      const [sales, journalLines] = await Promise.all([
+        tx.sale.findMany({
+          where: { branchId: scope.branchId, branch: { companyId: scope.companyId }, status: 'COMPLETED', createdAt: { gte: businessDate, lt: nextDate } },
+          include: { items: { select: { quantity: true } } },
+        }),
+        tx.journalLine.findMany({
+          where: { account: { branchId: scope.branchId }, journalEntry: { date: { gte: businessDate, lt: nextDate } } },
+          select: { accountId: true, debit: true, credit: true },
+        }),
+      ]);
+      const salesByChannel = new Map<string, { transactionCount: number; itemQuantity: number; grossSales: Prisma.Decimal; discount: Prisma.Decimal; tax: Prisma.Decimal; netSales: Prisma.Decimal; cogs: Prisma.Decimal }>();
+      for (const sale of sales) {
+        const key = String(sale.channel);
+        const row = salesByChannel.get(key) ?? { transactionCount: 0, itemQuantity: 0, grossSales: new Prisma.Decimal(0), discount: new Prisma.Decimal(0), tax: new Prisma.Decimal(0), netSales: new Prisma.Decimal(0), cogs: new Prisma.Decimal(0) };
+        row.transactionCount += 1;
+        row.itemQuantity += sale.items.reduce((sum, item) => sum + item.quantity, 0);
+        row.grossSales = row.grossSales.plus(sale.subtotal);
+        row.discount = row.discount.plus(sale.discount);
+        row.tax = row.tax.plus(sale.tax);
+        row.netSales = row.netSales.plus(sale.total).minus(sale.tax);
+        row.cogs = row.cogs.plus(sale.costTotal);
+        salesByChannel.set(key, row);
+      }
+      const financeByAccount = new Map<string, { debit: Prisma.Decimal; credit: Prisma.Decimal }>();
+      for (const line of journalLines) {
+        const row = financeByAccount.get(line.accountId) ?? { debit: new Prisma.Decimal(0), credit: new Prisma.Decimal(0) };
+        row.debit = row.debit.plus(line.debit); row.credit = row.credit.plus(line.credit);
+        financeByAccount.set(line.accountId, row);
+      }
+      await tx.dailySalesSummary.deleteMany({ where: { companyId: scope.companyId, branchId: scope.branchId, businessDate } });
+      await tx.dailyFinanceSummary.deleteMany({ where: { companyId: scope.companyId, branchId: scope.branchId, businessDate } });
+      if (salesByChannel.size) await tx.dailySalesSummary.createMany({ data: [...salesByChannel.entries()].map(([channel, row]) => ({
+        companyId: scope.companyId, branchId: scope.branchId, businessDate, channel,
+        transactionCount: row.transactionCount, itemQuantity: row.itemQuantity, grossSales: row.grossSales, discount: row.discount, tax: row.tax,
+        netSales: row.netSales, cogs: row.cogs, grossProfit: row.netSales.minus(row.cogs),
+      })) });
+      if (financeByAccount.size) await tx.dailyFinanceSummary.createMany({ data: [...financeByAccount.entries()].map(([accountId, row]) => ({
+        companyId: scope.companyId, branchId: scope.branchId, businessDate, accountId, debit: row.debit, credit: row.credit, balance: row.debit.minus(row.credit),
+      })) });
+      await this.audit(tx, user, scope, 'MATERIALIZE_DAILY_SUMMARIES', 'DailySummary', businessDate.toISOString().slice(0,10), { branchId: scope.branchId, salesChannels: salesByChannel.size, financeAccounts: financeByAccount.size });
+      return { businessDate: businessDate.toISOString(), salesChannels: salesByChannel.size, financeAccounts: financeByAccount.size, sourceSales: sales.length, sourceJournalLines: journalLines.length };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  async retentionPolicies(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.dataRetentionPolicy.findMany({ where: { companyId: scope.companyId }, orderBy: { entityType: 'asc' } });
+  }
+
+  async upsertRetentionPolicy(dto: UpsertDataRetentionPolicyDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const hotDays = dto.hotDays ?? 365; const warmDays = dto.warmDays ?? 1095;
+    if (warmDays < hotDays) throw new BadRequestException('warmDays harus sama atau lebih besar dari hotDays.');
+    const row = await this.prisma.dataRetentionPolicy.upsert({
+      where: { companyId_entityType: { companyId: scope.companyId, entityType: dto.entityType } },
+      create: { companyId: scope.companyId, entityType: dto.entityType, hotDays, warmDays, archiveAfter: dto.archiveAfter ?? true, isActive: dto.isActive ?? true },
+      update: { hotDays, warmDays, archiveAfter: dto.archiveAfter ?? true, isActive: dto.isActive ?? true },
+    });
+    await this.audit(this.prisma, user, scope, 'UPSERT_RETENTION_POLICY', 'DataRetentionPolicy', row.id, { entityType: row.entityType, hotDays: row.hotDays, warmDays: row.warmDays, archiveAfter: row.archiveAfter, isActive: row.isActive });
+    return row;
+  }
+
+  async archiveRuns(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.dataArchiveRun.findMany({ where: { companyId: scope.companyId }, orderBy: { createdAt: 'desc' }, take: 200 });
+  }
+
+  async runArchive(dto: RunDataArchiveDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const policy = await this.prisma.dataRetentionPolicy.findFirst({ where: { id: dto.policyId, companyId: scope.companyId, isActive: true } });
+    if (!policy) return this.denyTenantAccess(this.prisma, user, scope, 'DataRetentionPolicy', dto.policyId);
+    if (!policy.archiveAfter) throw new BadRequestException('Policy ini tidak mengaktifkan archiveAfter.');
+    const provider = (process.env.DATA_ARCHIVE_STORAGE_PROVIDER || '').trim().toLowerCase();
+    if (provider !== 'local') throw new BadRequestException('Archive storage belum dikonfigurasi. Set DATA_ARCHIVE_STORAGE_PROVIDER=local hanya pada environment yang memang memakai local durable volume.');
+    const cutoff = new Date(Date.now() - policy.warmDays * 86400000);
+    const requestedEnd = dto.rangeEnd ? boundaryDate(dto.rangeEnd, true) : cutoff;
+    if (requestedEnd > cutoff) throw new BadRequestException('rangeEnd archive tidak boleh lebih baru dari cutoff warmDays policy.');
+    const previous = await this.prisma.dataArchiveRun.findFirst({ where: { companyId: scope.companyId, entityType: policy.entityType, status: 'COMPLETED' }, orderBy: { rangeEnd: 'desc' } });
+    const rangeStart = previous?.rangeEnd ?? new Date('2000-01-01T00:00:00.000Z');
+    if (requestedEnd <= rangeStart) throw new BadRequestException('Tidak ada rentang archive baru setelah run terakhir.');
+    const run = await this.prisma.dataArchiveRun.create({ data: { companyId: scope.companyId, entityType: policy.entityType, rangeStart, rangeEnd: requestedEnd, status: 'RUNNING', startedAt: new Date() } });
+    try {
+      let rows: unknown[];
+      if (policy.entityType === 'AUDIT_LOG') rows = await this.prisma.auditLog.findMany({ where: { companyId: scope.companyId, createdAt: { gte: rangeStart, lt: requestedEnd } }, orderBy: { createdAt: 'asc' } });
+      else if (policy.entityType === 'ASSISTANT_INTERACTION') rows = await this.prisma.assistantInteraction.findMany({ where: { companyId: scope.companyId, createdAt: { gte: rangeStart, lt: requestedEnd } }, orderBy: { createdAt: 'asc' } });
+      else if (policy.entityType === 'OPERATOR_INSIGHT') rows = await this.prisma.operatorInsight.findMany({ where: { companyId: scope.companyId, createdAt: { gte: rangeStart, lt: requestedEnd } }, orderBy: { createdAt: 'asc' } });
+      else throw new BadRequestException(`Entity archive belum didukung: ${policy.entityType}`);
+      const payload = JSON.stringify({ version: 1, companyId: scope.companyId, entityType: policy.entityType, rangeStart: rangeStart.toISOString(), rangeEnd: requestedEnd.toISOString(), rows }, null, 2);
+      const checksum = createHash('sha256').update(payload).digest('hex');
+      const dir = resolve(process.cwd(), 'data', 'archives', scope.companyId);
+      await mkdir(dir, { recursive: true });
+      const fileName = `${run.id}.json`; await writeFile(resolve(dir, fileName), payload, { flag: 'wx', encoding: 'utf8' });
+      const archiveUri = `local://data/archives/${scope.companyId}/${fileName}`;
+      const completed = await this.prisma.dataArchiveRun.update({ where: { id: run.id }, data: { status: 'COMPLETED', rowsProcessed: rows.length, archiveUri, checksum, finishedAt: new Date() } });
+      await this.audit(this.prisma, user, scope, 'RUN_DATA_ARCHIVE', 'DataArchiveRun', run.id, { entityType: policy.entityType, rowsProcessed: rows.length, checksum, archiveUri });
+      return completed;
+    } catch (error) {
+      await this.prisma.dataArchiveRun.update({ where: { id: run.id }, data: { status: 'FAILED', errorMessage: error instanceof Error ? error.message : String(error), finishedAt: new Date() } });
+      throw error;
+    }
+  }
+
+  async externalMappings(integrationId: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const integration = await this.assertIntegration(this.prisma, user, scope, integrationId);
+    return this.prisma.externalMapping.findMany({ where: { integrationId: integration.id }, orderBy: [{ entityType: 'asc' }, { updatedAt: 'desc' }], take: 1000 });
+  }
+
+  async upsertExternalMapping(integrationId: string, dto: UpsertExternalMappingDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user); const integration = await this.assertIntegration(this.prisma, user, scope, integrationId);
+    const entityType = dto.entityType.trim(); const internalId = dto.internalId.trim(); const externalId = dto.externalId.trim();
+    if (!entityType || !internalId || !externalId) throw new BadRequestException('entityType, internalId, dan externalId wajib diisi.');
+    try {
+      const row = await this.prisma.externalMapping.upsert({
+        where: { integrationId_entityType_internalId: { integrationId: integration.id, entityType, internalId } },
+        create: { integrationId: integration.id, entityType, internalId, externalId, metadata: dto.metadata === undefined ? undefined : json(dto.metadata) },
+        update: { externalId, metadata: dto.metadata === undefined ? undefined : json(dto.metadata) },
+      });
+      await this.audit(this.prisma, user, scope, 'UPSERT_EXTERNAL_MAPPING', 'ExternalMapping', row.id, { integrationId: integration.id, entityType, internalId, externalId });
+      return row;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new BadRequestException('External mapping bentrok dengan externalId yang sudah dipakai.');
+      throw error;
+    }
+  }
+
+  async deleteExternalMapping(integrationId: string, mappingId: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user); const integration = await this.assertIntegration(this.prisma, user, scope, integrationId);
+    const row = await this.prisma.externalMapping.findFirst({ where: { id: mappingId, integrationId: integration.id } });
+    if (!row) return this.denyTenantAccess(this.prisma, user, scope, 'ExternalMapping', mappingId);
+    await this.prisma.externalMapping.delete({ where: { id: row.id } });
+    await this.audit(this.prisma, user, scope, 'DELETE_EXTERNAL_MAPPING', 'ExternalMapping', row.id, { integrationId: integration.id, entityType: row.entityType, internalId: row.internalId, externalId: row.externalId });
+    return { deleted: true, id: row.id };
+  }
+
   async forecasts(user: AuthUser) {
     const scope = this.requireTenantScope(user);
     const warehouseIds = await this.tenantWarehouseIds(this.prisma, scope);
@@ -1570,7 +1732,8 @@ export class ExtensionsService {
     const confidence = sources.length ? Math.min(0.98, 0.55 + sources.length * 0.1) : 0.2;
     const response = {
       answer: facts.join(' '), intent: inferred, confidence,
-      guardrail: 'Assistant hanya merangkum sumber tenant/branch yang diizinkan dan tidak mengeksekusi mutasi bisnis.',
+      capabilityType: 'DETERMINISTIC_RULE_BASED', aiProvider: null,
+      guardrail: 'Assistant deterministik hanya merangkum sumber tenant/branch yang diizinkan; tidak memakai model AI/LLM eksternal dan tidak mengeksekusi mutasi bisnis.',
       recommendedNextStep: sources.length ? { execution: 'HUMAN_CONFIRMATION_REQUIRED', deepLink: sources[0].path ?? null } : null,
     };
     const row = await this.prisma.assistantInteraction.create({ data: { companyId: scope.companyId, branchId: scope.branchId, userId: user.sub, question: q, intent: inferred, response: json(response), sourceLinks: json(sources), confidence: new Prisma.Decimal(confidence) } });
@@ -1651,8 +1814,13 @@ export class ExtensionsService {
       const order = existing
         ? await tx.marketplaceOrder.update({ where: { id: existing.id }, data })
         : await tx.marketplaceOrder.create({ data });
+      await tx.externalMapping.upsert({
+        where: { integrationId_entityType_internalId: { integrationId: integration.id, entityType: 'MarketplaceOrder', internalId: order.id } },
+        create: { integrationId: integration.id, entityType: 'MarketplaceOrder', internalId: order.id, externalId: dto.externalOrderId, metadata: json({ marketplace: dto.marketplace, shopId: dto.shopId ?? null }) },
+        update: { externalId: dto.externalOrderId, metadata: json({ marketplace: dto.marketplace, shopId: dto.shopId ?? null }) },
+      });
       await this.audit(tx, user, scope, existing ? 'UPDATE_MARKETPLACE_ORDER' : 'IMPORT_MARKETPLACE_ORDER', 'MarketplaceOrder', order.id, {
-        branchId: scope.branchId, integrationId: integration.id, externalOrderId: dto.externalOrderId,
+        branchId: scope.branchId, integrationId: integration.id, externalOrderId: dto.externalOrderId, externalMapping: true,
       });
       return order;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

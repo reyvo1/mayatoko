@@ -64,6 +64,7 @@ jobs:
       T360_CI_TELEGRAM_API_BASE_URL: http://127.0.0.1:4789
       T360_PROVIDER_SIM_URL: http://127.0.0.1:4789
       T360_PROVIDER_SIM_LOG: logs/github-uat/provider-simulator.jsonl
+      DATA_ARCHIVE_STORAGE_PROVIDER: local
 
     steps:
       - name: Checkout
@@ -239,6 +240,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r5:probe
 
+      - name: Exercise R6 scale summaries retention archive and capability truth
+        id: r6_scale_ai
+        continue-on-error: true
+        run: npm run ci:r6:probe
+
       - name: Sweep every documented OpenAPI operation against exact runtime
         id: api_sweep
         continue-on-error: true
@@ -367,6 +373,7 @@ jobs:
           STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           STEP_R4_CORE_BUSINESS: ${{ steps.r4_core_business.outcome }}
           STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
+          STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -414,6 +421,7 @@ jobs:
           STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           STEP_R4_CORE_BUSINESS: ${{ steps.r4_core_business.outcome }}
           STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
+          STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -447,6 +455,7 @@ jobs:
           check "R2 HR/attendance/payroll runtime probe" "$STEP_R2_HR_PAYROLL"
           check "R4 core-business runtime probe" "$STEP_R4_CORE_BUSINESS"
           check "R5 assets/fleet runtime probe" "$STEP_R5_ASSETS_FLEET"
+          check "R6 scale/summary/archive/capability runtime probe" "$STEP_R6_SCALE_AI"
           check "Telegram/WhatsApp provider probe" "$STEP_PROVIDER_PROBE"
           check "Stage 18" "$STEP_STAGE18"
           check "Stage 19" "$STEP_STAGE19"

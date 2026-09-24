@@ -1,18 +1,18 @@
 {
-  "version": "2026-09-24-r0.1",
+  "version": "2026-09-25-r6.1",
   "sourceSnapshot": {
-    "gitHead": "c391fc9fd8c42cb6352317853718cba1415a9603",
+    "gitHead": "708d34cb7afd259c507844cadf065b23029797ec",
     "branch": "main",
-    "workingTree": "DIRTY_F12R4_R0_R1_UNCOMMITTED",
+    "workingTree": "DIRTY_R6_UNCOMMITTED",
     "prismaModels": 180,
-    "apiHandlers": 446,
+    "apiHandlers": 455,
     "uiInteractiveElements": 337,
-    "fullRepositoryAuditFiles": 974,
-    "repoValidationFiles": 1259,
+    "fullRepositoryAuditFiles": 953,
+    "repoValidationFiles": 953,
     "tailwindcss": "4.3.3",
     "postcss": "8.5.28"
   },
-  "status": "R1_VERIFICATION",
+  "status": "R6_VERIFICATION",
   "findingCount": 48,
   "unmappedFindingCount": 0,
   "waves": [
@@ -376,7 +376,7 @@
       "title": "Label AI lebih besar dari capability aktual",
       "primaryWave": "R6",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Align AI labels to deterministic capability or implement provider-neutral AI if it is a real product requirement.",
       "runtimeEvidenceRequired": true
     },
@@ -387,7 +387,7 @@
       "title": "DailySalesSummary/DailyFinanceSummary tidak dipakai runtime",
       "primaryWave": "R6",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement and verify sales/finance summary materialization/read paths.",
       "runtimeEvidenceRequired": true
     },
@@ -398,7 +398,7 @@
       "title": "Retention/archive hanya model",
       "primaryWave": "R6",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement retention/archive runtime lifecycle or downgrade/remove the implementation claim.",
       "runtimeEvidenceRequired": true
     },
@@ -409,7 +409,7 @@
       "title": "ExternalMapping model tidak dipakai runtime",
       "primaryWave": "R3",
       "secondaryWave": "R6",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING",
       "closureRequirement": "Implement ExternalMapping lifecycle where adapters need it or deprecate the stale contract.",
       "runtimeEvidenceRequired": true
     },
@@ -420,7 +420,7 @@
       "title": "AccountingCloseControl tidak dipakai runtime",
       "primaryWave": "R4",
       "secondaryWave": "R6",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R4",
       "closureRequirement": "Define AccountingCloseControl canonical role; implement runtime use or safely replace/deprecate it.",
       "runtimeEvidenceRequired": false
     },
@@ -431,7 +431,7 @@
       "title": "AssetMaintenancePlan hanya hidup di worker",
       "primaryWave": "R5",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R5",
       "closureRequirement": "Expose AssetMaintenancePlan management.",
       "runtimeEvidenceRequired": true
     },
@@ -442,7 +442,7 @@
       "title": "VehicleDriverAssignment tidak diimplementasikan",
       "primaryWave": "R5",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R5",
       "closureRequirement": "Implement VehicleDriverAssignment lifecycle.",
       "runtimeEvidenceRequired": true
     },
@@ -453,7 +453,7 @@
       "title": "Assign/transfer/dispose backend tidak terekspos UI",
       "primaryWave": "R5",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "RUNTIME_CLOSED_R5",
       "closureRequirement": "Expose asset assign/transfer/dispose operator flow.",
       "runtimeEvidenceRequired": true
     },

@@ -318,3 +318,13 @@ UI-P7 sekarang VERIFICATION:
 R4 is **IMPLEMENTATION** under `T360-20260924-210000-recovery-r4-core-business` and runs as an explicit parallel recovery item because its declared dependency is R1, which is CLOSED. R3 remains OPEN/IMPLEMENTATION and is not superseded.
 
 R4 scope is F30/F34/F35/F36/F38/F40/F41: AccountingCloseControl runtime enforcement/operator flow, canonical inventory movement ledger exposure, goods receipt reject UI, supplier lifecycle with inactive-procurement fail-close, General Ledger UI, runtime storefront branch switching, and advanced-promotion operator lifecycle. Human Stage-20 remains PENDING and existing UAT assertions must not be weakened.
+
+## R6 active — 2026-09-25
+
+- Baseline commit: `708d34cb7afd259c507844cadf065b23029797ec`.
+- Baseline source fingerprint: `91f5b3910bed430d5a682fb53a3ce8baf050884674be56269eb39af309781655` / 629 files.
+- R5 F31/F32/F33: `RUNTIME_CLOSED_R5` from exact GitHub PostgreSQL probe; do not reopen without regression evidence.
+- Active work item: `T360-20260925-003000-recovery-r6-scale-summary-retention-ai.json`.
+- R6 scope: F26/F27/F28 plus secondary F29; F30 is canonical runtime-closed from R4 evidence.
+- Human Stage-20 remains PENDING. R3 remains OPEN for F37/F39/F42/F43.
+- Atomic wave rule remains mandatory: no next fix/wave until R6 source is fully tested, committed, pushed, clean, and HEAD equals origin/main.

@@ -76,3 +76,9 @@ The only R4 schema expansion is `Supplier.isActive Boolean @default(true)` with 
 R5 is **VERIFICATION** under `T360-20260925-000500-recovery-r5-assets-fleet`. Master scope is F31 `AssetMaintenancePlan` management, F32 `VehicleDriverAssignment` lifecycle, and F33 asset assign/transfer/dispose operator flow. R5 depends only on closed R1, so open R3 findings F29/F37/F39/F42/F43 do not block this wave.
 
 R5 reuses the existing AssetMaintenancePlan and VehicleDriverAssignment schemas with no migration. Admin now exposes maintenance-plan lifecycle, driver assignment lifecycle, asset assignment, explicit Asset handover inspection, transfer, and disposal/sale. Transfer/disposal still require a PASSED/APPROVED inspection; the UI does not auto-pass the gate. F31/F32/F33 remain OPEN_REVALIDATION_REQUIRED until the new exact-source PostgreSQL `ci:r5:probe` and aggregate GitHub gates pass. Human Stage-20 remains PENDING.
+
+## 2026-09-25 — R5 runtime closure / R6 verification
+
+R5 F31/F32/F33 is runtime-closed on origin/main commit `708d34cb7afd259c507844cadf065b23029797ec`. GitHub `ci:r5:probe` PASS is bound to source fingerprint `91f5b3910bed430d5a682fb53a3ce8baf050884674be56269eb39af309781655` (629 files); both full-system workflows are green and Human Stage-20 remains PENDING.
+
+R6 is now the active recovery wave. F26-F29 are source-implemented but require exact PostgreSQL runtime evidence before closure. F30 is recognized as runtime-closed by the R4 AccountingCloseControl close/block/reopen/post probe. R3 remains open for F37/F39/F42/F43; F29 moves to R6 verification because its secondary-wave runtime contract is now implemented here.

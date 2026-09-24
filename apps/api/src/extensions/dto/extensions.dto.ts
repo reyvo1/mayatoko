@@ -196,3 +196,28 @@ export class OperatorAssistantQueryDto {
   @ApiPropertyOptional({ enum: ['AUTO','STOCK','FINANCE','AUTOMATION','REPORTING'] })
   @IsOptional() @IsString() @IsIn(['AUTO','STOCK','FINANCE','AUTOMATION','REPORTING']) intent?: 'AUTO'|'STOCK'|'FINANCE'|'AUTOMATION'|'REPORTING';
 }
+
+export class MaterializeDailySummariesDto {
+  @ApiPropertyOptional({ description: 'Tanggal bisnis YYYY-MM-DD. Default hari ini UTC.' }) @IsOptional() @IsDateString() businessDate?: string;
+}
+
+export class UpsertDataRetentionPolicyDto {
+  @ApiProperty({ enum: ['AUDIT_LOG','ASSISTANT_INTERACTION','OPERATOR_INSIGHT'] })
+  @IsString() @IsIn(['AUDIT_LOG','ASSISTANT_INTERACTION','OPERATOR_INSIGHT']) entityType!: 'AUDIT_LOG'|'ASSISTANT_INTERACTION'|'OPERATOR_INSIGHT';
+  @ApiPropertyOptional({ default: 365 }) @IsOptional() @IsInt() @Min(1) hotDays?: number;
+  @ApiPropertyOptional({ default: 1095 }) @IsOptional() @IsInt() @Min(1) warmDays?: number;
+  @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() archiveAfter?: boolean;
+  @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+export class RunDataArchiveDto {
+  @ApiProperty() @IsString() policyId!: string;
+  @ApiPropertyOptional({ description: 'Batas akhir arsip. Tidak boleh lebih baru dari cutoff warmDays policy.' }) @IsOptional() @IsDateString() rangeEnd?: string;
+}
+
+export class UpsertExternalMappingDto {
+  @ApiProperty() @IsString() @MaxLength(80) entityType!: string;
+  @ApiProperty() @IsString() @MaxLength(200) internalId!: string;
+  @ApiProperty() @IsString() @MaxLength(200) externalId!: string;
+  @ApiPropertyOptional() @IsOptional() @Allow() metadata?: unknown;
+}

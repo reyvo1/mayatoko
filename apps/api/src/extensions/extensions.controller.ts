@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -9,7 +9,7 @@ import {
   CreateSaleReturnDto, CreateSerialDto, CreateShipmentDto, ImportBankStatementDto, ImportMarketplaceOrderDto,
   LoyaltyTransactionDto, MatchBankReconciliationDto, QueueNotificationDto, RegisterDeviceDto, RunForecastDto, UpsertNotificationTemplateDto,
   AcknowledgeSyncReceiptDto, OperatorAssistantQueryDto, RotateDeviceCredentialDto, SetDeviceStatusDto, SubmitOfflineTransactionsDto, UnmatchBankReconciliationDto,
-  UpdateOperatorInsightStatusDto,
+  UpdateOperatorInsightStatusDto, MaterializeDailySummariesDto, RunDataArchiveDto, UpsertDataRetentionPolicyDto, UpsertExternalMappingDto,
 } from './dto/extensions.dto';
 import { ExtensionsService } from './extensions.service';
 
@@ -245,6 +245,48 @@ import { ExtensionsService } from './extensions.service';
     @Body() dto: SubmitOfflineTransactionsDto,
     @CurrentUser() user: AuthUser,
   ) { return this.service.submitOfflineTransactions(id, dto, user); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','FINANCE','AUDITOR') @Get('analytics/daily-summaries')
+  @Permissions('report.view')
+  dailySummaries(@CurrentUser() user: AuthUser, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.service.dailySummaries(user, from, to);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','FINANCE') @Post('analytics/daily-summaries/materialize')
+  @Permissions('report.export')
+  materializeDailySummaries(@Body() dto: MaterializeDailySummariesDto, @CurrentUser() user: AuthUser) {
+    return this.service.materializeDailySummaries(dto, user);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','FINANCE','AUDITOR') @Get('retention/policies')
+  @Permissions('report.view')
+  retentionPolicies(@CurrentUser() user: AuthUser) { return this.service.retentionPolicies(user); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('retention/policies')
+  @Permissions('report.export')
+  upsertRetentionPolicy(@Body() dto: UpsertDataRetentionPolicyDto, @CurrentUser() user: AuthUser) {
+    return this.service.upsertRetentionPolicy(dto, user);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN','AUDITOR') @Get('retention/archive-runs')
+  @Permissions('report.view')
+  archiveRuns(@CurrentUser() user: AuthUser) { return this.service.archiveRuns(user); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('retention/archive-runs')
+  @Permissions('report.export')
+  runArchive(@Body() dto: RunDataArchiveDto, @CurrentUser() user: AuthUser) { return this.service.runArchive(dto, user); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Get('integrations/:id/mappings')
+  @Permissions('integration.view')
+  externalMappings(@Param('id') id: string, @CurrentUser() user: AuthUser) { return this.service.externalMappings(id, user); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Post('integrations/:id/mappings')
+  @Permissions('integration.manage')
+  upsertExternalMapping(@Param('id') id: string, @Body() dto: UpsertExternalMappingDto, @CurrentUser() user: AuthUser) { return this.service.upsertExternalMapping(id, dto, user); }
+
+  @Roles('SUPER_ADMIN','OWNER','ADMIN') @Delete('integrations/:id/mappings/:mappingId')
+  @Permissions('integration.manage')
+  deleteExternalMapping(@Param('id') id: string, @Param('mappingId') mappingId: string, @CurrentUser() user: AuthUser) { return this.service.deleteExternalMapping(id, mappingId, user); }
 
   @Get('forecasts')
   @Permissions('forecast.view')

@@ -22,7 +22,7 @@ test('full UI migration makes Tailwind v4 canonical and audit commands mandatory
 });
 
 test('Admin information architecture exposes tenant, provider, Telegram/WhatsApp and AI explicitly',()=>{
-  for (const label of ['AI & Otomasi','Integrasi & Notifikasi','Tenant & Organisasi','Pengaturan & Akses','Laporan & Analitik']) assert.match(adminNav,new RegExp(label.replace(/[&/]/g,'\\$&')));
+  for (const label of ['Forecast & Otomasi','Integrasi & Notifikasi','Tenant & Organisasi','Pengaturan & Akses','Laporan & Analitik']) assert.match(adminNav,new RegExp(label.replace(/[&/]/g,'\\$&')));
   for(const label of ['Telegram & WhatsApp','AI Assistant','Forecast','Cabang & Gudang','User & Role']) assert.match(adminDomains,new RegExp(label.replace(/[&/]/g,'\\$&')));
   assert.match(adminPage,/activeWorkspace\.key === 'integrations'/);
   assert.match(adminPage,/activeWorkspace\.key === 'intelligence'/);
