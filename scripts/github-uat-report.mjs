@@ -18,6 +18,7 @@ const rows = [
   ['All OpenAPI runtime sweep', process.env.STEP_API_SWEEP],
   ['R1 tenant/access runtime probe', process.env.STEP_R1_TENANT_ACCESS],
   ['R2 HR/attendance/payroll runtime probe', process.env.STEP_R2_HR_PAYROLL],
+  ['R4 core-business runtime probe', process.env.STEP_R4_CORE_BUSINESS],
   ['Telegram/WhatsApp provider probe', process.env.STEP_PROVIDER_PROBE],
   ['Stage 18', process.env.STEP_STAGE18],
   ['Stage 19', process.env.STEP_STAGE19],
