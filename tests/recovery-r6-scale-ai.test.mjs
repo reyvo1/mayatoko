@@ -75,8 +75,12 @@ test('R6 exact-source PostgreSQL probe is wired into both GitHub workflows and a
   const report = read('scripts/github-uat-report.mjs');
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.scripts['ci:r6:probe'], 'node scripts/ci-r6-scale-ai-probe.mjs');
+  assert.match(full, /DATA_ARCHIVE_STORAGE_PROVIDER: local/);
   assert.match(full, /npm run ci:r6:probe/);
+  assert.match(uat, /DATA_ARCHIVE_STORAGE_PROVIDER: local/);
   assert.match(uat, /npm run ci:r6:probe/);
+  const probe = read('scripts/ci-r6-scale-ai-probe.mjs');
+  assert.match(probe, /path\.resolve\(root, 'apps\/api', archiveRelativePath\)/);
   assert.match(summary, /r6ScaleAi/);
   assert.match(report, /R6 scale\/summary\/archive\/capability runtime probe/);
 });

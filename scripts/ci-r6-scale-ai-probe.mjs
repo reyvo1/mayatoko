@@ -68,8 +68,15 @@ try {
   const oldAudit = await prisma.auditLog.create({ data: { companyId: scope.companyId, userId: login.user?.sub || null, action: 'R6_ARCHIVE_FIXTURE', entityType: 'R6Probe', entityId: String(stamp), payload: { runtimeProbe: 'R6' }, createdAt: new Date(Date.now() - 10 * 86400000) } });
   const archive = await request('/retention/archive-runs', { method: 'POST', token, body: { policyId: policy.id, rangeEnd: new Date(Date.now() - 2 * 86400000).toISOString() } });
   if (archive.status !== 'COMPLETED' || archive.rowsProcessed < 1 || !String(archive.archiveUri || '').startsWith('local://') || !/^[a-f0-9]{64}$/.test(archive.checksum || '')) throw new Error(`R6 archive lifecycle gagal: ${JSON.stringify(archive)}`);
-  const archivedFile = path.resolve(root, String(archive.archiveUri).replace(/^local:\/\//, ''));
-  if (!fs.existsSync(archivedFile) || !fs.readFileSync(archivedFile, 'utf8').includes(oldAudit.id)) throw new Error('R6 archive artifact tidak memuat fixture tenant yang diarsipkan.');
+  const archiveRelativePath = String(archive.archiveUri).replace(/^local:\/\//, '');
+  const archiveCandidates = [
+    path.resolve(root, archiveRelativePath),
+    path.resolve(root, 'apps/api', archiveRelativePath),
+  ];
+  const archivedFile = archiveCandidates.find((candidate) => fs.existsSync(candidate));
+  if (!archivedFile || !fs.readFileSync(archivedFile, 'utf8').includes(oldAudit.id)) {
+    throw new Error(`R6 archive artifact tidak memuat fixture tenant yang diarsipkan. candidates=${archiveCandidates.join(',')}`);
+  }
 
   const integration = await prisma.integrationConnection.create({ data: { companyId: scope.companyId, branchId: scope.branchId, type: 'MARKETPLACE', provider: 'R6_PROBE', name: `R6 ${stamp}`, status: 'CONNECTED' } });
   const imported = await request('/marketplace-orders/import', { method: 'POST', token, body: { integrationId: integration.id, externalOrderId: `EXT-${stamp}`, marketplace: 'R6_PROBE', shopId: 'CI', status: 'PAID', orderData: { probe: true } } });

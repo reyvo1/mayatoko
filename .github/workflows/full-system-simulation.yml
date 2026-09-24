@@ -74,6 +74,7 @@ jobs:
       T360_CI_TELEGRAM_API_BASE_URL: http://127.0.0.1:4789
       T360_PROVIDER_SIM_URL: http://127.0.0.1:4789
       T360_PROVIDER_SIM_LOG: logs/github-runtime/provider-simulator.jsonl
+      DATA_ARCHIVE_STORAGE_PROVIDER: local
 
     steps:
       - name: Checkout exact source
