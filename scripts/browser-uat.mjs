@@ -301,17 +301,17 @@ async function main() {
     }
     evidence.checks.push({ id: 'ADMIN_ALL_NAVIGATION_RUNTIME', status: 'PASS', workspaces: adminWorkspaces, domainViews: adminDomainViews, screenshot: await captureSuccessScreenshot(cdp, 'admin-navigation-success') });
 
-    const clickFleet = `(() => { const nodes=[...document.querySelectorAll('button,a')]; const el=nodes.find(x=>x.textContent?.trim().includes('Aset & Fleet')); if(!el)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickFleet, 'Menu Aset & Fleet');
-    await waitExpression(cdp, `document.body && document.body.innerText.includes('Outbound / Delivery Lifecycle') && document.body.innerText.includes('TRIP WORKBENCH')`, 'Delivery Lifecycle Admin', 45000);
+    const clickFleet = `(() => { const el=document.querySelector('.navItem[data-admin-route="/assets-fleet"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
+    await waitExpression(cdp, clickFleet, 'Menu /assets-fleet');
+    await waitExpression(cdp, `Boolean(document.querySelector('.navItem[data-admin-route="/assets-fleet"][aria-current="page"]')) && document.body && document.body.innerText.includes('Outbound / Delivery Lifecycle') && document.body.innerText.includes('TRIP WORKBENCH')`, 'Delivery Lifecycle Admin', 45000);
     const pageText = await cdp.call('Runtime.evaluate', { expression: `document.body.innerText`, returnByValue: true });
     const bodyText = String(pageText?.result?.value || '');
     if (bodyText.includes('Delivery lifecycle gagal dimuat')) throw new Error('Delivery Lifecycle dirender tetapi read model gagal dimuat dari API.');
     evidence.checks.push({ id: 'ADMIN_DELIVERY_LIFECYCLE', status: 'PASS', assertions: ['Outbound / Delivery Lifecycle', 'TRIP WORKBENCH', 'read model tanpa error'] });
 
-    const clickPayroll = `(() => { const nodes=[...document.querySelectorAll('button,a')]; const el=nodes.find(x=>x.textContent?.trim().includes('HRIS & Payroll')); if(!el)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickPayroll, 'Menu HRIS & Payroll');
-    await waitExpression(cdp, `document.body && document.body.innerText.includes('PAYROLL LIFECYCLE') && document.body.innerText.includes('Riwayat Payroll Runs') && document.body.innerText.includes('PPh / BPJS / Potongan')`, 'Payroll Lifecycle Admin', 45000);
+    const clickPayroll = `(() => { const el=document.querySelector('.navItem[data-admin-route="/people"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
+    await waitExpression(cdp, clickPayroll, 'Menu /people');
+    await waitExpression(cdp, `Boolean(document.querySelector('.navItem[data-admin-route="/people"][aria-current="page"]')) && document.body && document.body.innerText.includes('PAYROLL LIFECYCLE') && document.body.innerText.includes('Riwayat Payroll Runs') && document.body.innerText.includes('PPh / BPJS / Potongan')`, 'Payroll Lifecycle Admin', 45000);
     const payrollPageText = await cdp.call('Runtime.evaluate', { expression: `document.body.innerText`, returnByValue: true });
     const payrollBodyText = String(payrollPageText?.result?.value || '');
     if (payrollBodyText.includes('Gagal memuat HR/Payroll') || payrollBodyText.includes('Gagal memuat detail payroll')) throw new Error('Payroll Lifecycle dirender tetapi read model gagal dimuat dari API.');

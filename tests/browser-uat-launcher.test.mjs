@@ -16,14 +16,15 @@ test('browser UAT launcher is fail-closed and uses real Chromium CDP', () => {
 });
 
 test('browser UAT verifies authenticated delivery lifecycle in Admin', () => {
-  assert.match(script, /Aset & Fleet/);
+  assert.match(script, /data-admin-route=\"\/assets-fleet\"/);
+  assert.doesNotMatch(script, /Aset & Fleet/);
   assert.match(script, /Outbound \/ Delivery Lifecycle/);
   assert.match(script, /TRIP WORKBENCH/);
   assert.match(script, /Delivery lifecycle gagal dimuat/);
 });
 
 test('browser UAT verifies payroll lifecycle read model in Admin', () => {
-  assert.match(script, /HRIS & Payroll/);
+  assert.match(script, /data-admin-route=\"\/people\"/);
   assert.match(script, /PAYROLL LIFECYCLE/);
   assert.match(script, /Riwayat Payroll Runs/);
   assert.match(script, /ADMIN_PAYROLL_LIFECYCLE/);

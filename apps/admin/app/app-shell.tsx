@@ -53,7 +53,7 @@ export default function AdminAppShell({ manifest, identity, navigation, activeWo
             <section className="navSection" key={group.group}>
               <div className="navGroup">{group.group}</div>
               {group.items.map((item) => (
-                <button key={item.route} type="button" className={`navItem ${activeWorkspace.route === item.route ? 'active' : ''}`} aria-current={activeWorkspace.route === item.route ? 'page' : undefined} onClick={() => navigate(item.route)}>
+                <button key={item.route} type="button" className={`navItem ${activeWorkspace.route === item.route ? 'active' : ''}`} data-admin-route={item.route} aria-current={activeWorkspace.route === item.route ? 'page' : undefined} onClick={() => navigate(item.route)}>
                   <span className="navIcon"><item.Icon size={18}/></span>
                   <span className="navLabel"><strong>{item.label}</strong><small>{item.description}</small></span>
                 </button>
