@@ -139,3 +139,12 @@ test('Stage-20 creates its evidence directory before fail-closed attempt invalid
   const invalidation = source.indexOf("fs.writeFileSync(path.join(logDir, 'latest.json')");
   assert.ok(logDir >= 0 && mkdir > logDir && invalidation > mkdir);
 });
+
+
+test('Stage-20 persists and emits sanitized API startup diagnostics before propagating health failure', () => {
+  const source = fs.readFileSync('scripts/run-stage20-release-readiness.mjs','utf8');
+  assert.match(source, /function writeApiStartupLog\(/);
+  assert.match(source, /STAGE20_API_STARTUP_LOG/);
+  assert.match(source, /await waitForHealth[\s\S]*?catch \(error\)[\s\S]*?writeApiStartupLog/);
+  assert.match(source, /replaceAll\(config\.databaseUrl, '\[REDACTED_DATABASE_URL\]'\)/);
+});

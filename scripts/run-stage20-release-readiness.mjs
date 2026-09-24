@@ -170,6 +170,16 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sqlLiteral = (value) => `'${String(value).replaceAll("'", "''")}'`;
 const sanitize = (value) => JSON.parse(JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item));
 
+function writeApiStartupLog(logDir, apiLog, secrets = []) {
+  let output = String(apiLog || '');
+  for (const secret of secrets) {
+    if (secret) output = output.replaceAll(String(secret), '[REDACTED]');
+  }
+  const file = path.join(logDir, 'api.log');
+  fs.writeFileSync(file, output);
+  return file;
+}
+
 async function request(baseUrl, pathname) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -284,7 +294,20 @@ async function main() {
     });
     child.stdout.on('data', (chunk) => { apiLog += chunk.toString(); });
     child.stderr.on('data', (chunk) => { apiLog += chunk.toString(); });
-    await waitForHealth(baseUrl, child, Number(values.T360_STAGE20_API_START_TIMEOUT_MS || 60000));
+    try {
+      await waitForHealth(baseUrl, child, Number(values.T360_STAGE20_API_START_TIMEOUT_MS || 60000));
+    } catch (error) {
+      const apiLogFile = writeApiStartupLog(logDir, apiLog, [
+        config.databaseUrl,
+        process.env.JWT_SECRET,
+        process.env.ORDER_ACCESS_SECRET,
+        process.env.SECRET_MASTER_KEY,
+      ]);
+      const tail = apiLog.trim().split(/\r?\n/).slice(-40).join('\n')
+        .replaceAll(config.databaseUrl, '[REDACTED_DATABASE_URL]');
+      if (tail) console.error(`STAGE20_API_STARTUP_LOG (${apiLogFile}):\n${tail}`);
+      throw error;
+    }
 
     const healthSamples = [];
     let healthErrors = 0;
@@ -412,7 +435,12 @@ async function main() {
       `- UAT pending: ${uat.pending.join(', ') || 'none'}`,
       '- Production: not touched', '',
     ].join('\n'));
-    fs.writeFileSync(path.join(logDir, 'api.log'), apiLog.replaceAll(config.databaseUrl, '[REDACTED_DATABASE_URL]'));
+    writeApiStartupLog(logDir, apiLog, [
+      config.databaseUrl,
+      process.env.JWT_SECRET,
+      process.env.ORDER_ACCESS_SECRET,
+      process.env.SECRET_MASTER_KEY,
+    ]);
 
     if (!automatedPassed) throw new Error(`Gate otomatis Tahap 20 diblokir: ${failedAutomated.map((item) => item.id).join(', ')}.`);
     if (!uat.passed) {
