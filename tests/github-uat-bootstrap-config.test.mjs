@@ -30,3 +30,21 @@ test('build gate isolates SQLite compatibility seed from PostgreSQL bootstrap en
   assert.match(buildGate, /db:local:prepare/);
   assert.match(buildGate, /test:db:smoke/);
 });
+
+
+test('GitHub full UAT treats candidate lock as a strict negative assertion, not an ignored failure', () => {
+  const workflow = read('.github/workflows/toko360-full-uat.yml');
+  const report = read('scripts/github-uat-report.mjs');
+
+  assert.match(workflow, /Prove UAT candidate remains fail-closed only because human Stage-20 is pending/);
+  assert.doesNotMatch(
+    workflow,
+    /- name: Prove UAT candidate remains fail-closed only because human Stage-20 is pending[\s\S]*?continue-on-error:\s*true/,
+  );
+  assert.match(workflow, /UAT candidate verifier must not PASS from GitHub automated simulation alone/);
+  assert.match(workflow, /item\.id !== 'STAGE20' && item\.status !== 'PASS'/);
+  assert.match(workflow, /stage20\.reason !== 'Gate evidence belum PASS\.'/);
+  assert.match(workflow, /STEP_CANDIDATE: \$\{\{ steps\.candidate\.outcome \}\}/);
+  assert.match(workflow, /check "UAT candidate fail-closed assertion" "\$STEP_CANDIDATE"/);
+  assert.match(report, /UAT candidate fail-closed assertion/);
+});

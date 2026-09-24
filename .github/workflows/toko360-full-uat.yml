@@ -294,13 +294,48 @@ jobs:
             exit "$code"
           fi
 
-      - name: UAT candidate verifier
+      - name: Prove UAT candidate remains fail-closed only because human Stage-20 is pending
         id: candidate
-        continue-on-error: true
         shell: bash
         run: |
+          set +e
           set -o pipefail
           npm run uat:candidate:verify 2>&1 | tee logs/github-uat/100-uat-candidate.log
+          code=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$code" -eq 0 ]; then
+            echo "::error::UAT candidate verifier must not PASS from GitHub automated simulation alone."
+            exit 1
+          fi
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const evidencePath = 'handoff/quality/uat-candidate-latest.json';
+          if (!fs.existsSync(evidencePath)) {
+            throw new Error('UAT candidate evidence tidak ditemukan.');
+          }
+
+          const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+          if (evidence.status !== 'FAIL' || evidence.uatCandidate !== false) {
+            throw new Error('UAT candidate harus tetap FAIL sampai Human Stage-20 sah.');
+          }
+
+          const stage20 = evidence.checks?.find((item) => item.id === 'STAGE20');
+          const unexpected = (evidence.checks || []).filter(
+            (item) => item.id !== 'STAGE20' && item.status !== 'PASS',
+          );
+
+          if (!stage20 || stage20.status !== 'FAIL' || stage20.reason !== 'Gate evidence belum PASS.') {
+            throw new Error(`Candidate gagal bukan karena Human Stage-20 pending: ${JSON.stringify(stage20)}`);
+          }
+          if (unexpected.length) {
+            throw new Error(`Candidate memiliki failure lain selain Stage-20: ${JSON.stringify(unexpected)}`);
+          }
+
+          console.log('UAT candidate fail-closed assertion PASS: hanya Human Stage-20 yang masih pending.');
+          NODE
 
       - name: Build GitHub UAT report
         if: always()
@@ -371,6 +406,7 @@ jobs:
           STEP_PAYROLL: ${{ steps.payroll.outcome }}
           STEP_STAGE20: ${{ steps.stage20.outcome }}
           STAGE20_MODE: ${{ steps.stage20.outputs.stage20_mode }}
+          STEP_CANDIDATE: ${{ steps.candidate.outcome }}
         run: |
           set -euo pipefail
           failed=0
@@ -400,6 +436,7 @@ jobs:
           check "Stage 19" "$STEP_STAGE19"
           check "Payroll staging" "$STEP_PAYROLL"
           check "Stage 20 automated" "$STEP_STAGE20"
+          check "UAT candidate fail-closed assertion" "$STEP_CANDIDATE"
 
           case "${STAGE20_MODE:-}" in
             FULL_PASS|AUTOMATED_PASS_HUMAN_UAT_PENDING) ;;

@@ -23,7 +23,7 @@ const rows = [
   ['Stage 19', process.env.STEP_STAGE19],
   ['Payroll staging', process.env.STEP_PAYROLL],
   ['Stage 20 automated', process.env.STEP_STAGE20],
-  ['UAT candidate verifier', process.env.STEP_CANDIDATE],
+  ['UAT candidate fail-closed assertion', process.env.STEP_CANDIDATE],
 ];
 
 const norm = (x) => x || 'not-run';
