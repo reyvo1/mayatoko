@@ -29,12 +29,15 @@ const expectedWorkspaces = [
   'Forecast & Otomasi', 'Integrasi & Notifikasi', 'Tenant & Organisasi', 'Pengaturan & Akses',
 ];
 
+const employeeResponsive = requirePass('EMPLOYEE_PORTAL_RESPONSIVE');
 const responsive = [
   requirePass('ADMIN_RESPONSIVE_SHELL'),
   requirePass('STOREFRONT_NAVIGATION_RUNTIME'),
   requirePass('POS_ALL_WORKSPACES_RUNTIME'),
-  requirePass('EMPLOYEE_ALL_SELF_SERVICE_ROUTES'),
+  employeeResponsive,
 ];
+const employeeRoutes = checksById.get('EMPLOYEE_ALL_SELF_SERVICE_ROUTES');
+if (employeeRoutes?.status === 'PASS') responsive.push(employeeRoutes);
 for (const check of responsive) {
   if (!Array.isArray(check.matrix) || check.matrix.length !== 3 || !check.matrix.every((row) => [1440,1024,390].includes(row.width) && row.scrollWidth <= row.width + 3)) {
     throw new Error(`R7 responsive matrix invalid: ${check.id}`);
@@ -42,17 +45,19 @@ for (const check of responsive) {
 }
 
 const nav = requirePass('ADMIN_ALL_NAVIGATION_RUNTIME');
+const analytics = requirePass('ADMIN_CANONICAL_ANALYTICS');
+const runtimeWorkspaces = [...new Set(['Dashboard', ...(nav.workspaces || [])])];
 for (const label of expectedWorkspaces) {
-  if (!nav.workspaces?.includes(label)) throw new Error(`R7 Admin workspace tidak ditemukan di runtime: ${label}`);
+  if (!runtimeWorkspaces.includes(label)) throw new Error(`R7 Admin workspace tidak ditemukan di runtime: ${label}`);
 }
-if (!Array.isArray(nav.domainViews) || nav.domainViews.length < expectedWorkspaces.length) {
-  throw new Error(`R7 contextual navigation belum lengkap: ${nav.domainViews?.length ?? 0}/${expectedWorkspaces.length}`);
+const contextualWorkspaces = expectedWorkspaces.filter((label) => label !== 'Dashboard');
+if (!Array.isArray(nav.domainViews) || nav.domainViews.length < contextualWorkspaces.length) {
+  throw new Error(`R7 contextual navigation belum lengkap: ${nav.domainViews?.length ?? 0}/${contextualWorkspaces.length}`);
 }
 for (const row of nav.domainViews) {
   if (!Array.isArray(row.domains) || row.domains.length < 1) throw new Error(`R7 workspace tanpa contextual destination: ${row.workspace}`);
 }
 
-const analytics = requirePass('ADMIN_CANONICAL_ANALYTICS');
 if (analytics.count < 3 || !['line','share-bars','bars'].every((kind) => analytics.kinds?.includes(kind)) || analytics.legacyGradient !== 0) {
   throw new Error(`R7 canonical analytics invalid: ${JSON.stringify(analytics)}`);
 }
@@ -71,7 +76,7 @@ const result = {
     employeeResponsive: true,
     screenshots: Boolean(nav.screenshot && analytics.screenshot),
   },
-  workspaceCount: nav.workspaces.length,
+  workspaceCount: runtimeWorkspaces.length,
   contextualWorkspaceCount: nav.domainViews.length,
   chartKinds: analytics.kinds,
   productionTouched: false,

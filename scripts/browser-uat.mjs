@@ -386,6 +386,7 @@ async function main() {
 
     await navigateAndAssert(cdp, employeeUrl, `document.body && document.body.innerText.includes('TOKO360 HR') && document.body.innerText.includes('Portal Karyawan')`, 'Employee Portal browser render');
     evidence.checks.push({ id: 'EMPLOYEE_PORTAL_BROWSER_RENDER', status: 'PASS', url: employeeUrl });
+    evidence.checks.push({ id: 'EMPLOYEE_PORTAL_RESPONSIVE', status: 'PASS', matrix: await assertResponsiveMatrix(cdp, 'Employee Portal public shell'), screenshot: await captureSuccessScreenshot(cdp, 'employee-portal-responsive-success') });
     if (String(process.env.T360_UAT_PREPARE_EMPLOYEE_SELF || '').toLowerCase() === 'true') {
       await cdp.call('Runtime.evaluate', { expression: `localStorage.setItem('employeeToken', ${access}); location.reload(); true`, returnByValue: true });
       await waitExpression(cdp, `document.body && document.body.innerText.includes('TOKO360 HR') && document.body.innerText.includes('Halo,') && document.body.innerText.includes('CI-UAT-ADMIN') && document.body.innerText.includes('REKAMAN 31 HARI') && document.body.innerText.includes('Slip Gaji')`, 'Employee Portal authenticated self-service', 45000);
