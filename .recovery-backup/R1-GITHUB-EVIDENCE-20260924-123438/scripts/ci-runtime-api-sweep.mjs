@@ -17,16 +17,9 @@ const swaggerRes=await fetch(swaggerUrl); if(!swaggerRes.ok) throw new Error(`Sw
 const methods=['get','post','put','patch','delete']; const operations=[];
 for(const [route,entry] of Object.entries(swagger.paths||{})) for(const method of methods) if(entry?.[method]) operations.push({route,method,operationId:entry[method].operationId||null,security:entry[method].security??swagger.security??[]});
 function expand(route){return route.replace(/\{[^}]+\}/g,'00000000-0000-4000-8000-000000000999');}
-function runtimePath(route){
-  let pathname=expand(route);
-  if(!pathname.startsWith('/')) pathname=`/${pathname}`;
-  const apiPath=new URL(api).pathname.replace(/\/$/,'');
-  if(apiPath && apiPath!=='/' && (pathname===apiPath || pathname.startsWith(`${apiPath}/`))) pathname=pathname.slice(apiPath.length)||'/';
-  return pathname.startsWith('/')?pathname:`/${pathname}`;
-}
 const statuses={}; const blockers=[]; const results=[];
 for(const op of operations){
-  const pathname=runtimePath(op.route); const url=`${api}${pathname}`;
+  const pathname=expand(op.route); const url=`${api}${pathname.startsWith('/')?'':'/'}${pathname}`;
   const headers={'accept':'application/json','authorization':`Bearer ${loginBody.accessToken}`,'idempotency-key':`ci-api-sweep-${crypto.createHash('sha256').update(op.method+op.route).digest('hex').slice(0,24)}`};
   const init={method:op.method.toUpperCase(),headers}; if(!['get','delete'].includes(op.method)){headers['content-type']='application/json';init.body='{}'}
   let status=0,body=''; try{const response=await fetch(url,init); status=response.status; body=(await response.text()).slice(0,700);}catch(error){blockers.push({route:op.route,method:op.method,error:String(error)});continue}

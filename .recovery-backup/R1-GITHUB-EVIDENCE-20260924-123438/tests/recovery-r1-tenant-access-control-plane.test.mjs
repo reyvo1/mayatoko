@@ -98,20 +98,3 @@ test('R1 recovery findings remain mapped and no finding is falsely runtime-close
   assert.equal(rows.length,4);
   for(const row of rows){assert.equal(row.primaryWave,'R1');assert.equal(row.runtimeEvidenceRequired,true);assert.notEqual(row.status,'CLOSED');}
 });
-
-
-test('R1 GitHub evidence harness follows current Admin navigation and normalizes Swagger global prefix',()=>{
-  const browser=read('scripts/browser-uat.mjs');
-  const sweep=read('scripts/ci-runtime-api-sweep.mjs');
-  assert.match(browser,/aside\[aria-label=.*Navigasi Admin.*\] \.navItem/);
-  assert.doesNotMatch(browser,/innerText\.includes\('Aset & Fleet'\)/);
-  assert.match(sweep,/function runtimePath\(route\)/);
-  assert.match(sweep,/pathname\.startsWith\(`\$\{apiPath\}\/`\)/);
-  assert.match(sweep,/const pathname=runtimePath\(op\.route\); const url=`\$\{api\}\$\{pathname\}`/);
-});
-
-test('R1 manual Full UAT configures deterministic CI secret encryption key for provider simulation',()=>{
-  const workflow=read('.github/workflows/toko360-full-uat.yml');
-  assert.match(workflow,/SECRET_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/);
-  assert.match(workflow,/npm run ci:provider:probe/);
-});

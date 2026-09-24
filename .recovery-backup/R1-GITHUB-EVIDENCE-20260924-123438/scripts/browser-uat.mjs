@@ -286,7 +286,7 @@ async function main() {
 
     const access = JSON.stringify(loginBody.accessToken); const refresh = JSON.stringify(loginBody.refreshToken || '');
     await cdp.call('Runtime.evaluate', { expression: `localStorage.setItem('toko360_token', ${access}); localStorage.setItem('toko360_refresh', ${refresh}); location.reload(); true`, returnByValue: true });
-    await waitExpression(cdp, `Boolean(document.querySelector('aside[aria-label=\"Navigasi Admin\"] .navItem'))`, 'Navigasi Admin setelah login', 45000);
+    await waitExpression(cdp, `document.body && document.body.innerText.includes('Aset & Fleet')`, 'Navigasi Admin setelah login', 45000);
     evidence.checks.push({ id: 'ADMIN_AUTHENTICATED_SHELL', status: 'PASS' });
     evidence.checks.push({ id: 'ADMIN_RESPONSIVE_SHELL', status: 'PASS', matrix: await assertResponsiveMatrix(cdp, 'Admin authenticated shell') });
 

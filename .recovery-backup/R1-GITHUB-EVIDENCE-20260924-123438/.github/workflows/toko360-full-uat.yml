@@ -58,7 +58,6 @@ jobs:
       T360_POS_URL: http://127.0.0.1:3002
       T360_EMPLOYEE_URL: http://127.0.0.1:3003
       WEBHOOK_ALLOW_PRIVATE_TARGETS: "true"
-      SECRET_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       T360_CI_TELEGRAM_API_BASE_URL: http://127.0.0.1:4789
       T360_PROVIDER_SIM_URL: http://127.0.0.1:4789
       T360_PROVIDER_SIM_LOG: logs/github-uat/provider-simulator.jsonl
