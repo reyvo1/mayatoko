@@ -25,6 +25,8 @@ test('browser UAT verifies authenticated delivery lifecycle in Admin', () => {
 
 test('browser UAT verifies payroll lifecycle read model in Admin', () => {
   assert.match(script, /data-admin-route=\"\/people\"/);
+  assert.match(script, /data-admin-route=\"\/people\/payroll\"/);
+  assert.match(script, /Payroll submenu tersedia/);
   assert.match(script, /PAYROLL LIFECYCLE/);
   assert.match(script, /Riwayat Payroll Runs/);
   assert.match(script, /ADMIN_PAYROLL_LIFECYCLE/);

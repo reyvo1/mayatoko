@@ -101,7 +101,7 @@ export default function AdminAppShell({ manifest, identity, navigation, activeWo
           {domainViews.length > 0 && (
             <nav className="domainTabs" aria-label={`${activeWorkspace.label} sub menu`}>
               {domainViews.map((view) => (
-                <button key={view.key} type="button" className={activeDomainView?.key === view.key || (!activeDomainView && domainViews[0]?.key === view.key) ? 'active' : ''} aria-current={activeDomainView?.key === view.key ? 'page' : undefined} onClick={() => onNavigate(domainRoute(activeWorkspace, view))}>
+                <button key={view.key} type="button" className={activeDomainView?.key === view.key || (!activeDomainView && domainViews[0]?.key === view.key) ? 'active' : ''} data-admin-route={domainRoute(activeWorkspace, view)} aria-current={activeDomainView?.key === view.key ? 'page' : undefined} onClick={() => onNavigate(domainRoute(activeWorkspace, view))}>
                   <view.Icon size={16}/><span>{view.label}</span>
                 </button>
               ))}

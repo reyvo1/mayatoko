@@ -309,9 +309,12 @@ async function main() {
     if (bodyText.includes('Delivery lifecycle gagal dimuat')) throw new Error('Delivery Lifecycle dirender tetapi read model gagal dimuat dari API.');
     evidence.checks.push({ id: 'ADMIN_DELIVERY_LIFECYCLE', status: 'PASS', assertions: ['Outbound / Delivery Lifecycle', 'TRIP WORKBENCH', 'read model tanpa error'] });
 
-    const clickPayroll = `(() => { const el=document.querySelector('.navItem[data-admin-route="/people"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickPayroll, 'Menu /people');
-    await waitExpression(cdp, `Boolean(document.querySelector('.navItem[data-admin-route="/people"][aria-current="page"]')) && document.body && document.body.innerText.includes('PAYROLL LIFECYCLE') && document.body.innerText.includes('Riwayat Payroll Runs') && document.body.innerText.includes('PPh / BPJS / Potongan')`, 'Payroll Lifecycle Admin', 45000);
+    const clickPeople = `(() => { const el=document.querySelector('.navItem[data-admin-route="/people"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
+    await waitExpression(cdp, clickPeople, 'Menu /people');
+    await waitExpression(cdp, `Boolean(document.querySelector('.navItem[data-admin-route="/people"][aria-current="page"]')) && Boolean(document.querySelector('.domainTabs [data-admin-route="/people/payroll"]'))`, 'Payroll submenu tersedia', 45000);
+    const clickPayroll = `(() => { const el=document.querySelector('.domainTabs [data-admin-route="/people/payroll"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
+    await waitExpression(cdp, clickPayroll, 'Menu /people/payroll');
+    await waitExpression(cdp, `Boolean(document.querySelector('.domainTabs [data-admin-route="/people/payroll"][aria-current="page"]')) && document.body && document.body.innerText.includes('PAYROLL LIFECYCLE') && document.body.innerText.includes('Riwayat Payroll Runs') && document.body.innerText.includes('PPh / BPJS / Potongan')`, 'Payroll Lifecycle Admin', 45000);
     const payrollPageText = await cdp.call('Runtime.evaluate', { expression: `document.body.innerText`, returnByValue: true });
     const payrollBodyText = String(payrollPageText?.result?.value || '');
     if (payrollBodyText.includes('Gagal memuat HR/Payroll') || payrollBodyText.includes('Gagal memuat detail payroll')) throw new Error('Payroll Lifecycle dirender tetapi read model gagal dimuat dari API.');
