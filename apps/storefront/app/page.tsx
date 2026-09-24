@@ -6,7 +6,7 @@ export type { StorefrontView } from './storefront-shell';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
-const BRANCH_CODE = process.env.NEXT_PUBLIC_BRANCH_CODE ?? 'PUSAT';
+const DEFAULT_BRANCH_CODE = process.env.NEXT_PUBLIC_BRANCH_CODE ?? 'PUSAT';
 
 type Product = {
   id: string;
@@ -18,7 +18,8 @@ type Product = {
   inventories: Array<{ available: number; warehouse: { name: string } }>;
 };
 type CursorPage<T> = { items: T[]; pageInfo: { limit: number; nextCursor: string | null; hasMore: boolean } };
-type RuntimeManifest = { company?: { name?: string }; features: Record<string, { enabled: boolean }> };
+type RuntimeManifest = { company?: { name?: string }; branch?: { code?: string; name?: string }; features: Record<string, { enabled: boolean }> };
+type StorefrontBranch = { id: string; code: string; name: string; address?: string | null };
 type CartItem = { product: Product; quantity: number };
 type OrderResult = { number: string; total: string | number; status: string; accessToken: string; fulfillmentType?: string; shippingCost?: string | number; shippingMethodName?: string | null };
 type CustomerAccount = { id: string; name: string; email?: string | null; phone?: string | null; emailVerifiedAt?: string | null; phoneVerifiedAt?: string | null; address?: string | null; points: number; lifetimePoints?: number; loyaltyTier?: string; customerType: string };
@@ -38,6 +39,8 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [manifest, setManifest] = useState<RuntimeManifest | null>(null);
+  const [branchCode, setBranchCode] = useState(DEFAULT_BRANCH_CODE);
+  const [branches, setBranches] = useState<StorefrontBranch[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState<Tone>('info');
@@ -81,7 +84,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  function customerHeaders(token: string) { return { 'x-branch-code': BRANCH_CODE, 'x-customer-session': token }; }
+  function customerHeaders(token: string) { return { 'x-branch-code': branchCode, 'x-customer-session': token }; }
 
   async function loadAccount(token: string) {
     const headers = customerHeaders(token);
@@ -103,8 +106,8 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     try {
       const endpoint = accountMode === 'login' ? 'login' : 'register';
       const body = accountMode === 'login'
-        ? { branchCode: BRANCH_CODE, email: authForm.email, password: authForm.password }
-        : { branchCode: BRANCH_CODE, name: authForm.name, email: authForm.email, phone: authForm.phone || undefined, address: authForm.address || undefined, password: authForm.password };
+        ? { branchCode: branchCode, email: authForm.email, password: authForm.password }
+        : { branchCode: branchCode, name: authForm.name, email: authForm.email, phone: authForm.phone || undefined, address: authForm.address || undefined, password: authForm.password };
       const response = await fetch(`${API}/storefront/account/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await response.json();
       if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Autentikasi pelanggan gagal.');
@@ -151,30 +154,56 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
   }
 
   useEffect(() => {
+    const saved = window.localStorage.getItem('toko360.storefront.branch');
+    if (saved?.trim()) setBranchCode(saved.trim().toUpperCase());
+  }, []);
+
+  function changeBranch(nextBranchCode: string) {
+    const normalized = nextBranchCode.trim().toUpperCase();
+    if (!normalized || normalized === branchCode) return;
+    window.localStorage.setItem('toko360.storefront.branch', normalized);
+    setBranchCode(normalized);
+    setCart([]);
+    setOrder(null);
+    setAccountToken('');
+    setAccount(null);
+    setAccountOrders([]);
+    setAccountReturns([]);
+    setFavoriteIds([]);
+    window.localStorage.removeItem('toko360.customer.session');
+    notify('Cabang storefront berubah. Keranjang dan sesi pelanggan cabang sebelumnya dibersihkan.', 'info');
+  }
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
     Promise.all([
-      fetch(`${API}/products?branchCode=${encodeURIComponent(BRANCH_CODE)}&limit=100`).then(async (response) => {
+      fetch(`${API}/products?branchCode=${encodeURIComponent(branchCode)}&limit=100`).then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Katalog gagal dimuat.');
         return data as CursorPage<Product>;
       }),
-      fetch(`${API}/platform/manifest?branchCode=${encodeURIComponent(BRANCH_CODE)}`).then(async (response) => {
+      fetch(`${API}/platform/manifest?branchCode=${encodeURIComponent(branchCode)}`).then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Konfigurasi toko gagal dimuat.');
         return data as RuntimeManifest;
       }),
-      fetch(`${API}/storefront/account/fulfillment-options`, { headers: { 'x-branch-code': BRANCH_CODE } }).then(async (response) => {
+      fetch(`${API}/storefront/account/fulfillment-options`, { headers: { 'x-branch-code': branchCode } }).then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Metode fulfillment gagal dimuat.');
         return data as { methods: FulfillmentMethod[] };
       }),
+      fetch(`${API}/platform/storefront-branches?branchCode=${encodeURIComponent(branchCode)}`).then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Daftar cabang storefront gagal dimuat.');
+        return data as StorefrontBranch[];
+      }),
     ])
-      .then(([data, runtime, fulfillment]) => { if (!cancelled) { setProducts(data.items ?? []); setManifest(runtime); setFulfillmentMethods(fulfillment.methods ?? []); const firstDelivery = fulfillment.methods?.find((item) => item.fulfillmentType === 'DELIVERY'); setShippingMethodCode(firstDelivery?.code ?? fulfillment.methods?.[0]?.code ?? ''); setMessage(''); } })
+      .then(([data, runtime, fulfillment, branchRows]) => { if (!cancelled) { setProducts(data.items ?? []); setManifest(runtime); setBranches(branchRows ?? []); setFulfillmentMethods(fulfillment.methods ?? []); const firstDelivery = fulfillment.methods?.find((item) => item.fulfillmentType === 'DELIVERY'); setShippingMethodCode(firstDelivery?.code ?? fulfillment.methods?.[0]?.code ?? ''); setMessage(''); } })
       .catch((error) => { if (!cancelled) notify(error instanceof Error ? error.message : 'API belum dapat dihubungi.', 'error'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [branchCode]);
 
   useEffect(() => {
     const token = localStorage.getItem('toko360.customer.session');
@@ -273,7 +302,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     try {
       const response = await fetch(`${API}/orders`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(accountToken ? { 'x-customer-session': accountToken } : {}) },
-        body: JSON.stringify({ branchCode: BRANCH_CODE, ...customer, customerEmail: customer.customerEmail || undefined, customerPhone: customer.customerPhone || undefined, address: fulfillmentType === 'DELIVERY' ? customer.address : undefined, fulfillmentType, customerAddressId: fulfillmentType === 'DELIVERY' && selectedAddressId ? selectedAddressId : undefined, shippingMethodCode: shippingMethodCode || undefined, promoCode: promoCode.trim() || undefined, items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity })) }),
+        body: JSON.stringify({ branchCode: branchCode, ...customer, customerEmail: customer.customerEmail || undefined, customerPhone: customer.customerPhone || undefined, address: fulfillmentType === 'DELIVERY' ? customer.address : undefined, fulfillmentType, customerAddressId: fulfillmentType === 'DELIVERY' && selectedAddressId ? selectedAddressId : undefined, shippingMethodCode: shippingMethodCode || undefined, promoCode: promoCode.trim() || undefined, items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity })) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Pesanan gagal dibuat.');
@@ -304,7 +333,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     try {
       const response = await fetch(`${API}/orders/${order.number}/payment-selection`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-branch-code': BRANCH_CODE, 'x-order-access-token': order.accessToken },
+        headers: { 'Content-Type': 'application/json', 'x-branch-code': branchCode, 'x-order-access-token': order.accessToken },
         body: JSON.stringify({ paymentMethod }),
       });
       const data = await response.json();
@@ -320,6 +349,9 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
   return (
     <StorefrontShell
       companyName={manifest?.company?.name ?? 'Toko360'}
+      branchCode={branchCode}
+      branches={branches}
+      onBranchChange={changeBranch}
       activeView={activeView}
       cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
       signedIn={Boolean(account)}

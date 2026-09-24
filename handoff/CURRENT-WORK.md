@@ -308,3 +308,9 @@ UI-P7 sekarang VERIFICATION:
 - UI source audit now locks 14 Admin top-level workspaces, critical Telegram/WhatsApp/AI/settings destinations, and rejects inert controls or reintroduced legacy navigation layers.
 - F12R3 deep GitHub UAT work remains authoritative and must not be weakened: repository/UI audit, PostgreSQL migration/runtime, exact build, all-navigation browser geometry/screenshots, API sweep, provider simulation, worker/report, Stage-18/19/20, staging/load/index/DR.
 - Verification still required before push: workflow/repo/full-repo/UI audit, focused F12R4 regression, full dependency-free regression, then local candidate TypeScript/DB/build on the operator repo.
+
+## Recovery R4 — 2026-09-24
+
+R4 is **IMPLEMENTATION** under `T360-20260924-210000-recovery-r4-core-business` and runs as an explicit parallel recovery item because its declared dependency is R1, which is CLOSED. R3 remains OPEN/IMPLEMENTATION and is not superseded.
+
+R4 scope is F30/F34/F35/F36/F38/F40/F41: AccountingCloseControl runtime enforcement/operator flow, canonical inventory movement ledger exposure, goods receipt reject UI, supplier lifecycle with inactive-procurement fail-close, General Ledger UI, runtime storefront branch switching, and advanced-promotion operator lifecycle. Human Stage-20 remains PENDING and existing UAT assertions must not be weakened.

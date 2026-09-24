@@ -112,3 +112,14 @@ export class PreviewTaxDto {
   @ApiProperty() @IsString() taxCodeId!: string;
   @ApiProperty() @IsNumber() amount!: number;
 }
+
+
+export class CreateAccountingCloseControlDto {
+  @ApiPropertyOptional({ default: 'ACCOUNTING' }) @IsOptional() @IsString() module?: string;
+  @ApiProperty() @IsDateString() periodStart!: string;
+  @ApiProperty() @IsDateString() periodEnd!: string;
+}
+
+export class ReopenAccountingCloseControlDto {
+  @ApiProperty() @IsString() reopenReason!: string;
+}

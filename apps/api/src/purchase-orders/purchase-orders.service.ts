@@ -95,7 +95,7 @@ export class PurchaseOrdersService {
     if (!warehouse) return this.denyTenantAccess(user, scope, 'Warehouse', dto.warehouseId);
 
     const supplier = await this.prisma.supplier.findFirst({
-      where: { id: dto.supplierId, companyId: scope.companyId },
+      where: { id: dto.supplierId, companyId: scope.companyId, isActive: true },
       select: { id: true },
     });
     if (!supplier) {

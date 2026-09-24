@@ -56,13 +56,14 @@ function ToastStack({ toasts }: { toasts: ToastItem[] }) {
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 type Product = { id: string; sku: string; name: string; unit: string; costPrice: string | number; salePrice: string | number; trackBatch?: boolean; trackExpiry?: boolean; trackSerial?: boolean; variants?: Array<{ id: string; code: string; name: string; isDefault?: boolean }>; units?: Array<{ id: string; variantId?: string | null; unitCode: string; quantityFactor: number; isDefaultPurchase?: boolean }> };
-type Supplier = { id: string; code: string; name: string; phone?: string };
+type Supplier = { id: string; code: string; name: string; phone?: string | null; email?: string | null; address?: string | null; paymentTermDays?: number; isActive: boolean };
 type Warehouse = { id: string; code: string; name: string; branch: { name: string } };
 type POItem = { id: string; productId: string; variantId?: string | null; productUnitId?: string | null; unitCode?: string | null; unitQuantity?: number | null; quantityFactor: number; orderedQty: number; receivedQty: number; unitCost: string | number; purchaseUnitCost?: string | number | null; product: Product };
 type PurchaseOrder = { id: string; number: string; status: string; supplier: Supplier; warehouse: Warehouse; total: string | number; items: POItem[] };
 type PurchaseRequest = { id: string; number: string; status: string; reason?: string | null; neededBy?: string | null; supplier?: Supplier | null; warehouse: Warehouse; purchaseOrderId?: string | null; items: Array<{ id: string; quantity: number; estimatedUnitCost: string | number; product: Product }> };
 type Receipt = { id: string; number: string; receivedAt: string; operationalStatus: string; inspectionId?: string | null; supplier: Supplier; purchaseOrder: { number: string }; items: Array<{ acceptedQty: number; quantityDamaged: number; product: Product }> };
 type Inventory = { id: string; quantity: number; reserved: number; available: number; product: Product & { minStock: number }; warehouse: Warehouse };
+type InventoryMovement = { id: string; type: string; quantity: number; balanceAfter: number; referenceType?: string | null; referenceId?: string | null; notes?: string | null; createdAt: string; product: Product; warehouse: Warehouse };
 type BranchContext = { company: { id:string; name:string }; activeBranchId:string; homeBranchId:string; canSwitch:boolean; branches:Array<{ id:string; code:string; name:string; isActive:boolean }> };
 type RuntimeManifest = AdminRuntimeManifest;
 type CursorPage<T> = { items: T[]; pageInfo: { limit: number; nextCursor: string | null; hasMore: boolean } };
@@ -102,8 +103,11 @@ export default function AdminPage() {
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [inventories, setInventories] = useState<Inventory[]>([]);
+  const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
   const [branchContext, setBranchContext] = useState<BranchContext | null>(null);
   const [supplierForm, setSupplierForm] = useState({ code: '', name: '', phone: '' });
+  const [supplierEdit, setSupplierEdit] = useState<{ id: string; code: string; name: string; phone: string } | null>(null);
+  const [receiptReject, setReceiptReject] = useState<{ id: string; number: string; reason: string } | null>(null);
   const [purchaseRequestForm, setPurchaseRequestForm] = useState({ supplierId: '', warehouseId: '', productId: '', quantity: 1, estimatedUnitCost: 0, reason: '' });
   const [poForm, setPoForm] = useState({ supplierId: '', warehouseId: '', productId: '', variantId: '', productUnitId: '', orderedQty: 1, unitCost: 0 });
   const [receiptForm, setReceiptForm] = useState({ purchaseOrderId: '', purchaseOrderItemId: '', quantityReceived: 1, quantityDamaged: 0, supplierInvoice: '', deliveryNote: '', batchNumber: '', expiryDate: '', serialNumbers: '' });
@@ -159,17 +163,18 @@ export default function AdminPage() {
 
   async function loadAll(activeToken: string) {
     try {
-      const [d, p, s, w, pr, po, r, i, m, an, bc] = await Promise.all([
+      const [d, p, s, w, pr, po, r, i, im, m, an, bc] = await Promise.all([
         request<Dashboard>('/reports/dashboard', undefined, activeToken), request<CursorPage<Product>>('/products?limit=100', undefined, activeToken),
-        request<CursorPage<Supplier>>('/suppliers?limit=100', undefined, activeToken), request<Warehouse[]>('/inventory/warehouses', undefined, activeToken),
+        request<CursorPage<Supplier>>('/suppliers?limit=100&includeInactive=true', undefined, activeToken), request<Warehouse[]>('/inventory/warehouses', undefined, activeToken),
         request<PurchaseRequest[]>('/purchase-requests', undefined, activeToken), request<CursorPage<PurchaseOrder>>('/purchase-orders?limit=100', undefined, activeToken), request<CursorPage<Receipt>>('/goods-receipts?limit=100', undefined, activeToken),
         request<CursorPage<Inventory>>('/inventory?limit=100', undefined, activeToken),
+        request<CursorPage<InventoryMovement>>('/inventory/movements?limit=100', undefined, activeToken),
         request<RuntimeManifest>('/platform/manifest', undefined, activeToken),
         request<AnalyticsData>('/reports/analytics', undefined, activeToken),
         request<BranchContext>('/auth/branch-context', undefined, activeToken),
       ]);
-      setDashboard(d); setAnalytics(an); setProducts(p.items); setSuppliers(s.items); setWarehouses(w); setPurchaseRequests(pr); setOrders(po.items); setReceipts(r.items); setInventories(i.items); setManifest(m); setBranchContext(bc);
-      const defaults = { supplierId: s.items[0]?.id || '', warehouseId: w[0]?.id || '', productId: p.items[0]?.id || '', cost: Number(p.items[0]?.costPrice ?? 0) };
+      setDashboard(d); setAnalytics(an); setProducts(p.items); setSuppliers(s.items); setWarehouses(w); setPurchaseRequests(pr); setOrders(po.items); setReceipts(r.items); setInventories(i.items); setInventoryMovements(im.items); setManifest(m); setBranchContext(bc);
+      const activeSuppliers = s.items.filter((supplier) => supplier.isActive); const defaults = { supplierId: activeSuppliers[0]?.id || '', warehouseId: w[0]?.id || '', productId: p.items[0]?.id || '', cost: Number(p.items[0]?.costPrice ?? 0) };
       setPurchaseRequestForm((current) => ({ ...current, supplierId: current.supplierId || defaults.supplierId, warehouseId: current.warehouseId || defaults.warehouseId, productId: current.productId || defaults.productId, estimatedUnitCost: current.estimatedUnitCost || defaults.cost }));
       setPoForm((current) => ({ ...current, supplierId: current.supplierId || defaults.supplierId, warehouseId: current.warehouseId || defaults.warehouseId, productId: current.productId || defaults.productId, unitCost: current.unitCost || defaults.cost }));
     } catch (error) { notify(error instanceof Error ? error.message : 'Gagal memuat dashboard.', 'error'); }
@@ -231,6 +236,25 @@ export default function AdminPage() {
     try { await request('/suppliers', { method: 'POST', body: JSON.stringify({ ...supplierForm, phone: supplierForm.phone || undefined }) }); setSupplierForm({ code: '', name: '', phone: '' }); notify('Supplier berhasil ditambahkan.'); await loadAll(token!); }
     catch (error) { notify(error instanceof Error ? error.message : 'Gagal menambah supplier.', 'error'); }
   }
+
+  async function updateSupplier(supplier: Supplier, patch: Partial<Pick<Supplier, 'name'|'phone'|'isActive'>>) {
+    try {
+      await request(`/suppliers/${supplier.id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      notify(`Supplier ${supplier.code} diperbarui.`);
+      await loadAll(token!);
+    } catch (error) { notify(error instanceof Error ? error.message : 'Gagal memperbarui supplier.', 'error'); }
+  }
+
+  async function submitSupplierEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!supplierEdit) return;
+    const supplier = suppliers.find((row) => row.id === supplierEdit.id);
+    if (!supplier) { setSupplierEdit(null); return; }
+    if (!supplierEdit.name.trim()) { notify('Nama supplier wajib diisi.', 'error'); return; }
+    await updateSupplier(supplier, { name: supplierEdit.name.trim(), phone: supplierEdit.phone.trim() || undefined });
+    setSupplierEdit(null);
+  }
+
 
   async function addPurchaseRequest(event: FormEvent) {
     event.preventDefault();
@@ -299,6 +323,18 @@ export default function AdminPage() {
       await loadAll(token!);
     } catch (error) { notify(error instanceof Error ? error.message : 'Penerimaan belum dapat dikonfirmasi.', 'error'); }
   }
+
+  async function submitReceiptReject(event: FormEvent) {
+    event.preventDefault();
+    if (!receiptReject?.reason.trim()) { notify('Alasan penolakan wajib diisi.', 'error'); return; }
+    try {
+      await request(`/goods-receipts/${receiptReject.id}/reject`, { method: 'POST', body: JSON.stringify({ reason: receiptReject.reason.trim() }) });
+      notify(`${receiptReject.number} ditolak tanpa posting stok/jurnal.`);
+      setReceiptReject(null);
+      await loadAll(token!);
+    } catch (error) { notify(error instanceof Error ? error.message : 'Penerimaan gagal ditolak.', 'error'); }
+  }
+
 
   async function switchBranch(branchId: string) {
     if (!token || branchId === branchContext?.activeBranchId) return;
@@ -389,7 +425,7 @@ export default function AdminPage() {
               <form className="panel" onSubmit={addPurchaseRequest}>
                 <div className="panelTitle"><div><span className="eyebrow">PURCHASE REQUEST</span><h2>Ajukan kebutuhan pembelian</h2></div><span>Approval sebelum PO</span></div>
                 <label>Gudang<select required value={purchaseRequestForm.warehouseId} onChange={(e) => setPurchaseRequestForm({ ...purchaseRequestForm, warehouseId: e.target.value })}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-                <label>Supplier opsional<select value={purchaseRequestForm.supplierId} onChange={(e) => setPurchaseRequestForm({ ...purchaseRequestForm, supplierId: e.target.value })}><option value="">Tentukan saat convert PO</option>{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+                <label>Supplier opsional<select value={purchaseRequestForm.supplierId} onChange={(e) => setPurchaseRequestForm({ ...purchaseRequestForm, supplierId: e.target.value })}><option value="">Tentukan saat convert PO</option>{suppliers.filter((item) => item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
                 <label>Produk<select required value={purchaseRequestForm.productId} onChange={(e) => { const product = products.find((p) => p.id === e.target.value); setPurchaseRequestForm({ ...purchaseRequestForm, productId: e.target.value, estimatedUnitCost: Number(product?.costPrice ?? 0) }); }}>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
                 <div className="inline"><label>Jumlah<input type="number" min="1" value={purchaseRequestForm.quantity} onChange={(e) => setPurchaseRequestForm({ ...purchaseRequestForm, quantity: Number(e.target.value) })} /></label><label>Estimasi biaya<input type="number" min="0" value={purchaseRequestForm.estimatedUnitCost} onChange={(e) => setPurchaseRequestForm({ ...purchaseRequestForm, estimatedUnitCost: Number(e.target.value) })} /></label></div>
                 <label>Alasan kebutuhan<input value={purchaseRequestForm.reason} onChange={(e) => setPurchaseRequestForm({ ...purchaseRequestForm, reason: e.target.value })} /></label>
@@ -402,8 +438,8 @@ export default function AdminPage() {
               </div>
             </section>
             <section className="grid2">
-              <form className="panel" onSubmit={addSupplier}><div className="panelTitle"><div><span className="eyebrow">MASTER DATA</span><h2>Tambah supplier</h2></div></div><label>Kode<input required value={supplierForm.code} onChange={(e) => setSupplierForm({ ...supplierForm, code: e.target.value })} /></label><label>Nama<input required value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} /></label><label>Telepon<input value={supplierForm.phone} onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })} /></label><button>Simpan supplier</button></form>
-              <form className="panel" onSubmit={addPO}><div className="panelTitle"><div><span className="eyebrow">PEMBELIAN</span><h2>Buat purchase order</h2></div></div><label>Supplier<select required value={poForm.supplierId} onChange={(e) => setPoForm({ ...poForm, supplierId: e.target.value })}>{suppliers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Gudang<select required value={poForm.warehouseId} onChange={(e) => setPoForm({ ...poForm, warehouseId: e.target.value })}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Produk<select required value={poForm.productId} onChange={(e) => { const product = products.find((p) => p.id === e.target.value); const defaultUnit = product?.units?.find((u) => u.isDefaultPurchase) ?? product?.units?.[0]; setPoForm({ ...poForm, productId: e.target.value, variantId: defaultUnit?.variantId ?? '', productUnitId: defaultUnit?.id ?? '', unitCost: Number(product?.costPrice ?? 0) * Number(defaultUnit?.quantityFactor ?? 1) }); }}>{products.map((item) => <option key={item.id} value={item.id}>{item.name} · base {item.unit}</option>)}</select></label><div className="inline"><label>Variant<select value={poForm.variantId} onChange={(e) => setPoForm({ ...poForm, variantId: e.target.value, productUnitId: '' })}><option value="">Produk dasar</option>{(products.find((p) => p.id === poForm.productId)?.variants ?? []).map((variant) => <option key={variant.id} value={variant.id}>{variant.code} · {variant.name}</option>)}</select></label><label>Unit pembelian<select value={poForm.productUnitId} onChange={(e) => { const product = products.find((p) => p.id === poForm.productId); const unit = product?.units?.find((u) => u.id === e.target.value); setPoForm({ ...poForm, productUnitId: e.target.value, variantId: unit?.variantId ?? poForm.variantId, unitCost: Number(product?.costPrice ?? 0) * Number(unit?.quantityFactor ?? 1) }); }}><option value="">{products.find((p) => p.id === poForm.productId)?.unit ?? 'BASE'} · base unit</option>{(products.find((p) => p.id === poForm.productId)?.units ?? []).filter((u) => !poForm.variantId || u.variantId === poForm.variantId).map((unit) => <option key={unit.id} value={unit.id}>{unit.unitCode} · isi {unit.quantityFactor}</option>)}</select></label></div><div className="inline"><label>Jumlah unit beli<input type="number" min="1" value={poForm.orderedQty} onChange={(e) => setPoForm({ ...poForm, orderedQty: Number(e.target.value) })} /></label><label>Harga per unit beli<input type="number" min="0" value={poForm.unitCost} onChange={(e) => setPoForm({ ...poForm, unitCost: Number(e.target.value) })} /></label></div><button>Buat PO</button></form>
+              <div className="panel"><form onSubmit={addSupplier}><div className="panelTitle"><div><span className="eyebrow">MASTER DATA</span><h2>Supplier lifecycle</h2></div><span>{suppliers.filter((row) => row.isActive).length} aktif</span></div><label>Kode<input required value={supplierForm.code} onChange={(e) => setSupplierForm({ ...supplierForm, code: e.target.value })} /></label><label>Nama<input required value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} /></label><label>Telepon<input value={supplierForm.phone} onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })} /></label><button>Simpan supplier</button></form><div className="table" style={{ marginTop: 14 }}>{suppliers.slice(0,20).map((supplier) => <div className="receipt" key={supplier.id}><div><strong>{supplier.code} · {supplier.name}</strong><small>{supplier.phone || '-'} · {supplier.isActive ? 'ACTIVE' : 'INACTIVE'}</small></div><div className="rowActions"><button type="button" className="secondary" onClick={() => setSupplierEdit({ id: supplier.id, code: supplier.code, name: supplier.name, phone: supplier.phone ?? '' })}>Edit</button><button type="button" className="secondary" onClick={() => void updateSupplier(supplier, { isActive: !supplier.isActive })}>{supplier.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button></div></div>)}</div>{supplierEdit && <form className="inlineEditor" onSubmit={submitSupplierEdit}><strong>Edit {supplierEdit.code}</strong><label>Nama<input required value={supplierEdit.name} onChange={(e) => setSupplierEdit({ ...supplierEdit, name: e.target.value })} /></label><label>Telepon<input value={supplierEdit.phone} onChange={(e) => setSupplierEdit({ ...supplierEdit, phone: e.target.value })} /></label><div className="rowActions"><button type="button" className="secondary" onClick={() => setSupplierEdit(null)}>Batal</button><button>Simpan perubahan</button></div></form>}</div>
+              <form className="panel" onSubmit={addPO}><div className="panelTitle"><div><span className="eyebrow">PEMBELIAN</span><h2>Buat purchase order</h2></div></div><label>Supplier<select required value={poForm.supplierId} onChange={(e) => setPoForm({ ...poForm, supplierId: e.target.value })}>{suppliers.filter((item) => item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Gudang<select required value={poForm.warehouseId} onChange={(e) => setPoForm({ ...poForm, warehouseId: e.target.value })}>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Produk<select required value={poForm.productId} onChange={(e) => { const product = products.find((p) => p.id === e.target.value); const defaultUnit = product?.units?.find((u) => u.isDefaultPurchase) ?? product?.units?.[0]; setPoForm({ ...poForm, productId: e.target.value, variantId: defaultUnit?.variantId ?? '', productUnitId: defaultUnit?.id ?? '', unitCost: Number(product?.costPrice ?? 0) * Number(defaultUnit?.quantityFactor ?? 1) }); }}>{products.map((item) => <option key={item.id} value={item.id}>{item.name} · base {item.unit}</option>)}</select></label><div className="inline"><label>Variant<select value={poForm.variantId} onChange={(e) => setPoForm({ ...poForm, variantId: e.target.value, productUnitId: '' })}><option value="">Produk dasar</option>{(products.find((p) => p.id === poForm.productId)?.variants ?? []).map((variant) => <option key={variant.id} value={variant.id}>{variant.code} · {variant.name}</option>)}</select></label><label>Unit pembelian<select value={poForm.productUnitId} onChange={(e) => { const product = products.find((p) => p.id === poForm.productId); const unit = product?.units?.find((u) => u.id === e.target.value); setPoForm({ ...poForm, productUnitId: e.target.value, variantId: unit?.variantId ?? poForm.variantId, unitCost: Number(product?.costPrice ?? 0) * Number(unit?.quantityFactor ?? 1) }); }}><option value="">{products.find((p) => p.id === poForm.productId)?.unit ?? 'BASE'} · base unit</option>{(products.find((p) => p.id === poForm.productId)?.units ?? []).filter((u) => !poForm.variantId || u.variantId === poForm.variantId).map((unit) => <option key={unit.id} value={unit.id}>{unit.unitCode} · isi {unit.quantityFactor}</option>)}</select></label></div><div className="inline"><label>Jumlah unit beli<input type="number" min="1" value={poForm.orderedQty} onChange={(e) => setPoForm({ ...poForm, orderedQty: Number(e.target.value) })} /></label><label>Harga per unit beli<input type="number" min="0" value={poForm.unitCost} onChange={(e) => setPoForm({ ...poForm, unitCost: Number(e.target.value) })} /></label></div><button>Buat PO</button></form>
             </section>
 
             <section className="panel highlight">
@@ -421,11 +457,15 @@ export default function AdminPage() {
 
             <section className="grid2">
               <div className="panel"><div className="panelTitle"><div><span className="eyebrow">STOK</span><h2>Persediaan gudang</h2></div></div>{inventories.length ? <div className="table"><div className="tr th"><span>Produk</span><span>Gudang</span><span>Tersedia</span></div>{inventories.map((item) => <div className="tr" key={item.id}><span><strong>{item.product.name}</strong><small>{item.product.sku}</small></span><span>{item.warehouse.name}</span><span className={item.available <= item.product.minStock ? 'danger' : 'okText'}>{item.available}</span></div>)}</div> : <div className="emptyState"><h4>Belum ada saldo persediaan</h4><p>Saldo gudang akan tampil setelah penerimaan atau transaksi stok tercatat.</p></div>}</div>
-              <div className="panel"><div className="panelTitle"><div><span className="eyebrow">PENERIMAAN</span><h2>Barang masuk terakhir</h2></div></div>{receipts.length ? <div className="table">{receipts.slice(0,8).map((receipt) => <div className="receipt" key={receipt.id}><div><strong>{receipt.number}</strong><small>{receipt.purchaseOrder.number} · {receipt.supplier.name} · {receipt.operationalStatus}</small></div><div className="rowActions"><span>{receipt.items.reduce((sum,item) => sum + item.acceptedQty,0)} diterima</span>{!['CONFIRMED','PARTIALLY_ACCEPTED','REJECTED','CANCELLED'].includes(receipt.operationalStatus) && <button type="button" className="secondary" onClick={() => void confirmReceipt(receipt)}>Konfirmasi posting</button>}</div></div>)}</div> : <div className="emptyState"><h4>Belum ada penerimaan</h4><p>Penerimaan supplier yang dibuat akan tampil di sini.</p></div>}</div>
+              <div className="panel"><div className="panelTitle"><div><span className="eyebrow">PENERIMAAN</span><h2>Barang masuk terakhir</h2></div></div>{receipts.length ? <div className="table">{receipts.slice(0,8).map((receipt) => <div className="receipt" key={receipt.id}><div><strong>{receipt.number}</strong><small>{receipt.purchaseOrder.number} · {receipt.supplier.name} · {receipt.operationalStatus}</small></div><div className="rowActions"><span>{receipt.items.reduce((sum,item) => sum + item.acceptedQty,0)} diterima</span>{!['CONFIRMED','PARTIALLY_ACCEPTED','REJECTED','CANCELLED'].includes(receipt.operationalStatus) && <><button type="button" className="secondary" onClick={() => setReceiptReject({ id: receipt.id, number: receipt.number, reason: '' })}>Tolak</button><button type="button" onClick={() => void confirmReceipt(receipt)}>Konfirmasi posting</button></>}</div></div>)}</div> : <div className="emptyState"><h4>Belum ada penerimaan</h4><p>Penerimaan supplier yang dibuat akan tampil di sini.</p></div>}{receiptReject && <form className="inlineEditor" onSubmit={submitReceiptReject}><strong>Tolak {receiptReject.number}</strong><label>Alasan<textarea required value={receiptReject.reason} onChange={(e) => setReceiptReject({ ...receiptReject, reason: e.target.value })} /></label><div className="rowActions"><button type="button" className="secondary" onClick={() => setReceiptReject(null)}>Batal</button><button>Tolak penerimaan</button></div></form>}</div>
+            </section>
+            <section className="panel">
+              <div className="panelTitle"><div><span className="eyebrow">INVENTORY LEDGER</span><h2>Canonical inventory movements</h2></div><span>{inventoryMovements.length} movement</span></div>
+              <div className="table"><div className="tr th"><span>Waktu / Referensi</span><span>Produk / Gudang</span><span>Movement / Saldo</span></div>{inventoryMovements.slice(0,30).map((movement) => <div className="tr" key={movement.id}><span><strong>{new Date(movement.createdAt).toLocaleString('id-ID')}</strong><small>{movement.referenceType ?? '-'}:{movement.referenceId ?? '-'}</small></span><span><strong>{movement.product.name}</strong><small>{movement.warehouse.name}</small></span><span><strong>{movement.type} · {movement.quantity > 0 ? '+' : ''}{movement.quantity}</strong><small>balance {movement.balanceAfter}</small></span></div>)}</div>
             </section>
           </>}
 
-          {activeWorkspace.key === 'inventory-control' && <OperationsView token={token} />}
+          {activeWorkspace.key === 'inventory-control' && <><OperationsView token={token} /><section className="panel"><div className="panelTitle"><div><span className="eyebrow">INVENTORY LEDGER</span><h2>Canonical inventory movements</h2></div><span>{inventoryMovements.length} movement</span></div><div className="table"><div className="tr th"><span>Waktu / Referensi</span><span>Produk / Gudang</span><span>Movement / Saldo</span></div>{inventoryMovements.slice(0,50).map((movement) => <div className="tr" key={movement.id}><span><strong>{new Date(movement.createdAt).toLocaleString('id-ID')}</strong><small>{movement.referenceType ?? '-'}:{movement.referenceId ?? '-'}</small></span><span><strong>{movement.product.name}</strong><small>{movement.warehouse.name}</small></span><span><strong>{movement.type} · {movement.quantity > 0 ? '+' : ''}{movement.quantity}</strong><small>balance {movement.balanceAfter}</small></span></div>)}</div></section></>}
           {activeWorkspace.key === 'operations-control' && <OperationsControlView token={token} />}
           {activeWorkspace.key === 'master-data' && <MasterDataView token={token} mode={activeDomainView?.key ?? 'products'} />}
           {activeWorkspace.key === 'organization' && (activeDomainView?.key === 'organization' || !activeDomainView ? <OrganizationAdminView token={token} /> : <MasterDataView token={token} mode={activeDomainView.key} />)}

@@ -59,7 +59,7 @@ export class PurchaseRequestsService {
     const warehouse = await this.prisma.warehouse.findFirst({ where: { id: dto.warehouseId, branchId: scope.branchId, branch: { companyId: scope.companyId } }, select: { id: true } });
     if (!warehouse) throw new BadRequestException('Gudang tidak ditemukan pada branch aktif.');
     if (dto.supplierId) {
-      const supplier = await this.prisma.supplier.findFirst({ where: { id: dto.supplierId, companyId: scope.companyId }, select: { id: true } });
+      const supplier = await this.prisma.supplier.findFirst({ where: { id: dto.supplierId, companyId: scope.companyId, isActive: true }, select: { id: true } });
       if (!supplier) throw new BadRequestException('Supplier tidak ditemukan pada company aktif.');
     }
     const productIds = [...new Set(dto.items.map((item) => item.productId))];
@@ -158,6 +158,8 @@ export class PurchaseRequestsService {
     if (request.status !== 'APPROVED') throw new BadRequestException('Hanya purchase request APPROVED yang dapat dikonversi menjadi PO.');
     const supplierId = dto.supplierId ?? request.supplierId;
     if (!supplierId) throw new BadRequestException('Supplier wajib ditentukan sebelum purchase request dikonversi menjadi PO.');
+    const activeSupplier = await this.prisma.supplier.findFirst({ where: { id: supplierId, companyId: scope.companyId, isActive: true }, select: { id: true } });
+    if (!activeSupplier) throw new BadRequestException('Supplier tidak aktif atau tidak tersedia pada company aktif.');
     const order = await this.purchaseOrders.create({
       idempotencyKey: `purchase-request:${request.id}`,
       supplierId,

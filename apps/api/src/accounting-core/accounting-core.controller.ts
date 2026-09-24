@@ -5,7 +5,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { Permissions } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { AccountingCoreService } from './accounting-core.service';
-import { CreateAccountDto, CreatePostingRuleDto, CreateTaxCodeDto, PostManualAccountingEventDto, PreviewTaxDto, UpdateAccountDto, UpdatePostingRuleStatusDto, UpdateTaxCodeStatusDto } from './dto/accounting-core.dto';
+import { CreateAccountDto, CreateAccountingCloseControlDto, CreatePostingRuleDto, CreateTaxCodeDto, PostManualAccountingEventDto, PreviewTaxDto, ReopenAccountingCloseControlDto, UpdateAccountDto, UpdatePostingRuleStatusDto, UpdateTaxCodeStatusDto } from './dto/accounting-core.dto';
 
 @ApiTags('accounting-core') @ApiBearerAuth() @Controller('accounting-core')
   export class AccountingCoreController {
@@ -93,6 +93,27 @@ import { CreateAccountDto, CreatePostingRuleDto, CreateTaxCodeDto, PostManualAcc
   @Roles('SUPER_ADMIN','OWNER','FINANCE') @Permissions('accounting.rule.manage') @Patch('posting-rules/:id/status')
   updatePostingRuleStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdatePostingRuleStatusDto) {
     return this.accounting.updatePostingRuleStatus(id, dto.status, user);
+  }
+
+
+  @Roles('SUPER_ADMIN','OWNER','FINANCE','AUDITOR') @Permissions('finance.view') @Get('close-controls')
+  closeControls(@CurrentUser() user: AuthUser) {
+    return this.accounting.listCloseControls(user);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','FINANCE') @Permissions('finance.close_period') @Post('close-controls')
+  createCloseControl(@CurrentUser() user: AuthUser, @Body() dto: CreateAccountingCloseControlDto) {
+    return this.accounting.createCloseControl(dto, user);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','FINANCE') @Permissions('finance.close_period') @Post('close-controls/:id/close')
+  closeControl(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.accounting.closeControl(id, user);
+  }
+
+  @Roles('SUPER_ADMIN','OWNER','FINANCE') @Permissions('finance.close_period') @Post('close-controls/:id/reopen')
+  reopenCloseControl(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: ReopenAccountingCloseControlDto) {
+    return this.accounting.reopenCloseControl(id, dto.reopenReason, user);
   }
 
   @Roles('SUPER_ADMIN','OWNER','FINANCE') @Permissions('finance.journal') @Post('events/post')

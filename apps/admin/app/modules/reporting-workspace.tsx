@@ -18,6 +18,7 @@ type Comparison = { current: { from: string; to: string; revenue: number; expens
 type DimensionComparison = { branchScope: string; branches: Array<{ id: string; code: string; name: string; revenue: number; expenses: number; netProfit: number }>; costCenters: Array<{ costCenterId: string; label: string; amount: number }> };
 type Integrity = { status: string; blockers: number; warnings: number; trialBalance: { difference: number; balanced: boolean }; balanceSheet: { difference: number; balanced: boolean }; postedEventsMissingJournal: number; failedEvents: number; queuedEvents: number };
 type DrillDown = { account: { code: string; name: string; type: string }; rows: Array<{ journalLineId: string; journalNumber: string; date: string; debit: number; credit: number; runningBalance: number; referenceType: string; referenceId: string; description: string; accountingEvent: null | { id: string; eventType: string; sourceType: string; sourceId: string; status: string } }> };
+type GeneralLedger = { accountCode: string | null; from: string; to: string; entries: Array<{ id: string; number: string; date: string; referenceType: string; referenceId: string; description: string; lines: Array<{ accountCode: string; accountName: string; accountType: string; debit: number; credit: number }> }> };
 type ReportJob = { id: string; reportType: string; format: string; status: string; progress: number; outputUrl?: string | null; errorMessage?: string | null; createdAt: string };
 type CursorResponse<T> = T[] | { items?: T[] };
 
@@ -44,6 +45,7 @@ export default function ReportingWorkspace({ token }: { token: string }) {
   const [dimensions, setDimensions] = useState<DimensionComparison | null>(null);
   const [integrity, setIntegrity] = useState<Integrity | null>(null);
   const [drillDown, setDrillDown] = useState<DrillDown | null>(null);
+  const [generalLedger, setGeneralLedger] = useState<GeneralLedger | null>(null);
   const [accountCode, setAccountCode] = useState('');
   const [jobs, setJobs] = useState<ReportJob[]>([]);
   const [reportType, setReportType] = useState<string>('PROFIT_LOSS');
@@ -95,6 +97,14 @@ export default function ReportingWorkspace({ token }: { token: string }) {
     try {
       setDrillDown(await api<DrillDown>(`/reports/drill-down?accountCode=${encodeURIComponent(accountCode)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=100`));
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal membuka drill-down.'); }
+  }
+
+  async function loadGeneralLedger() {
+    const query = new URLSearchParams({ from, to, limit: '200' });
+    if (accountCode) query.set('accountCode', accountCode);
+    try {
+      setGeneralLedger(await api<GeneralLedger>(`/reports/general-ledger?${query.toString()}`));
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal membuka General Ledger.'); }
   }
 
   async function createExport(event: React.FormEvent) {
@@ -171,6 +181,14 @@ export default function ReportingWorkspace({ token }: { token: string }) {
         <button type="button" onClick={() => void loadDrillDown()}>Buka drill-down</button>
       </div>
       <Table head={['Tanggal','Jurnal','Debit/Credit','Running','Source']} rows={(drillDown?.rows ?? []).map((row) => [tanggal(row.date), `${row.journalNumber} · ${row.description}`, `${rupiah(row.debit)} / ${rupiah(row.credit)}`, rupiah(row.runningBalance), row.accountingEvent ? `${row.accountingEvent.eventType} → ${row.accountingEvent.sourceType}:${row.accountingEvent.sourceId}` : `${row.referenceType}:${row.referenceId}`])} empty="Pilih akun untuk membuka drill-down." />
+    </Panel>
+
+    <Panel eyebrow="GENERAL LEDGER" title="Buku Besar" badge={generalLedger ? `${generalLedger.entries.length} jurnal` : 'READY'}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'end', marginBottom: 12, flexWrap: 'wrap' }}>
+        <label style={{ minWidth: 280 }}>Akun<select value={accountCode} onChange={(event) => setAccountCode(event.target.value)}><option value="">Semua akun</option>{accountOptions.map((row) => <option key={row.code} value={row.code}>{row.code} · {row.name}</option>)}</select></label>
+        <button type="button" onClick={() => void loadGeneralLedger()}>Tampilkan buku besar</button>
+      </div>
+      <Table head={['Tanggal','Jurnal / Source','Akun','Debit','Credit']} rows={(generalLedger?.entries ?? []).flatMap((entry) => entry.lines.map((line) => [tanggal(entry.date), <><strong>{entry.number}</strong><small style={{display:'block'}}>{entry.referenceType}:{entry.referenceId}</small></>, `${line.accountCode} · ${line.accountName}`, rupiah(line.debit), rupiah(line.credit)]))} empty="Klik Tampilkan buku besar untuk memuat jurnal canonical." />
     </Panel>
 
     <Panel eyebrow="TAX REPORT" title="Tax Summary" badge={rupiah(taxSummary?.netIndirectTaxPayable ?? 0)}>

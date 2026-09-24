@@ -30,6 +30,7 @@ type SupplierRefund = { purchaseReturnId: string; purchaseReturnNumber: string; 
 type CustomerReceivable = { orderId: string; orderNumber: string; customerName: string; customerPhone?: string | null; paymentMethod: string; receivableAccountCode: string; grossAmount: string | number; receivedAmount: string | number; pendingAmount: string | number; outstandingAmount: string | number; availableToReceive: string | number; orderStatus: string };
 type FinanceType = 'OPERATING_EXPENSE' | 'OTHER_INCOME' | 'TAX_PAYMENT' | 'SUPPLIER_PAYMENT' | 'SUPPLIER_REFUND' | 'CUSTOMER_RECEIPT' | 'CASH_TRANSFER';
 type FiscalPeriod = { id: string; name: string; startDate: string; endDate: string; status: 'OPEN' | 'SOFT_CLOSED' | 'CLOSED'; closedAt?: string | null };
+type AccountingCloseControl = { id: string; module: string; periodStart: string; periodEnd: string; status: 'OPEN'|'CLOSED'; closedAt?: string | null; reopenReason?: string | null };
 type StatementLine = { id: string; transactionDate: string; description: string; reference?: string | null; debit: string | number; credit: string | number; balance?: string | number | null; matched: boolean; matchedType?: string | null; matchedId?: string | null };
 type BankStatement = { id: string; bankAccountId?: string | null; source: string; fileName?: string | null; periodStart?: string | null; periodEnd?: string | null; openingBalance?: string | number | null; closingBalance?: string | number | null; lines: StatementLine[] };
 type BankReconciliation = { id: string; bankAccountId?: string | null; statementId?: string | null; status: string; startDate: string; endDate: string; bookBalance: string | number; bankBalance: string | number; difference: string | number; matchedCount: number };
@@ -79,6 +80,9 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
   const [supplierRefunds, setSupplierRefunds] = useState<SupplierRefund[]>([]);
   const [customerReceivables, setCustomerReceivables] = useState<CustomerReceivable[]>([]);
   const [periods, setPeriods] = useState<FiscalPeriod[]>([]);
+  const [closeControls, setCloseControls] = useState<AccountingCloseControl[]>([]);
+  const [closeControlForm, setCloseControlForm] = useState({ module: 'ACCOUNTING', periodStart: '', periodEnd: '' });
+  const [reopenReasons, setReopenReasons] = useState<Record<string, string>>({});
   const [statements, setStatements] = useState<BankStatement[]>([]);
   const [reconciliations, setReconciliations] = useState<BankReconciliation[]>([]);
   const [reconDetails, setReconDetails] = useState<ReconciliationDetails | null>(null);
@@ -114,7 +118,7 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
 
   async function refresh() {
     try {
-      const [ev, tx, ac, pr, fin, ap, sr, cr, fp, bs, br, rj] = await Promise.all([
+      const [ev, tx, ac, pr, fin, ap, sr, cr, fp, cc, bs, br, rj] = await Promise.all([
         api<CursorResponse<JournalEvent>>('/accounting-core/events?limit=20'),
         api<CursorResponse<TaxCode>>('/accounting-core/tax-codes'),
         api<Account[]>('/accounting-core/accounts'),
@@ -124,6 +128,7 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
         api<SupplierRefund[]>('/finance-operations/supplier-refunds'),
         api<CustomerReceivable[]>('/finance-operations/customer-receivables'),
         api<FiscalPeriod[]>('/finance/fiscal-periods'),
+        api<AccountingCloseControl[]>('/accounting-core/close-controls'),
         api<BankStatement[]>('/finance/bank-statements'),
         api<BankReconciliation[]>('/finance/reconciliations'),
         api<CursorResponse<ReportJob>>('/reports/jobs?limit=50'),
@@ -133,7 +138,7 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
       const assetAccounts = activeAccountRows.filter((row) => row.type === 'ASSET');
       setEvents(Array.isArray(ev) ? ev : ev.items ?? []); setTaxCodes(Array.isArray(tx) ? tx : tx.items ?? []); setAccounts(accountRows); setPostingRules(pr);
       setFinances(Array.isArray(fin) ? fin : fin.items ?? []); setPayables(ap); setSupplierRefunds(sr); setCustomerReceivables(cr);
-      setPeriods(fp); setStatements(bs); setReconciliations(br); setReportJobs(Array.isArray(rj) ? rj : rj.items ?? []);
+      setPeriods(fp); setCloseControls(cc); setStatements(bs); setReconciliations(br); setReportJobs(Array.isArray(rj) ? rj : rj.items ?? []);
       setForm((current) => ({
         ...current,
         settlementAccount: activeAccountRows.some((row) => row.code === current.settlementAccount) ? current.settlementAccount : assetAccounts[0]?.code ?? current.settlementAccount,
@@ -212,6 +217,29 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
     setMessage('');
     try { await api(`/finance/fiscal-periods/${period.id}/${action}`, { method: 'PATCH' }); setMessage(`${period.name}: ${action} berhasil.`); await refresh(); }
     catch (error) { setMessage(error instanceof Error ? error.message : `Gagal ${action} periode.`); }
+  }
+
+  async function createCloseControl(event: React.FormEvent) {
+    event.preventDefault(); setMessage('');
+    try {
+      await api('/accounting-core/close-controls', { method: 'POST', body: JSON.stringify(closeControlForm) });
+      setCloseControlForm({ module: 'ACCOUNTING', periodStart: '', periodEnd: '' });
+      setMessage('Accounting close control dibuat dalam status OPEN. Tutup untuk memblok posting.');
+      await refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal membuat accounting close control.'); }
+  }
+
+  async function closeControlAction(control: AccountingCloseControl, action: 'close'|'reopen') {
+    setMessage('');
+    try {
+      const reason = reopenReasons[control.id]?.trim();
+      if (action === 'reopen' && !reason) { setMessage('Alasan reopen accounting close control wajib diisi.'); return; }
+      const body = action === 'reopen' ? { reopenReason: reason } : undefined;
+      await api(`/accounting-core/close-controls/${control.id}/${action}`, { method: 'POST', ...(body ? { body: JSON.stringify(body) } : {}) });
+      if (action === 'reopen') setReopenReasons((current) => ({ ...current, [control.id]: '' }));
+      setMessage(`${control.module}: ${action} berhasil.`);
+      await refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : `Gagal ${action} accounting close control.`); }
   }
 
   async function loadStatementFile(file?: File) {
@@ -415,6 +443,17 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
             {period.status === 'CLOSED' && <small>Final</small>}
           </span>,
         ])} empty="Belum ada periode fiskal." />
+      </Panel>}
+
+      {show('fiscal') && <Panel eyebrow="ACCOUNTING CLOSE CONTROL" title="Runtime posting lock" badge={`${closeControls.filter((row) => row.status === 'CLOSED').length} closed`}>
+        <form onSubmit={createCloseControl} style={{ display: 'grid', gridTemplateColumns: '1fr 160px 160px auto', gap: 10, alignItems: 'end', marginBottom: 16 }}>
+          <label>Module<input required value={closeControlForm.module} onChange={(e) => setCloseControlForm({ ...closeControlForm, module: e.target.value.toUpperCase() })} /></label>
+          <label>Mulai<input required type="date" value={closeControlForm.periodStart} onChange={(e) => setCloseControlForm({ ...closeControlForm, periodStart: e.target.value })} /></label>
+          <label>Selesai<input required type="date" value={closeControlForm.periodEnd} onChange={(e) => setCloseControlForm({ ...closeControlForm, periodEnd: e.target.value })} /></label>
+          <button>Buat control</button>
+        </form>
+        <Table head={['Module','Periode','Status','Aksi']} rows={closeControls.map((row) => [row.module, `${tanggal(row.periodStart)} – ${tanggal(row.periodEnd)}`, <StatusChip status={row.status} />, row.status === 'OPEN' ? <button type="button" onClick={() => void closeControlAction(row, 'close')}>Close posting</button> : <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}><input aria-label={`Alasan reopen ${row.module}`} placeholder="Alasan reopen" value={reopenReasons[row.id] ?? ''} onChange={(event) => setReopenReasons((current) => ({ ...current, [row.id]: event.target.value }))} /><button type="button" className="secondary" onClick={() => void closeControlAction(row, 'reopen')}>Reopen</button></span>])} empty="Belum ada accounting close control." />
+        <p className="sectionHelp">Close control CLOSED memblokir posting accounting event pada rentang tanggal tersebut, termasuk posting operasional yang masuk melalui accounting core.</p>
       </Panel>}
 
       {show('payables') && <Panel eyebrow="UTANG USAHA" title="Utang Supplier per Dokumen" badge={`${payables.filter((row) => Number(row.outstandingAmount) > 0).length} terbuka`}>

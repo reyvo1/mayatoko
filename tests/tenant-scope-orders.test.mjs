@@ -37,6 +37,8 @@ test('tax codes and event payloads retain tenant context', () => {
 
 test('storefront carries branch and order access token', () => {
   assert.match(storefront, /NEXT_PUBLIC_BRANCH_CODE/);
-  assert.match(storefront, /branchCode: BRANCH_CODE/);
+  assert.match(storefront, /const \[branchCode, setBranchCode\] = useState\(DEFAULT_BRANCH_CODE\)/);
+  assert.match(storefront, /branchCode: branchCode/);
+  assert.match(storefront, /toko360\.storefront\.branch/);
   assert.match(storefront, /'x-order-access-token': order\.accessToken/);
 });

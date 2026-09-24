@@ -25,6 +25,11 @@ import { PlatformService } from './platform.service';
     @Query('branchId') branchId?: string,
   ) { return this.platform.manifest(user, branchCode, companyId, branchId); }
 
+  @Public() @Get('storefront-branches')
+  storefrontBranches(@Query('branchCode') branchCode?: string) {
+    return this.platform.storefrontBranches(branchCode);
+  }
+
   @Get('modules') modules() { return this.platform.listModules(); }
   @Get('plugins') plugins() { return this.platform.pluginCatalog(); }
 

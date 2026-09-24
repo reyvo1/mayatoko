@@ -88,7 +88,8 @@ test('legacy platform tenant fields are compatibility-only', () => {
 });
 
 test('storefront and mobile pass branch code to public manifest', () => {
-  assert.match(storefront, /platform\/manifest\?branchCode=\$\{encodeURIComponent\(BRANCH_CODE\)\}/);
+  assert.match(storefront, /platform\/manifest\?branchCode=\$\{encodeURIComponent\(branchCode\)\}/);
+  assert.match(storefront, /platform\/storefront-branches\?branchCode=\$\{encodeURIComponent\(branchCode\)\}/);
   assert.match(mobile, /required String branchCode/);
   assert.match(mobile, /queryParameters: \{'branchCode': branchCode\}/);
 });

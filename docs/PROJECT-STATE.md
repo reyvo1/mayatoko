@@ -64,3 +64,9 @@ R2 is **CLOSED** on current green GitHub runtime evidence. The exact current-sou
 R3 is **IMPLEMENTATION** under `T360-20260924-195500-recovery-r3-reporting-integrations`. Scope is F22–F25, F29, F37, F39, F42–F44. The first implementation cluster fixes owner digest at the root: operator configuration is exposed, POST config/send require `notification.manage`, disabled digest cannot be manually sent, low-stock uses each product `minStock` without the old `available <= 10` prefilter, and configured recipients are verified/non-revoked Telegram `EmployeeChannelBinding` IDs rather than raw destination strings.
 
 The GitHub provider simulation is strengthened to create and verify an employee Telegram binding through the real Employee Self-Service API and provider simulator before configuring/sending the owner digest. R3 remains open until the remaining integration/operator findings and current-source runtime/browser/provider evidence pass.
+
+## Recovery R4 — 2026-09-24
+
+R4 is **IMPLEMENTATION** under `T360-20260924-210000-recovery-r4-core-business`. R3 remains independently OPEN. R4 uses existing domain authority rather than replacing it: InventoryMovement remains append-only ledger truth, goods-receipt rejection remains pre-posting only, General Ledger reads posted journals, and promotion checkout remains server authoritative.
+
+The only R4 schema expansion is `Supplier.isActive Boolean @default(true)` with SQLite/PostgreSQL parity. Inactive suppliers are excluded from new procurement but historical supplier transactions remain readable. Storefront environment branch code is now bootstrap fallback; runtime users may switch among active sibling branches discovered from a current valid branch anchor.

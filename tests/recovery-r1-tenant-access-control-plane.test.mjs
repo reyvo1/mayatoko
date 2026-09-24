@@ -68,7 +68,9 @@ test('R1 expand migration is provider-parity and ordered after F11',()=>{
   const pg=read('database/migrations/T360-20260924-r1-session-branch-context/postgresql-expand.sql');
   assert.match(sq,/ADD COLUMN "activeBranchId" TEXT/);
   assert.match(pg,/ADD COLUMN IF NOT EXISTS "activeBranchId" TEXT/);
-  assert.equal(order.migrations[order.migrations.length-1],'T360-20260924-r1-session-branch-context');
+  const r1Index=order.migrations.indexOf('T360-20260924-r1-session-branch-context');
+  const f11Index=order.migrations.indexOf('T360-20260923-f11-transaction-uom');
+  assert.ok(r1Index>f11Index,'R1 migration must remain ordered after F11');
 });
 
 

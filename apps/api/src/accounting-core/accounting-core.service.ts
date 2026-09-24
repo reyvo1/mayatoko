@@ -4,7 +4,7 @@ import { AuthUser } from '../auth/auth.types';
 import { nextDocumentNumber } from '../common/numbering';
 import { decodeCursor, parsePageLimit, toCursorPage } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAccountDto, CreatePostingRuleDto, CreateTaxCodeDto, PostManualAccountingEventDto, UpdateAccountDto } from './dto/accounting-core.dto';
+import { CreateAccountDto, CreateAccountingCloseControlDto, CreatePostingRuleDto, CreateTaxCodeDto, PostManualAccountingEventDto, UpdateAccountDto } from './dto/accounting-core.dto';
 
 export interface OperationalEventLineInput {
   itemType?: string;
@@ -106,6 +106,69 @@ export class AccountingCoreService {
         ...(requestedBranchId ? { requestedBranchId } : {}),
       });
     }
+  }
+
+
+  async listCloseControls(user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.accountingCloseControl.findMany({
+      where: { companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }] },
+      orderBy: [{ periodEnd: 'desc' }, { module: 'asc' }],
+    });
+  }
+
+  async createCloseControl(dto: CreateAccountingCloseControlDto, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const module = (dto.module || 'ACCOUNTING').trim().toUpperCase();
+    const periodStart = new Date(dto.periodStart);
+    const periodEnd = new Date(dto.periodEnd);
+    if (!module) throw new BadRequestException('Module close control wajib diisi.');
+    if (!Number.isFinite(periodStart.getTime()) || !Number.isFinite(periodEnd.getTime()) || periodStart > periodEnd) {
+      throw new BadRequestException('Rentang AccountingCloseControl tidak valid.');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const overlap = await tx.accountingCloseControl.findFirst({
+        where: {
+          companyId: scope.companyId,
+          branchId: scope.branchId,
+          module,
+          periodStart: { lte: periodEnd },
+          periodEnd: { gte: periodStart },
+        },
+      });
+      if (overlap) throw new BadRequestException(`Close control ${module} bertumpang tindih dengan periode yang sudah ada.`);
+      const row = await tx.accountingCloseControl.create({
+        data: { companyId: scope.companyId, branchId: scope.branchId, module, periodStart, periodEnd, status: 'OPEN' },
+      });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_ACCOUNTING_CLOSE_CONTROL', entityType: 'AccountingCloseControl', entityId: row.id, payload: { branchId: scope.branchId, module, periodStart: dto.periodStart, periodEnd: dto.periodEnd } } });
+      return row;
+    });
+  }
+
+  async closeControl(id: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.accountingCloseControl.findFirst({ where: { id, companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }] } });
+      if (!row) return this.denyTenantAccess(tx, user, scope, 'AccountingCloseControl', id);
+      if (row.status === 'CLOSED') return row;
+      const updated = await tx.accountingCloseControl.update({ where: { id }, data: { status: 'CLOSED', closedById: user.sub, closedAt: new Date(), reopenReason: null } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CLOSE_ACCOUNTING_CONTROL', entityType: 'AccountingCloseControl', entityId: id, payload: { branchId: scope.branchId, module: row.module } } });
+      return updated;
+    });
+  }
+
+  async reopenCloseControl(id: string, reason: string, user: AuthUser) {
+    const scope = this.requireTenantScope(user);
+    const reopenReason = reason?.trim();
+    if (!reopenReason) throw new BadRequestException('Alasan reopen wajib diisi.');
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.accountingCloseControl.findFirst({ where: { id, companyId: scope.companyId, OR: [{ branchId: scope.branchId }, { branchId: null }] } });
+      if (!row) return this.denyTenantAccess(tx, user, scope, 'AccountingCloseControl', id);
+      if (row.status !== 'CLOSED') throw new BadRequestException('Hanya AccountingCloseControl CLOSED yang dapat direopen.');
+      const updated = await tx.accountingCloseControl.update({ where: { id }, data: { status: 'OPEN', closedById: null, closedAt: null, reopenReason } });
+      await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'REOPEN_ACCOUNTING_CONTROL', entityType: 'AccountingCloseControl', entityId: id, payload: { branchId: scope.branchId, module: row.module, reason: reopenReason } } });
+      return updated;
+    });
   }
 
   async listAccounts(user: AuthUser) {
@@ -599,6 +662,21 @@ export class AccountingCoreService {
       orderBy: [{ priority: 'asc' }, { version: 'desc' }],
     });
     if (!rule) throw new BadRequestException(`Accounting posting rule ACTIVE untuk ${input.eventType} belum dikonfigurasi.`);
+
+    const closeControl = await client.accountingCloseControl.findFirst({
+      where: {
+        companyId: input.companyId,
+        status: 'CLOSED',
+        periodStart: { lte: businessDate },
+        periodEnd: { gte: businessDate },
+        module: { in: ['ACCOUNTING', input.eventType] },
+        OR: [{ branchId: input.branchId }, { branchId: null }],
+      },
+      orderBy: [{ branchId: 'desc' }, { periodEnd: 'desc' }],
+    });
+    if (closeControl) {
+      throw new BadRequestException(`Accounting close control ${closeControl.module} menutup posting pada periode ${closeControl.periodStart.toISOString().slice(0, 10)} sampai ${closeControl.periodEnd.toISOString().slice(0, 10)}.`);
+    }
 
     // Period close enforcement: SOFT_CLOSED maupun CLOSED sama-sama membekukan posting normal.
     // Koreksi harus dilakukan setelah period direopen secara eksplisit (SOFT_CLOSED) atau pada periode baru.

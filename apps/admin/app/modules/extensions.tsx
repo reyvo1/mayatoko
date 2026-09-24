@@ -226,6 +226,16 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Promo gagal disimpan.'); } finally { setBusy(false); }
   }
 
+  async function updatePromoStatus(promo: PromoRule, isActive: boolean) {
+    setBusy(true);
+    try {
+      await writeJson(`${API}/promotions/${promo.id}`, token, 'PATCH', { isActive });
+      setMessage(`${promo.code} ${isActive ? 'diaktifkan' : 'dinonaktifkan'}.`);
+      const rows = await readJson<PromoRule[]>(`${API}/promotions?limit=100`, token);
+      setPromos(rows ?? []);
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Status promo gagal diperbarui.'); } finally { setBusy(false); }
+  }
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -387,7 +397,7 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
             </div>
           </Panel>
           <Panel eyebrow="PROMOTION RULES" title="Promo Aktif" badge="server authoritative">
-            <Table head={['Kode','Tipe','Channel','Quota','Status']} rows={promos.slice(0,30).map((p)=>[<strong>{p.code}</strong>,p.type,p.channel,`${p.perCustomerLimit??'-'} / ${p.usageLimit??'-'}`,<StatusChip status={p.isActive?'ACTIVE':'INACTIVE'}/>])} empty="Belum ada promo." />
+            <Table head={['Kode','Tipe','Channel','Quota','Status','Aksi']} rows={promos.slice(0,30).map((p)=>[<strong>{p.code}</strong>,p.type,p.channel,`${p.perCustomerLimit??'-'} / ${p.usageLimit??'-'}`,<StatusChip status={p.isActive?'ACTIVE':'INACTIVE'}/>,<button type="button" className="secondary" disabled={busy} onClick={()=>void updatePromoStatus(p,!p.isActive)}>{p.isActive?'Nonaktifkan':'Aktifkan'}</button>])} empty="Belum ada promo." />
             <p className="sectionHelp">BOGO menggunakan unit eligible termurah sebagai free item. Quantity break memakai persen; bundle memakai nominal per grup. Quota dicatat saat Sale/Order benar-benar dibuat.</p>
           </Panel>
         </section>

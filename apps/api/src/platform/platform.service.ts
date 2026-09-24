@@ -182,6 +182,16 @@ export class PlatformService {
     return { company: branch.company, branch, companyId: branch.companyId, branchId: branch.id, userId: undefined };
   }
 
+
+  async storefrontBranches(branchCode?: string) {
+    const tenant = await this.resolveManifestTenant(undefined, branchCode);
+    return this.prisma.branch.findMany({
+      where: { companyId: tenant.companyId, isActive: true },
+      select: { id: true, code: true, name: true, address: true },
+      orderBy: [{ name: 'asc' }, { code: 'asc' }],
+    });
+  }
+
   async manifest(user?: AuthUser, branchCode?: string, requestedCompanyId?: string, requestedBranchId?: string) {
     const tenant = await this.resolveManifestTenant(user, branchCode, requestedCompanyId, requestedBranchId);
     const [flags, settings, modules, uiSchemas] = await Promise.all([

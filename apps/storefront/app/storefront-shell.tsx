@@ -18,9 +18,15 @@ export function StorefrontShell({
   cartCount,
   signedIn,
   onNavigate,
+  branchCode,
+  branches,
+  onBranchChange,
   children,
 }: {
   companyName: string;
+  branchCode: string;
+  branches: Array<{ code: string; name: string }>;
+  onBranchChange: (branchCode: string) => void;
   activeView: StorefrontView;
   cartCount: number;
   signedIn: boolean;
@@ -45,6 +51,7 @@ export function StorefrontShell({
             })}
           </nav>
 
+          {branches.length > 1 ? <label className="branchChooser"><span className="srOnly">Pilih cabang storefront</span><select aria-label="Pilih cabang storefront" value={branchCode} onChange={(event) => onBranchChange(event.target.value)}>{branches.map((branch) => <option key={branch.code} value={branch.code}>{branch.name}</option>)}</select></label> : null}
           <button className="accountShortcut" type="button" onClick={() => onNavigate('account')}>
             {signedIn ? <UserRound size={17}/> : <LogIn size={17}/>}
             <span>{signedIn ? 'Akun saya' : 'Masuk'}</span>
