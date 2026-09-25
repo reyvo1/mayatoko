@@ -54,6 +54,8 @@ jobs:
       T360_UAT_HR_MUTATIONS: 'true'
       T360_UAT_EXPECTED_HOST: localhost
       T360_UAT_EXPECTED_DATABASE: toko360_staging
+      T360_CI_EXPECTED_HOST: localhost
+      T360_CI_EXPECTED_DATABASE: toko360_staging
       T360_ALLOW_PRESERVE_ARTIFACT: "1"
       T360_API_URL: http://localhost:4000/api/v1
       T360_STOREFRONT_URL: http://localhost:3000
@@ -326,6 +328,20 @@ jobs:
         run: |
           set -o pipefail
           npm run db:payroll-adjustment:stage:postgres:artifact 2>&1 | tee logs/github-uat/80-payroll.log
+
+      - name: PostgreSQL disaster-recovery rehearsal to isolated scratch database
+        id: dr_rehearsal
+        continue-on-error: true
+        env:
+          T360_DR_TARGET: STAGING
+          T360_DR_CONFIRM: RUN_T360_POSTGRES_DR_NON_PRODUCTION
+          T360_DR_SOURCE_DATABASE_URL: postgresql://postgres:toko360_ci_password@localhost:5432/toko360_staging?schema=public
+          T360_DR_SOURCE_EXPECTED_HOST: localhost
+          T360_DR_SOURCE_EXPECTED_DATABASE: toko360_staging
+          T360_DR_RESTORE_DATABASE_URL: postgresql://postgres:toko360_ci_password@localhost:5432/toko360_dr_restore?schema=public
+          T360_DR_RESTORE_EXPECTED_HOST: localhost
+          T360_DR_RESTORE_EXPECTED_DATABASE: toko360_dr_restore
+        run: npm run db:dr:rehearse:postgres
 
       - name: Stage 20 automated readiness
         id: stage20

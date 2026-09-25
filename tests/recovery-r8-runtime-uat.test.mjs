@@ -72,3 +72,14 @@ test('R8 UAT workflow records exact identities and executes worker runtime probe
  assert.match(workflow,/npm run ci:worker:probe/);
  assert.match(workflow,/T360_WORKER_PROBE_BASE_URL: http:\/\/127\.0\.0\.1:4000\/api\/v1/);
 });
+
+
+test('R8 UAT workflow provides worker target lock and PostgreSQL DR evidence',()=>{
+ const workflow=fs.readFileSync('.github/workflows/toko360-full-uat.yml','utf8');
+ assert.match(workflow,/T360_CI_EXPECTED_HOST: localhost/);
+ assert.match(workflow,/T360_CI_EXPECTED_DATABASE: toko360_staging/);
+ assert.match(workflow,/id: worker_probe/);
+ assert.match(workflow,/id: dr_rehearsal/);
+ assert.match(workflow,/npm run db:dr:rehearse:postgres/);
+ assert.match(workflow,/T360_DR_RESTORE_DATABASE_URL: postgresql:\/\/postgres:toko360_ci_password@localhost:5432\/toko360_dr_restore\?schema=public/);
+});
