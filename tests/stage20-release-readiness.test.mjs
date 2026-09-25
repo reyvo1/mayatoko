@@ -148,3 +148,13 @@ test('Stage-20 persists and emits sanitized API startup diagnostics before propa
   assert.match(source, /await waitForHealth[\s\S]*?catch \(error\)[\s\S]*?writeApiStartupLog/);
   assert.match(source, /replaceAll\(config\.databaseUrl, '\[REDACTED_DATABASE_URL\]'\)/);
 });
+
+
+test('Stage-20 falls back to an isolated loopback port when preferred API port is occupied', () => {
+  const source = fs.readFileSync('scripts/run-stage20-release-readiness.mjs','utf8');
+  assert.match(source, /selectStage20ApiPort/);
+  assert.match(source, /error\?\.code !== 'EADDRINUSE'/);
+  assert.match(source, /probeLoopbackPort\(0\)/);
+  assert.match(source, /API_PORT: String\(apiPortSelection\.actual\)/);
+  assert.match(source, /apiPort: apiPortSelection/);
+});

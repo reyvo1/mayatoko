@@ -6,6 +6,32 @@ import { spawn } from 'node:child_process';
 import { sourceFingerprint } from './lib/source-fingerprint.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForBrowserDevTools(tempDir, browser, stderrText, requestedPort, timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs;
+  const activePortFile = path.join(tempDir, 'DevToolsActivePort');
+  let last = '';
+  while (Date.now() < deadline) {
+    if (browser.exitCode !== null) {
+      throw new Error(`Chromium berhenti sebelum DevTools siap (exit ${browser.exitCode}). ${stderrText().slice(-1200)}`);
+    }
+    let port = requestedPort;
+    if (!port && fs.existsSync(activePortFile)) {
+      const [line] = fs.readFileSync(activePortFile, 'utf8').split(/\r?\n/);
+      const parsed = Number(line);
+      if (Number.isInteger(parsed) && parsed > 0 && parsed <= 65535) port = parsed;
+    }
+    if (port) {
+      try {
+        const response = await http(`http://127.0.0.1:${port}/json/version`);
+        if (response.ok) return port;
+        last = `HTTP ${response.status}`;
+      } catch (error) { last = error instanceof Error ? error.message : String(error); }
+    }
+    await sleep(250);
+  }
+  throw new Error(`Chrome DevTools tidak siap${last ? ` (${last})` : ''}. ${stderrText().slice(-1200)}`);
+}
 const root = process.cwd();
 const output = path.resolve(root, process.env.T360_BROWSER_UAT_OUTPUT || 'handoff/quality/browser-uat-latest.json');
 const adminUrl = process.env.T360_ADMIN_URL || 'http://localhost:3001';
@@ -258,14 +284,17 @@ async function main() {
     const executable = browserExecutable();
     if (!executable) throw new Error('Chromium/Chrome tidak ditemukan. Set T360_CHROMIUM ke executable browser UAT.');
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 't360-browser-uat-'));
-    const debugPort = Number(process.env.T360_BROWSER_DEBUG_PORT || 49321);
+    const requestedDebugPortRaw = String(process.env.T360_BROWSER_DEBUG_PORT || '').trim();
+    const requestedDebugPort = requestedDebugPortRaw ? Number(requestedDebugPortRaw) : 0;
+    if (requestedDebugPortRaw && (!Number.isInteger(requestedDebugPort) || requestedDebugPort < 1024 || requestedDebugPort > 65535)) {
+      throw new Error('T360_BROWSER_DEBUG_PORT tidak valid.');
+    }
     browser = spawn(executable, [
-      '--headless=new', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${tempDir}`,
+      '--headless=new', `--remote-debugging-port=${requestedDebugPort}`, `--user-data-dir=${tempDir}`,
       '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-dev-shm-usage', '--no-sandbox', 'about:blank',
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
-    let browserErr = ''; browser.stderr?.on('data', (chunk) => { browserErr += String(chunk).slice(-4000); });
-    const versionUrl = `http://127.0.0.1:${debugPort}/json/version`;
-    await waitHttp(versionUrl, 15000);
+    let browserErr = ''; browser.stderr?.on('data', (chunk) => { browserErr = (browserErr + String(chunk)).slice(-8000); });
+    const debugPort = await waitForBrowserDevTools(tempDir, browser, () => browserErr, requestedDebugPort);
     const targetResponse = await http(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(adminUrl)}`, { method: 'PUT' });
     if (!targetResponse.ok) throw new Error(`Tidak dapat membuat browser target (HTTP ${targetResponse.status}). ${browserErr.slice(-500)}`);
     const target = await targetResponse.json();

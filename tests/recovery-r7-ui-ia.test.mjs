@@ -52,8 +52,10 @@ test('R7 browser UAT proves canonical analytics and responsive runtime geometry'
   assert.match(browser, /EMPLOYEE_ALL_SELF_SERVICE_ROUTES/);
 });
 
-test('R7 exact-source probe requires 14 workspaces, contextual views, screenshots and three viewport widths', () => {
+test('R7 exact-source probe requires 14 workspaces, 13 non-Dashboard contextual views, screenshots and three viewport widths', () => {
   for (const marker of ['expectedWorkspaces', 'runtimeWorkspaces', 'EMPLOYEE_PORTAL_RESPONSIVE', 'contextualNavigation', 'canonicalCharts', 'screenshots', '[1440,1024,390]']) assert.ok(probe.includes(marker), marker);
+  assert.match(probe, /expectedWorkspaces\.filter\(\(label\) => label !== 'Dashboard'\)/);
+  assert.match(probe, /nav\.domainViews\.find\(\(item\) => item\?\.workspace === label\)/);
   assert.match(probe, /evidenceFingerprint !== current\.value/);
   assert.equal(pkg.scripts['ci:r7:probe'], 'node scripts/ci-r7-ui-probe.mjs');
 });

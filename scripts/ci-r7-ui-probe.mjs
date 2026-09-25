@@ -54,8 +54,10 @@ const contextualWorkspaces = expectedWorkspaces.filter((label) => label !== 'Das
 if (!Array.isArray(nav.domainViews) || nav.domainViews.length < contextualWorkspaces.length) {
   throw new Error(`R7 contextual navigation belum lengkap: ${nav.domainViews?.length ?? 0}/${contextualWorkspaces.length}`);
 }
-for (const row of nav.domainViews) {
-  if (!Array.isArray(row.domains) || row.domains.length < 1) throw new Error(`R7 workspace tanpa contextual destination: ${row.workspace}`);
+for (const label of contextualWorkspaces) {
+  const row = nav.domainViews.find((item) => item?.workspace === label);
+  if (!row) throw new Error(`R7 contextual workspace tidak ditemukan: ${label}`);
+  if (!Array.isArray(row.domains) || row.domains.length < 1) throw new Error(`R7 workspace tanpa contextual destination: ${label}`);
 }
 
 if (analytics.count < 3 || !['line','share-bars','bars'].every((kind) => analytics.kinds?.includes(kind)) || analytics.legacyGradient !== 0) {

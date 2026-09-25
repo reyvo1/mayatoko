@@ -70,3 +70,12 @@ test('browser UAT waits for Chromium termination before retrying profile cleanup
   assert.match(script, /ENOTEMPTY/);
   assert.match(script, /await removeBrowserProfile\(tempDir\)/);
 });
+
+
+test('browser UAT uses collision-safe Chromium DevTools port discovery', () => {
+  assert.match(script, /remote-debugging-port=\$\{requestedDebugPort\}/);
+  assert.match(script, /DevToolsActivePort/);
+  assert.match(script, /waitForBrowserDevTools/);
+  assert.doesNotMatch(script, /T360_BROWSER_DEBUG_PORT \|\| 49321/);
+  assert.match(script, /Chromium berhenti sebelum DevTools siap/);
+});

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { spawn } from 'node:child_process';
+import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { sourceFingerprint } from './lib/source-fingerprint.mjs';
 import { readAndVerifyBuildArtifactManifest } from './lib/build-artifact-identity.mjs';
@@ -167,6 +168,29 @@ function parseArgs(argv) {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function probeLoopbackPort(port) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.once('error', reject);
+    server.listen({ host: '127.0.0.1', port, exclusive: true }, () => {
+      const address = server.address();
+      const actual = typeof address === 'object' && address ? address.port : port;
+      server.close((error) => error ? reject(error) : resolve(actual));
+    });
+  });
+}
+
+async function selectStage20ApiPort(preferredPort) {
+  try {
+    return { requested: preferredPort, actual: await probeLoopbackPort(preferredPort), fallback: false };
+  } catch (error) {
+    if (error?.code !== 'EADDRINUSE') throw error;
+    const actual = await probeLoopbackPort(0);
+    return { requested: preferredPort, actual, fallback: true };
+  }
+}
 const sqlLiteral = (value) => `'${String(value).replaceAll("'", "''")}'`;
 const sanitize = (value) => JSON.parse(JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item));
 
@@ -261,7 +285,8 @@ async function main() {
   process.env.DATABASE_URL = config.databaseUrl;
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
-  const baseUrl = `http://127.0.0.1:${config.apiPort}/api/v1`;
+  const apiPortSelection = await selectStage20ApiPort(config.apiPort);
+  const baseUrl = `http://127.0.0.1:${apiPortSelection.actual}/api/v1`;
   let child;
   let apiLog = '';
   const generatedAt = new Date().toISOString();
@@ -289,7 +314,7 @@ async function main() {
 
     child = spawn(process.execPath, [distMain], {
       cwd: root,
-      env: { ...process.env, DATABASE_URL: config.databaseUrl, API_PORT: String(config.apiPort), JWT_SECRET: crypto.randomBytes(32).toString('hex'), ORDER_ACCESS_SECRET: crypto.randomBytes(32).toString('hex'), SECRET_MASTER_KEY: crypto.randomBytes(32).toString('hex'), NODE_ENV: 'staging', CORS_ORIGINS: 'http://127.0.0.1:3000', T360_SOURCE_FINGERPRINT: currentSourceIdentity.value, T360_BUILD_ARTIFACT_ID: buildArtifact.current.id },
+      env: { ...process.env, DATABASE_URL: config.databaseUrl, API_PORT: String(apiPortSelection.actual), JWT_SECRET: crypto.randomBytes(32).toString('hex'), ORDER_ACCESS_SECRET: crypto.randomBytes(32).toString('hex'), SECRET_MASTER_KEY: crypto.randomBytes(32).toString('hex'), NODE_ENV: 'staging', CORS_ORIGINS: 'http://127.0.0.1:3000', T360_SOURCE_FINGERPRINT: currentSourceIdentity.value, T360_BUILD_ARTIFACT_ID: buildArtifact.current.id },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     child.stdout.on('data', (chunk) => { apiLog += chunk.toString(); });
@@ -410,7 +435,7 @@ async function main() {
       productionTouched: false,
       previousEvidence: { stage18: true, stage19CurrentSource: true, buildGateCurrentSource: true, buildArtifactCurrent: true, payrollAdjustmentPostgresMigration: true },
       uat: { ...uat, releaseDecision: uatInput.releaseDecision || null, executedAt: uatInput.executedAt || null, rollbackOwner: uatInput.rollbackOwner || null, monitoringOwner: uatInput.monitoringOwner || null, scenarios: uatInput.scenarios.map(({ id, status, notes }) => ({ id, status, notes: notes || '' })) },
-      observation: { health, databaseStats: databaseStats[0] || null, activity: activityRow, ownership, payrollRecoveryConfiguration, recentTenantDenials24h: recentDenials, queues: queueGroups },
+      observation: { apiPort: apiPortSelection, health, databaseStats: databaseStats[0] || null, activity: activityRow, ownership, payrollRecoveryConfiguration, recentTenantDenials24h: recentDenials, queues: queueGroups },
       queryPlanReview: { plans: queryPlans, indexCoverage },
       automatedChecks,
       gate: { automatedPassed, uatPassed: uat.passed, passed: gatePassed },
