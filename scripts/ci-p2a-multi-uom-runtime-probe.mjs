@@ -11,8 +11,24 @@ const api = String(process.env.T360_API_URL || 'http://localhost:4000/api/v1').r
 const email = process.env.T360_UAT_ADMIN_EMAIL || process.env.SEED_ADMIN_EMAIL;
 const password = process.env.T360_UAT_ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD;
 if (!email || !password) throw new Error('Credential P2A runtime probe tidak tersedia.');
-if (!/^postgres(?:ql)?:\/\//i.test(String(process.env.DATABASE_URL || ''))) throw new Error('P2A runtime probe wajib berjalan pada PostgreSQL non-production runtime.');
 
+function assertNonProductionPostgresTarget() {
+  const raw = String(process.env.DATABASE_URL || '').trim();
+  let url;
+  try { url = new URL(raw); } catch { throw new Error('DATABASE_URL P2A runtime probe tidak valid.'); }
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('P2A runtime probe wajib berjalan pada PostgreSQL non-production runtime.');
+  const database = decodeURIComponent(url.pathname.replace(/^\//, ''));
+  const expectedHost = String(process.env.T360_CI_EXPECTED_HOST || process.env.T360_UAT_EXPECTED_HOST || '').trim();
+  const expectedDatabase = String(process.env.T360_CI_EXPECTED_DATABASE || process.env.T360_UAT_EXPECTED_DATABASE || '').trim();
+  if (!expectedHost || !expectedDatabase) throw new Error('Target lock host/database P2A runtime probe wajib tersedia.');
+  if (url.hostname !== expectedHost || database !== expectedDatabase) {
+    throw new Error(`P2A runtime target mismatch: actual=${url.hostname}/${database}, expected=${expectedHost}/${expectedDatabase}.`);
+  }
+  if (/\b(prod|production|live)\b/i.test(`${url.hostname}/${database}`)) throw new Error('P2A runtime probe menolak database production/live.');
+  return { host: url.hostname, database };
+}
+
+const runtimeTarget = assertNonProductionPostgresTarget();
 const prisma = new PrismaClient();
 const stamp = Date.now();
 const suffix = String(stamp).slice(-9);
@@ -34,7 +50,6 @@ async function request(route, { method = 'GET', body, token, headers = {}, expec
   return data;
 }
 
-function itemsOf(value) { return Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : []; }
 function asDecimal(value) { return new Prisma.Decimal(value ?? 0); }
 function assert(condition, message) { if (!condition) throw new Error(message); }
 
@@ -107,19 +122,44 @@ try {
     request('/platform/manifest', { token }),
     request('/inventory/warehouses', { token }),
   ]);
+  const companyId = manifest?.company?.id;
+  const branchId = manifest?.branch?.id;
   const branchCode = manifest?.branch?.code;
-  assert(branchCode, 'Manifest tidak memiliki branch code aktif.');
+  assert(companyId && branchId && branchCode, 'Manifest tidak memiliki company/branch aktif.');
+  const warehouse = (warehouses || []).find((row) => row.isActive !== false);
+  assert(warehouse?.id, 'Gudang aktif untuk fixture P2A runtime probe tidak tersedia.');
 
-  let candidate = null;
-  let warehouse = null;
-  for (const row of warehouses || []) {
-    const inventoryPage = await request(`/inventory?warehouseId=${encodeURIComponent(row.id)}&limit=100`, { token });
-    const found = itemsOf(inventoryPage).find((item) => item.available >= 4 && item.quantity >= 4 && item.product?.isActive && !item.product?.trackBatch && !item.product?.trackSerial);
-    if (found) { candidate = found; warehouse = row; break; }
-  }
-  assert(candidate?.product?.id && warehouse?.id, 'Fixture produk stok >=4 base unit tanpa batch/serial tidak tersedia untuk P2A runtime probe.');
-  const product = candidate.product;
-  const baseline = { quantity: candidate.quantity, available: candidate.available, reserved: candidate.reserved };
+  const fixtureQuantity = 8;
+  const product = await prisma.product.create({
+    data: {
+      companyId,
+      sku: `P2ASKU${suffix}`.toUpperCase(),
+      name: `P2A Runtime Product ${suffix}`,
+      unit: 'pcs',
+      productType: 'PHYSICAL',
+      trackBatch: false,
+      trackExpiry: false,
+      trackSerial: false,
+      allowNegativeStock: false,
+      costPrice: 1000,
+      salePrice: 2000,
+      minStock: 1,
+      isActive: true,
+      metadata: { runtimeProbe: 'P2A', sourceFingerprint: sourceFingerprint(root).value },
+    },
+  });
+  const fixtureInventory = await prisma.inventory.create({
+    data: {
+      warehouseId: warehouse.id,
+      productId: product.id,
+      quantity: fixtureQuantity,
+      reserved: 0,
+      available: fixtureQuantity,
+    },
+  });
+  assert(fixtureInventory.quantity === fixtureQuantity && fixtureInventory.available === fixtureQuantity, 'Fixture inventory P2A gagal dibuat secara deterministik.');
+  const baseline = { quantity: fixtureInventory.quantity, available: fixtureInventory.available, reserved: fixtureInventory.reserved };
+  checks.selfProvisionedFixture = true;
 
   const unitCode = `P2A${suffix}`.slice(0, 40).toUpperCase();
   await request('/master-data/references', { method: 'POST', token, body: { type: 'UNIT', code: unitCode, name: `P2A Pack ${suffix}` } });
@@ -240,6 +280,7 @@ try {
     status: 'PASS',
     sourceIdentity: sourceFingerprint(root),
     productionTouched: false,
+    runtimeTarget,
     orderId: order.id,
     productId: product.id,
     productUnitId: unit.id,

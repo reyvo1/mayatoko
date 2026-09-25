@@ -10,6 +10,8 @@ Active work item: `T360-20260925-180000-product-completion-after-full-audit.json
 - P3 is blocked until the P2 FULL source is locally green, committed/pushed/clean, both dedicated PostgreSQL probes PASS on the same source fingerprint, and the aggregate GitHub gate is green.
 - Human Stage-20 is never auto-promoted by automated P2 evidence.
 - P2 FULL packaging correction: v1 omitted the updated payroll contract tests `tests/hr-payroll-accounting-integrity.test.mjs` and `tests/tenant-scope-hr-payroll.test.mjs`; P2 FULL v2 includes them. Source payroll logic was unchanged by this correction; focused payroll contracts are 27/27 PASS and full dependency-free regression is 962/962 PASS.
+- Exact-source P2 FULL v2 commit `1f5a6d074cd3ee23251e719cab058fa2b02b48f0` reached all automated gates except the P2A mixed-UOM probe. The failure happened before UOM lifecycle execution because the probe depended on pre-existing stock (`>=4`) from mutable seed/runtime state. Payroll P2 runtime probe PASS and aggregate failure was isolated to P2A fixture discovery.
+- Root fix for P2 FULL v3: `ci:p2a:multi-uom-probe` now self-provisions an isolated non-batch/non-serial Product + 8 base-unit Inventory fixture on the exact tenant warehouse, records `selfProvisionedFixture=true`, and no longer scans/reuses mutable catalog stock. Database mutation is additionally host+database target-locked against CI/UAT expected identity and rejects production/live targets. Focused P2A gate 6/6 PASS; full dependency-free regression 964/964 PASS. A-03 remains `IMPLEMENTED_RUNTIME_PENDING` until this exact-source probe is green.
 
 ---
 

@@ -25,6 +25,12 @@ const requiredRuntimeMarkers = [
   /completeAndApproveInspection/,
   /sourceFingerprint\(root\)/,
   /productionTouched: false/,
+  /checks\.selfProvisionedFixture = true/,
+  /prisma\.product\.create/,
+  /prisma\.inventory\.create/,
+  /fixtureQuantity = 8/,
+  /T360_CI_EXPECTED_DATABASE/,
+  /T360_UAT_EXPECTED_DATABASE/,
 ];
 
 test('P2A exposes a dedicated exact-runtime mixed-UOM probe instead of relying on source markers', () => {
@@ -40,6 +46,29 @@ test('P2A exposes a dedicated exact-runtime mixed-UOM probe instead of relying o
   assert.match(probe, /operations-control\/inspections\/\$\{inspectionId\}\/approve/);
   assert.doesNotMatch(probe, /operationalInspection\.update/);
   assert.doesNotMatch(probe, /inspectionResultItem\.update/);
+});
+
+
+test('P2A runtime probe self-provisions deterministic stock instead of depending on mutable seed inventory', () => {
+  assert.match(probe, /const fixtureQuantity = 8/);
+  assert.match(probe, /prisma\.product\.create/);
+  assert.match(probe, /metadata: \{ runtimeProbe: 'P2A'/);
+  assert.match(probe, /prisma\.inventory\.create/);
+  assert.match(probe, /quantity: fixtureQuantity/);
+  assert.match(probe, /available: fixtureQuantity/);
+  assert.match(probe, /checks\.selfProvisionedFixture = true/);
+  assert.doesNotMatch(probe, /Fixture produk stok >=4 base unit tanpa batch\/serial tidak tersedia/);
+});
+
+test('P2A runtime probe locks mutation to the exact non-production PostgreSQL target', () => {
+  assert.match(probe, /assertNonProductionPostgresTarget/);
+  assert.match(probe, /T360_CI_EXPECTED_HOST/);
+  assert.match(probe, /T360_CI_EXPECTED_DATABASE/);
+  assert.match(probe, /T360_UAT_EXPECTED_HOST/);
+  assert.match(probe, /T360_UAT_EXPECTED_DATABASE/);
+  assert.match(probe, /runtime target mismatch/);
+  assert.match(probe, /menolak database production\/live/);
+  assert.match(probe, /runtimeTarget,/);
 });
 
 test('P2A runtime probe preserves historical transaction UOM after current ProductUnit changes', () => {
