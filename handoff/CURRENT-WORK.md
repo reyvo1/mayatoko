@@ -342,3 +342,11 @@ R4 scope is F30/F34/F35/F36/F38/F40/F41: AccountingCloseControl runtime enforcem
 - R8 source is implemented: source-contract/runtime separation (F04/F05), two-domain Browser mutations (F06), PostgreSQL reporting/security probe (F23/F24/F25/F44), 12-scenario executed evidence, workflow/summary/report wiring.
 - Human Stage-20 remains PENDING and is never auto-approved.
 - Atomic wave rule applies before any subsequent source change.
+
+## 2026-09-25 — Active work switched to Post-Audit Product Completion P0-P7
+
+A 957/957 full-repository audit found confirmed product gaps despite green automated R0-R8 recovery evidence. The active source of truth for new work is now `docs/TOKO360-MASTER-PRODUCT-COMPLETION-WORKFLOW.md` under work item `T360-20260925-180000-product-completion-after-full-audit.json`.
+
+Do **not** restart R0-R8 or claim product completion from their historical green evidence. Begin at P0 and follow P0->P7 without skipping phases. The highest-priority roots are: contextual Admin workflows that render shared giant surfaces, incomplete online-order/return Multi-UOM lineage, incomplete payroll GROSS_UP/NET/split-period behavior, hidden retention/security operator actions, human-rejected visual composition, tracked credential/recovery evidence hygiene, and Ubuntu-first operator tooling.
+
+Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN_ACCEPTED`. Human Stage-20 remains mandatory and cannot be auto-passed.

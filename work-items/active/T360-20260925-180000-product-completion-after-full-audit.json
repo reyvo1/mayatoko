@@ -1,0 +1,72 @@
+{
+  "id": "T360-20260925-180000",
+  "title": "Product completion after 957-file full audit",
+  "type": "feature",
+  "module": "product-completion",
+  "wave": "W7",
+  "phase": "IMPLEMENTATION",
+  "risk": "HIGH",
+  "owner": "openai",
+  "featureFlag": "",
+  "dependencies": [],
+  "impacts": {
+    "database": "HIGH",
+    "inventory": "HIGH",
+    "accounting": "HIGH",
+    "tax": "HIGH",
+    "payment": "MEDIUM",
+    "payroll": "HIGH",
+    "sync": "MEDIUM",
+    "security": "HIGH",
+    "performance": "MEDIUM"
+  },
+  "businessRules": [
+    "The post-audit workflow docs/TOKO360-MASTER-PRODUCT-COMPLETION-WORKFLOW.md is authoritative for new product-completion work; historical R0-R8 recovery remains evidence only.",
+    "No capability can close from route/button/source-marker existence alone.",
+    "Every visible contextual navigation item must map to semantically isolated operator content.",
+    "Critical/high functional work requires runtime mutation evidence; UI completion additionally requires human visual acceptance.",
+    "Foundation/baseline/adapter-ready capabilities must not be presented as production-complete.",
+    "Human Stage-20 cannot be replaced by automated browser tests.",
+    "Ubuntu Bash is the canonical operator/developer command surface.",
+    "Atomic-wave commit/push/clean/sync rules remain mandatory.",
+    "Tax-affecting fixes must preserve effective-dated/versioned tax semantics and historical period correctness; no retroactive mutation of used tax versions."
+  ],
+  "acceptanceCriteria": [
+    "P0-P7 are executed in order without skipping dependency gates.",
+    "All A-01 through A-15 audit findings are either closed with evidence or explicitly reclassified with documented rationale.",
+    "14 Admin primary workspaces and all retained contextual views render semantically correct isolated workflows.",
+    "Multi-UOM order/return/refund lineage is persisted and runtime-verified.",
+    "Payroll supported methods and split-period behavior are implemented and runtime-verified or removed from product claims.",
+    "Retention/archive, API-key rotation, and session lifecycle have intentional operator ownership.",
+    "Admin, POS, Storefront, and Employee Portal pass human visual acceptance after page-level redesign.",
+    "Final exact-source runtime simulation and Human Stage-20 both pass before PRODUCT_READY=true."
+  ],
+  "testPlan": [
+    "npm run prisma:generate:postgres -w @toko360/api",
+    "npm run lint -w @toko360/api",
+    "npm run lint -w @toko360/admin",
+    "npm run workflow:validate",
+    "npm run validate:repo",
+    "npm run audit:recovery",
+    "npm run audit:full:repo",
+    "npm run ci:ui:audit",
+    "npm run test:dependency-free",
+    "Exact-source PostgreSQL/runtime/browser evidence for every CRITICAL/HIGH wave",
+    "Human Stage-20 visual and functional acceptance",
+    "Runtime inventory invariant: stock quantity/available/reserved and append-only movement remain consistent across transaction/reversal flows",
+    "Runtime accounting invariant: journal entries remain balanced debit=credit and reversal/posting traces remain canonical",
+    "Runtime sync invariant: idempotency, retry, offline replay, and conflict handling remain fail-closed where affected"
+  ],
+  "migrationPlan": "Use expand-only migrations for new persistence required by functional-completeness fixes. Rehearse PostgreSQL migrations before exact-runtime closure. Never rewrite applied migration history.",
+  "rollbackPlan": "Rollback one atomic wave at a time to the preceding clean exact-source checkpoint. Schema-changing waves require a documented compatibility/roll-forward strategy; do not use destructive migration rollback against shared data.",
+  "monitoringPlan": "Each wave records source fingerprint, runtime probe evidence, browser evidence where UI changes, audit status, and human acceptance status. Final product status is rendered from one canonical capability truth source.",
+  "securityNotes": "Remove tracked credentials immediately, preserve tenant/branch/permission authority, keep runtime probes non-production, sanitize evidence, and never weaken denial/fail-closed gates to obtain green.",
+  "documentation": [
+    "docs/TOKO360-MASTER-PRODUCT-COMPLETION-WORKFLOW.md",
+    "docs/PROJECT-STATE.md",
+    "handoff/CURRENT-WORK.md",
+    "TOKO360-FULL-FUNCTIONAL-AUDIT-2026-09-25.md"
+  ],
+  "createdAt": "2026-09-25T18:00:00+08:00",
+  "updatedAt": "2026-09-25T18:00:00+08:00"
+}

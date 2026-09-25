@@ -98,3 +98,13 @@ R7 is now **VERIFICATION** under `T360-20260923-221011`. Primary scope is F45 ca
 ## 2026-09-25 — R8 source implementation
 
 R8 source implementation is prepared on checkpoint `5c9558c65a95a5000482decfc0f9185de042ffe3` while R7 remains exact-source VERIFICATION. F04/F05 now have explicit source-contract versus runtime-evidence separation; F06 has mandatory two-domain safe Browser mutation evidence; F23/F24/F25/F44 have a dedicated PostgreSQL runtime probe with cleanup/restoration. Both GitHub PostgreSQL workflows are wired for R8 reporting/security and final exact-source release evidence. R8 must not be classified CLOSED until current-source R7 and R8 GitHub evidence are PASS. Human Stage-20 remains PENDING.
+
+## 2026-09-25 — Post-audit Product Completion Workflow activated
+
+The 957/957 full functional/UI/script audit supersedes automated-R0-R8-green as the definition of product completeness. Automated recovery evidence remains valid engineering evidence, but the product is classified **NOT FUNCTIONALLY COMPLETE / NOT HUMAN-UI ACCEPTED** until the new P0-P7 product-completion workflow closes.
+
+Active workflow: `docs/TOKO360-MASTER-PRODUCT-COMPLETION-WORKFLOW.md`.
+
+Immediate order: P0 truth/security/hygiene -> P1 Admin contextual workflow isolation -> P2 Multi-UOM + payroll completeness -> P3 hidden capability productization -> P4 canonical/legacy cleanup -> P5 page-level visual rebuild -> P6 Ubuntu/operator hygiene -> P7 exact-runtime + Human Stage-20 acceptance.
+
+Historical `docs/TOKO360-MASTER-RECOVERY-WORKFLOW.md` remains preserved as recovery history and runtime evidence sequencing, but does not override the new product-completion verdict or permit source-marker/browser-no-overflow evidence to substitute for real operator/human acceptance.
