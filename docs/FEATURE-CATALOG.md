@@ -1,3 +1,5 @@
+> **Status authority (P0):** maturity labels in this catalog describe source/foundation shape only. Product-completeness status is authoritative only in `config/product-completeness.json`. A feature is not complete merely because it is listed here.
+
 # Feature Catalog
 
 | Key | Default | Maturity | Purpose |

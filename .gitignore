@@ -54,3 +54,11 @@ runtime/
 # Local release approvals/attestations (operator names/target identity; never source-controlled)
 production-promotion-approval.json
 production-deployment-attestation.json
+# P0 product-completion hygiene: local credentials and generated evidence
+payroll-adjustment-postgres-stage.env
+*.recovery-backup
+logs/payroll-adjustment-postgres-stage/
+logs/report-exports/
+logs/stage20-release-readiness/
+handoff/quality/*.json
+handoff/quality/*.md

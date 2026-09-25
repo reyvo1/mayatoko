@@ -1,3 +1,5 @@
+> **Post-audit status authority:** this F1-F12 roadmap is historical source-implementation context. Current capability status is authoritative only in `config/product-completeness.json` and execution order is defined by `docs/TOKO360-MASTER-PRODUCT-COMPLETION-WORKFLOW.md`.
+
 # TOKO360 Functional Product Completion — Locked F1→F12
 
 Roadmap ini mengunci pola kerja functional completion. Urutan fase tidak boleh diubah tanpa keputusan eksplisit.

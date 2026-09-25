@@ -6,7 +6,8 @@ import { sourceFingerprint } from './lib/source-fingerprint.mjs';
 
 const root = process.cwd();
 const output = path.join(root, 'handoff/quality/full-repository-audit-latest.json');
-const ignored = new Set(['node_modules','.next','dist','build','coverage','.git','backups','backup','.turbo','.cache']);
+const ignored = new Set(['node_modules','.next','dist','build','coverage','.git','backups','backup','.turbo','.cache','runtime']);
+const ignoredRepoPrefixes = ['handoff/quality/','handoff/generated/','logs/'];
 const sourceExt = new Set(['.ts','.tsx','.js','.mjs','.cjs','.css','.scss','.json','.md','.yml','.yaml','.prisma','.sql','.ps1','.cmd']);
 
 function walk(dir, list = []) {
@@ -22,7 +23,7 @@ function rel(file) { return path.relative(root, file).replaceAll('\\','/'); }
 function text(file) { try { return fs.readFileSync(file,'utf8'); } catch { return ''; } }
 function countMatches(value, re) { return [...value.matchAll(re)].length; }
 
-const files = walk(root);
+const files = walk(root).filter((file) => !ignoredRepoPrefixes.some((prefix) => rel(file).startsWith(prefix)) && !rel(file).endsWith('.recovery-backup'));
 const repoFiles = files.filter((f) => sourceExt.has(path.extname(f).toLowerCase()));
 const controllerFiles = files.filter((f) => rel(f).startsWith('apps/api/src/') && f.endsWith('.controller.ts'));
 let apiHandlers = 0;
@@ -85,7 +86,7 @@ const audit = {
     ai: 'Forecast & Otomasi > AI Assistant / Forecast',
   },
   blockers: critical,
-  note: 'Machine audit covers the full repository tree excluding generated/cache/dependency directories. PASS means repository-wide structural UI foundation checks passed; semantic business UAT remains separate.',
+  note: 'Structural source audit only. Generated/runtime evidence is excluded. PASS does not mean product completeness; canonical capability truth is config/product-completeness.json and semantic runtime/human acceptance remain separate.',
 };
 fs.mkdirSync(path.dirname(output), { recursive: true });
 fs.writeFileSync(output, `${JSON.stringify(audit,null,2)}\n`);

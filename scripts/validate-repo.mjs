@@ -25,11 +25,17 @@ for (const file of required) {
 }
 if (existsSync(join(root, 'docker-compose.yml'))) failures.push('Root docker-compose.yml must not be required locally; keep CI-only Docker files under .github/ci.');
 
+const ignoredInventoryDirs = new Set(['node_modules', '.git', '.next', 'dist', 'runtime']);
 function walk(dir) {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name); const stat = statSync(path);
-    if (stat.isDirectory() && !['node_modules', '.git', '.next', 'dist'].includes(name)) return walk(path);
-    return stat.isFile() ? [path] : [];
+    const rel = relative(root, path).replaceAll('\\', '/');
+    if (stat.isDirectory()) {
+      if (ignoredInventoryDirs.has(name) || rel === 'handoff/quality' || rel === 'handoff/generated' || rel === 'logs') return [];
+      return walk(path);
+    }
+    if (stat.isFile() && !rel.endsWith('.recovery-backup')) return [path];
+    return [];
   });
 }
 const files = walk(root);

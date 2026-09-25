@@ -644,5 +644,7 @@
     "R7 final UI closure is blocked until R1-R6 functional prerequisites are stable.",
     "R8 final evidence must bind one exact commit/source fingerprint/build artifact."
   ],
-  "updatedAt": "2026-09-25T14:30:00+08:00"
+  "updatedAt": "2026-09-25T14:30:00+08:00",
+  "statusAuthority": "config/product-completeness.json",
+  "lifecycle": "HISTORICAL_AUTOMATED_RECOVERY_EVIDENCE"
 }

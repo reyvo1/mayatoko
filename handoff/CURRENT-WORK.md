@@ -350,3 +350,11 @@ A 957/957 full-repository audit found confirmed product gaps despite green autom
 Do **not** restart R0-R8 or claim product completion from their historical green evidence. Begin at P0 and follow P0->P7 without skipping phases. The highest-priority roots are: contextual Admin workflows that render shared giant surfaces, incomplete online-order/return Multi-UOM lineage, incomplete payroll GROSS_UP/NET/split-period behavior, hidden retention/security operator actions, human-rejected visual composition, tracked credential/recovery evidence hygiene, and Ubuntu-first operator tooling.
 
 Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN_ACCEPTED`. Human Stage-20 remains mandatory and cannot be auto-passed.
+
+## P0 product truth reset — 2026-09-25
+- Canonical product-completeness authority added at `config/product-completeness.json`.
+- Historical F1-F12 and R0-R8 status sources are evidence/history only and defer to the canonical matrix.
+- Marker-only/source-existence closure is prohibited; CRITICAL/HIGH closure requires runtime evidence and UI closure requires human acceptance.
+- Tracked staging credential and committed generated runtime-evidence artifacts are removed from active source; examples/.gitkeep remain.
+- P0 remains `IMPLEMENTED_RUNTIME_PENDING` until this atomic wave is validated, committed, pushed, clean, and synced.
+- Next phase is P1 only after P0 atomic closure.

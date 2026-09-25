@@ -1,3 +1,5 @@
+> **Canonical product status:** `config/product-completeness.json` is the only machine-readable completion authority. Historical recovery/F1/F12 status below is evidence/context, not proof of product completeness.
+
 # Toko360 Project State
 
 ## Official checkpoint

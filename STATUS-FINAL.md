@@ -1,3 +1,5 @@
+> **P0 truth reset — authoritative status:** this file contains historical checkpoints and is no longer a completion authority. Current product status is defined by `config/product-completeness.json`. `PRODUCT_READY=false` and Human Stage-20 remains pending until P7.
+
 ## Final automation closure — 2026-09-22
 
 UI productization/hardening **UI-P1 through UI-P7 is closed from authoritative GitHub Full System Simulation evidence**.

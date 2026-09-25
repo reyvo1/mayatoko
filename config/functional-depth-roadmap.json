@@ -23,7 +23,7 @@
       "regression_tests"
     ]
   },
-  "currentPhase": "F1",
+  "currentPhase": "HISTORICAL",
   "phases": [
     {
       "id": "F1",
@@ -365,5 +365,7 @@
         "Only then run final UAT/release gates"
       ]
     }
-  ]
+  ],
+  "statusAuthority": "config/product-completeness.json",
+  "lifecycle": "HISTORICAL_SOURCE_IMPLEMENTATION_ROADMAP"
 }
