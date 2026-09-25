@@ -95,6 +95,20 @@ a { color: inherit; }
 .panelTitle > span { @apply rounded-full border border-app-border bg-app-surface-2 px-2.5 py-1 text-[10px] font-medium text-app-muted; }
 .eyebrow { @apply text-[10px] font-bold uppercase tracking-[.14em] text-blue-400; }
 .sectionHelp { @apply my-2 text-xs leading-5 text-app-muted; }
+.masterCatalogLayout { @apply grid min-w-0 gap-4; }
+.catalogSummary { @apply mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3; }
+.catalogStat { @apply rounded-xl border border-app-border bg-app-surface-2 p-3; }
+.catalogStat span { @apply block text-[11px] font-medium uppercase tracking-[0.12em] text-app-muted; }
+.catalogStat strong { @apply mt-1 block text-xl font-semibold text-white; }
+.categoryPrimaryActions { @apply mb-4 justify-between rounded-xl border border-app-border bg-app-surface-2 p-3; }
+.categoryPrimaryActions .sectionHelp { @apply m-0 max-w-xl; }
+.catalogFormShell { @apply mb-4 rounded-xl border border-app-border bg-app-surface-2 p-4; }
+.catalogFormHeader { @apply mb-3 flex flex-wrap items-start justify-between gap-3; }
+.catalogFormHeader h3 { @apply m-0 mt-1 text-sm font-semibold text-white; }
+.categoryHierarchyName { @apply flex min-w-0 flex-wrap items-center gap-2; }
+.categoryHierarchyName strong { @apply min-w-0 truncate; }
+.categoryHierarchyName small { @apply text-[10px] text-app-muted; }
+.categoryDepthBadge { @apply rounded-md border border-app-border bg-app-surface-3 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-app-muted; }
 .grid2 { @apply grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2; }
 .grid4 { @apply grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4; }
 .stack { @apply flex flex-col gap-3; }

@@ -80,7 +80,7 @@ The following **never** close a capability by themselves:
 
 ## Scope
 
-14 Admin primary workspaces and Dashboard + 61 contextual views.
+14 Admin primary workspaces and Dashboard + 62 contextual views.
 
 ## Required work
 
@@ -102,6 +102,7 @@ The following **never** close a capability by themselves:
   - preserve tenant/branch/permission authority from the server.
 - Introduce stable page composition primitives: page header, action bar, filter bar, content grid, data table, form drawer/modal or dedicated form page, empty/error/loading states.
 - Eliminate page layouts where unrelated functions are stacked simply because they share a primary workspace.
+- Master Data must keep Category/Subcategory and Customer as separate contextual destinations; a capability existing in source is not considered discoverable when unrelated masters share one operator surface.
 
 ## Required evidence
 
@@ -112,7 +113,7 @@ The following **never** close a capability by themselves:
 ## Exit criteria
 
 - 14/14 primary workspaces valid.
-- 61/61 contextual destinations mapped to semantically correct content or intentionally removed/merged with documented rationale.
+- 62/62 contextual destinations mapped to semantically correct content or intentionally removed/merged with documented rationale.
 - 0 visible contextual menu items that merely change selection while leaving unrelated content unchanged.
 - Human IA acceptance PASS before moving to P2.
 

@@ -37,9 +37,13 @@ test('F2 category operator UI provides create edit parent and lifecycle actions'
   assert.match(admin, /saveCategory/);
   assert.match(admin, /editCategory/);
   assert.match(admin, /toggleCategory/);
+  assert.match(admin, /Tambah kategori utama/);
+  assert.match(admin, /Tambah subkategori/);
+  assert.match(admin, /orderedCategoryRows/);
+  assert.match(admin, /categoryTreeRows/);
   assert.match(admin, /Simpan perubahan/);
   assert.match(admin, /Nonaktifkan/);
-  assert.match(admin, /categories\.filter\(x=>x\.isActive\)/);
+  assert.match(admin, /categories\.filter\(x=>x\.isActive/);
 });
 
 test('F2 category migration keeps SQLite PostgreSQL parity and tenant slug uniqueness', async () => {

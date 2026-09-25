@@ -1,12 +1,19 @@
 {
   "version": 1,
   "name": "TOKO360 Admin Contextual Workflow Map",
-  "expectedContextualViews": 61,
+  "expectedContextualViews": 62,
   "rows": [
     {
       "workspace": "master-data",
       "view": "catalog",
       "renderer": "MasterDataView:catalog",
+      "status": "SOURCE_IMPLEMENTED",
+      "sourceFile": "apps/admin/app/page.tsx"
+    },
+    {
+      "workspace": "master-data",
+      "view": "customers",
+      "renderer": "MasterDataView:customers",
       "status": "SOURCE_IMPLEMENTED",
       "sourceFile": "apps/admin/app/page.tsx"
     },

@@ -16,7 +16,8 @@ export type AdminDomainWorkspace = { workspaceKey: string; views: AdminDomainVie
 
 export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
   { workspaceKey: 'master-data', views: [
-    { key: 'catalog', label: 'Kategori & Customer', title: 'Kategori dan customer master', description: 'Kategori produk, customer, segmentasi, dan data katalog dasar.', Icon:ShoppingBag },
+    { key: 'catalog', label: 'Kategori & Subkategori', title: 'Struktur kategori produk', description: 'Kategori utama, subkategori, hierarchy, urutan, lifecycle, dan jumlah produk.', Icon:ShoppingBag },
+    { key: 'customers', label: 'Customer', title: 'Customer master', description: 'Data pelanggan, kontak, dan segmentasi tanpa mencampur workflow kategori.', Icon:Users },
     { key: 'products', label: 'Produk & Multi-UOM', title: 'Produk, variant, barcode & multi-UOM', description: 'Produk, variant, base unit, kemasan, barcode alternatif, batch/expiry/serial.', Icon:Boxes },
     { key: 'pricing', label: 'Pricing', title: 'Harga retail, grosir & unit', description: 'Harga per cabang, segmen, kemasan, dan minimum quantity.', Icon:BadgeDollarSign },
     { key: 'references', label: 'Reference Master', title: 'Brand, unit, bank, courier & payment', description: 'Reference master yang dipakai lintas modul.', Icon:Settings2 },

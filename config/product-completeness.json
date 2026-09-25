@@ -103,7 +103,7 @@
       "id": "feature:sales_return",
       "kind": "FEATURE",
       "key": "sales_return",
-      "title": "POS request \u2192 inspection \u2192 refund/restock/accounting/loyalty correction",
+      "title": "POS request → inspection → refund/restock/accounting/loyalty correction",
       "default": "on",
       "sourceMaturity": "implemented-core-workflow",
       "status": "IMPLEMENTED_RUNTIME_PENDING",
@@ -629,7 +629,7 @@
       "severity": "CRITICAL",
       "targetPhase": "P1",
       "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "61/61 contextual destinations now have explicit source mapping and formerly mixed workspaces render by active contextual route; browser/screenshot/human IA evidence still pending."
+      "notes": "62/62 contextual destinations now have explicit source mapping after splitting Customer from Category/Subcategory; formerly mixed workspaces render by active contextual route. Browser/runtime evidence for the canonical navigation root is PASS; human IA acceptance remains pending."
     },
     {
       "id": "audit:A-02",

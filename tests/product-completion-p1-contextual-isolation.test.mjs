@@ -7,11 +7,11 @@ const read = (file) => fs.readFileSync(new URL(`../${file}`, import.meta.url), '
 const mapping = JSON.parse(read('config/admin-contextual-workflow-map.json'));
 const page = read('apps/admin/app/page.tsx');
 
-test('P1 maps all 61 contextual destinations exactly once', () => {
-  assert.equal(mapping.expectedContextualViews, 61);
-  assert.equal(mapping.rows.length, 61);
+test('P1 maps all canonical contextual destinations exactly once', () => {
+  assert.equal(mapping.expectedContextualViews, 62);
+  assert.equal(mapping.rows.length, 62);
   const keys = mapping.rows.map((row) => `${row.workspace}/${row.view}`);
-  assert.equal(new Set(keys).size, 61);
+  assert.equal(new Set(keys).size, 62);
   assert.ok(mapping.rows.every((row) => row.status === 'SOURCE_IMPLEMENTED'));
 });
 
@@ -52,5 +52,5 @@ test('P1 formerly monolithic modules expose explicit contextual mode contracts',
 test('P1 contextual audit is fail-closed and passes current source', () => {
   const run = spawnSync(process.execPath, ['scripts/audit-admin-contextual-workflows.mjs'], { cwd: new URL('..', import.meta.url), encoding: 'utf8' });
   assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
-  assert.match(run.stdout, /61\/61 contextual destinations mapped/);
+  assert.match(run.stdout, /62\/62 contextual destinations mapped/);
 });

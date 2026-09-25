@@ -381,3 +381,11 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 - Added `tests/browser-uat-admin-context-routing.test.mjs`; historical Browser/R1 source tests were migrated from brittle DOM-route literals to the canonical navigation contract.
 - Validation after the root fix: workflow validate PASS; repository validate PASS; product-completeness PASS; Admin contextual 61/61 PASS; recovery 48/48 PASS; full-repository/UI audit PASS; dependency-free regression 942/942 PASS.
 - P1 remains `IMPLEMENTED_RUNTIME_PENDING`; exact-source GitHub Browser/R7 evidence and human IA acceptance are still required before P1 runtime/human closure.
+
+## P1 Master Data discoverability correction — 2026-09-25
+- Latest exact-source GitHub evidence after canonical-context root fix is green: Browser UAT PASS, R7 exact-source PASS, R8 PASS, worker/API/runtime sweeps PASS, Stage-18/19/20 automated PASS; Human Stage-20 remains PENDING.
+- Human/operator review found a P1 semantic IA gap that automated route tests did not classify: `master-data/catalog` combined Category/Subcategory and Customer on one contextual surface, making category hierarchy capability difficult to discover despite a complete backend/API foundation.
+- Root correction: split Customer into `/master-data/customers`; keep `/master-data/catalog` dedicated to Category/Subcategory; canonical contextual map expands from 61 to 62 destinations.
+- Category operator surface now exposes explicit `Tambah kategori utama` and row-level `Tambah subkategori`, hierarchy ordering/depth, product counts, edit, parent move, order and lifecycle controls.
+- P1 remains OPEN for Human IA acceptance. Do not start P2 until the 62-route source is locally green, committed/pushed/clean, Browser/R7 exact-source evidence is green, and the user visually accepts the IA.
+- Recovery R0 sourceSnapshot is historical evidence and now acts as a regression floor (counts may grow during Product Completion); exact-equality count checks are forbidden because they turn legitimate feature/UI growth into false recovery regressions.

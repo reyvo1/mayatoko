@@ -30,13 +30,14 @@
     "Ubuntu Bash is the canonical operator/developer command surface.",
     "Atomic-wave commit/push/clean/sync rules remain mandatory.",
     "Tax-affecting fixes must preserve effective-dated/versioned tax semantics and historical period correctness; no retroactive mutation of used tax versions.",
-    "P1 source isolation must preserve 61/61 contextual route mapping; P1 cannot close until browser route-heading evidence, screenshots, and human IA acceptance pass.",
+    "P1 source isolation must preserve the canonical contextual route map (62/62 after splitting Customer from Category/Subcategory); P1 cannot close until browser route-heading evidence, screenshots, and human IA acceptance pass.",
     "Browser UAT critical Admin journeys must resolve through config/admin-contextual-workflow-map.json and stable Admin workspace/view semantics; legacy hard-coded workspace ownership is forbidden."
   ],
   "acceptanceCriteria": [
     "P0-P7 are executed in order without skipping dependency gates.",
     "All A-01 through A-15 audit findings are either closed with evidence or explicitly reclassified with documented rationale.",
     "14 Admin primary workspaces and all retained contextual views render semantically correct isolated workflows.",
+    "Master Data exposes Category/Subcategory and Customer as separate operator destinations; Category supports obvious add-root/add-subcategory hierarchy actions.",
     "Multi-UOM order/return/refund lineage is persisted and runtime-verified.",
     "Payroll supported methods and split-period behavior are implemented and runtime-verified or removed from product claims.",
     "Retention/archive, API-key rotation, and session lifecycle have intentional operator ownership.",
@@ -74,5 +75,5 @@
     "docs/PRODUCT-COMPLETENESS-STATUS.md"
   ],
   "createdAt": "2026-09-25T18:00:00+08:00",
-  "updatedAt": "2026-09-25T20:04:00+08:00"
+  "updatedAt": "2026-09-25T20:30:00+08:00"
 }

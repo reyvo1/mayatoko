@@ -113,6 +113,6 @@ Historical `docs/TOKO360-MASTER-RECOVERY-WORKFLOW.md` remains preserved as recov
 
 ## P1 Admin contextual workflow isolation — 2026-09-25
 - P0 atomic source is complete; active product-completion phase moved to P1.
-- 61/61 Admin contextual destinations now have explicit canonical renderer mappings in `config/admin-contextual-workflow-map.json`.
+- 62/62 Admin contextual destinations now have explicit canonical renderer mappings in `config/admin-contextual-workflow-map.json`; Customer is split from Category/Subcategory after operator discoverability review.
 - Six previously non-isolated workspaces and two partial workspaces now route active contextual destinations into dedicated component modes.
-- P1 status is `IMPLEMENTED_RUNTIME_PENDING`; browser route-heading evidence, screenshots, and human IA acceptance are still required before P2.
+- P1 canonical navigation root is runtime-verified by green Browser/R7 evidence. P1 remains open for Human IA acceptance; the category/customer discoverability correction must be re-run through Browser/R7 before acceptance and P2.

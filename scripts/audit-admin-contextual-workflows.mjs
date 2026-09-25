@@ -43,6 +43,13 @@ for (const row of mapping.rows) {
 for (const key of expected) if (!mapped.has(key)) fail(`missing contextual mapping ${key}`);
 for (const key of mapped.keys()) if (!expected.includes(key)) fail(`stale contextual mapping ${key}`);
 
+for (const key of ['master-data/catalog','master-data/customers']) if (!mapped.has(key)) fail(`Master Data semantic route missing: ${key}`);
+const masterDataSource = fs.readFileSync(path.join(root, 'apps/admin/app/modules/master-data.tsx'), 'utf8');
+for (const contract of ["mode==='catalog'","mode==='customers'","Tambah kategori utama","Tambah subkategori"]) {
+  if (!masterDataSource.includes(contract)) fail(`Master Data discoverability contract missing: ${contract}`);
+}
+if (domainSource.includes("label: 'Kategori & Customer'")) fail('Master Data still combines Category and Customer in one contextual label');
+
 const requiredShellContracts = [
   'const effectiveDomainView = activeDomainView ?? domainViews[0] ?? null;',
   'data-admin-workspace={activeWorkspace.key}',

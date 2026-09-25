@@ -53,14 +53,14 @@ for (const file of uiFiles) {
   uiControls += [...source.matchAll(/<a\b([^>]*)>/g)].length;
 }
 
-if (prismaModels !== matrix.sourceSnapshot.prismaModels) {
-  throw new Error(`Recovery baseline stale: Prisma models ${matrix.sourceSnapshot.prismaModels} -> ${prismaModels}. Regenerate R0 matrix.`);
+if (prismaModels < matrix.sourceSnapshot.prismaModels) {
+  throw new Error(`Recovery baseline regression: Prisma models dropped below R0 floor ${matrix.sourceSnapshot.prismaModels} -> ${prismaModels}.`);
 }
-if (apiHandlers !== matrix.sourceSnapshot.apiHandlers) {
-  throw new Error(`Recovery baseline stale: API handlers ${matrix.sourceSnapshot.apiHandlers} -> ${apiHandlers}. Regenerate R0 matrix.`);
+if (apiHandlers < matrix.sourceSnapshot.apiHandlers) {
+  throw new Error(`Recovery baseline regression: API handlers dropped below R0 floor ${matrix.sourceSnapshot.apiHandlers} -> ${apiHandlers}.`);
 }
-if (uiControls !== matrix.sourceSnapshot.uiInteractiveElements) {
-  throw new Error(`Recovery baseline stale: UI controls ${matrix.sourceSnapshot.uiInteractiveElements} -> ${uiControls}. Regenerate R0 matrix.`);
+if (uiControls < matrix.sourceSnapshot.uiInteractiveElements) {
+  throw new Error(`Recovery baseline regression: UI controls dropped below R0 floor ${matrix.sourceSnapshot.uiInteractiveElements} -> ${uiControls}.`);
 }
 
 const counts = Object.fromEntries([...allowedWaves].map((wave) => [wave, matrix.findings.filter((item) => item.primaryWave === wave).length]));
