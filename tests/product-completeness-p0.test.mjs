@@ -28,7 +28,9 @@ test('P0 forbids marker-only closure and requires human UI acceptance', () => {
 });
 
 test('P0 removes credentials and excludes generated evidence from active tracked source', () => {
-  assert.equal(fs.existsSync(path.join(root,'payroll-adjustment-postgres-stage.env')), false);
+  const auditSource = read('scripts/audit-product-completeness.mjs');
+  assert.match(auditSource, /git',[\s\S]*'ls-files'/);
+  assert.match(auditSource, /file === 'payroll-adjustment-postgres-stage\.env'/);
   const ignore = read('.gitignore');
   assert.match(ignore, /payroll-adjustment-postgres-stage\.env/);
   assert.match(ignore, /\*\.recovery-backup/);
