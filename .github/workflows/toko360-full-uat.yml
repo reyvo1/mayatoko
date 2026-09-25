@@ -167,6 +167,21 @@ jobs:
           set -o pipefail
           npm run build:gate 2>&1 | tee logs/github-uat/30-build-gate.log
 
+      - name: Record exact source and build artifact identities
+        if: steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          node <<'NODE' >> "$GITHUB_ENV"
+          const fs = require('fs');
+          const build = JSON.parse(fs.readFileSync('handoff/quality/build-gate-latest.json','utf8'));
+          const artifact = JSON.parse(fs.readFileSync('handoff/quality/build-artifact-manifest-latest.json','utf8'));
+          if (build.status !== 'PASS' || artifact.status !== 'PASS' || !artifact.artifact?.id) process.exit(1);
+          console.log(`T360_SOURCE_FINGERPRINT=${build.sourceIdentityAfter.value}`);
+          console.log(`T360_EXPECTED_SOURCE_FINGERPRINT=${build.sourceIdentityAfter.value}`);
+          console.log(`T360_BUILD_ARTIFACT_ID=${artifact.artifact.id}`);
+          console.log(`T360_EXPECTED_BUILD_ARTIFACT_ID=${artifact.artifact.id}`);
+          NODE
+
       - name: Configure payroll recovery staging fixture
         id: recovery
         continue-on-error: true
@@ -225,6 +240,13 @@ jobs:
           cat logs/github-uat/api-runtime.log || true
           cat logs/github-uat/provider-simulator.log || true
           exit 1
+
+      - name: Prove worker consumes queued report job and API serves exact worker output
+        id: worker_probe
+        continue-on-error: true
+        env:
+          T360_WORKER_PROBE_BASE_URL: http://127.0.0.1:4000/api/v1
+        run: npm run ci:worker:probe
 
       - name: Exercise R1 tenant, branch, access and control-plane lifecycle
         id: r1_tenant_access

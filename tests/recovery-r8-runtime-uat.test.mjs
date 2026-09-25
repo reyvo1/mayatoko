@@ -61,3 +61,14 @@ test('R8 final probe reads safe mutation checks from inner browser evidence whil
   assert.match(probe,/browser wrapper\/inner source mismatch/);
   assert.match(probe,/browser wrapper\/inner artifact mismatch/);
 });
+
+
+test('R8 UAT workflow records exact identities and executes worker runtime probe',()=>{
+ const workflow=fs.readFileSync('.github/workflows/toko360-full-uat.yml','utf8');
+ assert.match(workflow,/Record exact source and build artifact identities/);
+ assert.match(workflow,/T360_EXPECTED_SOURCE_FINGERPRINT=/);
+ assert.match(workflow,/T360_EXPECTED_BUILD_ARTIFACT_ID=/);
+ assert.match(workflow,/id: worker_probe/);
+ assert.match(workflow,/npm run ci:worker:probe/);
+ assert.match(workflow,/T360_WORKER_PROBE_BASE_URL: http:\/\/127\.0\.0\.1:4000\/api\/v1/);
+});
