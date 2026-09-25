@@ -1,8 +1,37 @@
 'use client';
-import { authFetch } from '../auth-fetch';
+
 import { FormEvent, useEffect, useState } from 'react';
-import { Panel, Table, StatusChip } from '../ui';
+import { authFetch } from '../auth-fetch';
+import { Panel, StatusChip, Table } from '../ui';
+
 const API=process.env.NEXT_PUBLIC_API_URL??'http://localhost:4000/api/v1';
-type KeyRow={id:string;name:string;keyPrefix:string;scopes:string[];isActive:boolean;lastUsedAt?:string|null;apiKey?:string;warning?:string};
-async function req<T>(token:string,path:string,init?:RequestInit){const r=await authFetch(`${API}${path}`,token,{...init,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`,...(init?.headers??{})}});const d=await r.json();if(!r.ok)throw new Error(Array.isArray(d.message)?d.message.join(', '):d.message??'Request gagal');return d as T;}
-export default function ApiKeysView({token}:{token:string}){const [rows,setRows]=useState<KeyRow[]>([]),[name,setName]=useState(''),[scopes,setScopes]=useState('product.view,inventory.view'),[secret,setSecret]=useState(''),[msg,setMsg]=useState('');async function load(){setRows(await req<KeyRow[]>(token,'/api-keys'));}useEffect(()=>{void load().catch(e=>setMsg(e instanceof Error?e.message:'Gagal memuat API key'));},[token]);async function create(e:FormEvent){e.preventDefault();try{const row=await req<KeyRow>(token,'/api-keys',{method:'POST',body:JSON.stringify({name,scopes:scopes.split(',').map(x=>x.trim()).filter(Boolean)})});setSecret(row.apiKey??'');setName('');await load();setMsg('API key dibuat. Simpan secret sebelum meninggalkan halaman.');}catch(e){setMsg(e instanceof Error?e.message:'Gagal membuat key');}}async function revoke(id:string){try{await req(token,`/api-keys/${id}/revoke`,{method:'PATCH'});await load();}catch(e){setMsg(e instanceof Error?e.message:'Gagal revoke');}}return <Panel eyebrow="INTEGRATION SECURITY" title="API Keys" badge={`${rows.filter(x=>x.isActive).length} aktif`}><form className="formStack" onSubmit={create}><label>Nama integrasi<input required value={name} onChange={e=>setName(e.target.value)}/></label><label>Scopes (pisahkan koma)<input required value={scopes} onChange={e=>setScopes(e.target.value)}/></label><button>Buat API key</button></form>{secret&&<div className="notice"><strong>SECRET SEKALI TAMPIL:</strong><br/><code style={{wordBreak:'break-all'}}>{secret}</code></div>}<Table head={['Nama','Prefix','Scopes','Status','Aksi']} rows={rows.map(k=>[<strong>{k.name}</strong>,k.keyPrefix,<small>{k.scopes.join(', ')}</small>,<StatusChip status={k.isActive?'ACTIVE':'INACTIVE'}/>,k.isActive?<button type="button" className="secondary" onClick={()=>void revoke(k.id)}>Revoke</button>:'-'])} empty="Belum ada API key"/>{msg&&<div className="notice">{msg}</div>}<p className="sectionHelp">Pemakaian integrasi: header <code>x-api-key</code>. Untuk perusahaan multi-cabang tambahkan <code>x-toko360-branch-id</code>. Scope mengikuti permission domain.action.</p></Panel>}
+type KeyRow={id:string;name:string;keyPrefix:string;scopes:string[];isActive:boolean;lastUsedAt?:string|null;expiresAt?:string|null;apiKey?:string;warning?:string};
+async function req<T>(token:string,path:string,init?:RequestInit){const r=await authFetch(`${API}${path}`,token,{...init,headers:{'Content-Type':'application/json',...(init?.headers??{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(Array.isArray(d.message)?d.message.join(', '):d.message??'Request gagal');return d as T;}
+
+export default function ApiKeysView({token}:{token:string}){
+  const [rows,setRows]=useState<KeyRow[]>([]);
+  const [name,setName]=useState('');
+  const [scopes,setScopes]=useState('product.view,inventory.view');
+  const [secret,setSecret]=useState('');
+  const [secretLabel,setSecretLabel]=useState('');
+  const [msg,setMsg]=useState('');
+  const [rotateTarget,setRotateTarget]=useState<KeyRow|null>(null);
+  const [rotateConfirmation,setRotateConfirmation]=useState('');
+  const [busy,setBusy]=useState(false);
+  async function load(){setRows(await req<KeyRow[]>(token,'/api-keys'));}
+  useEffect(()=>{void load().catch(e=>setMsg(e instanceof Error?e.message:'Gagal memuat API key'));},[token]);
+  async function create(e:FormEvent){e.preventDefault();setBusy(true);try{const row=await req<KeyRow>(token,'/api-keys',{method:'POST',body:JSON.stringify({name,scopes:scopes.split(',').map(x=>x.trim()).filter(Boolean)})});setSecret(row.apiKey??'');setSecretLabel(`Key baru · ${row.keyPrefix}`);setName('');await load();setMsg('API key dibuat. Simpan secret sebelum meninggalkan halaman.');}catch(e){setMsg(e instanceof Error?e.message:'Gagal membuat key');}finally{setBusy(false);}}
+  async function revoke(id:string){setBusy(true);try{await req(token,`/api-keys/${id}/revoke`,{method:'PATCH'});await load();setMsg('API key dicabut.');}catch(e){setMsg(e instanceof Error?e.message:'Gagal revoke');}finally{setBusy(false);}}
+  async function rotate(e:FormEvent){e.preventDefault();if(!rotateTarget)return;setBusy(true);try{const row=await req<KeyRow>(token,`/api-keys/${rotateTarget.id}/rotate`,{method:'POST',body:'{}'});setSecret(row.apiKey??'');setSecretLabel(`Rotasi ${rotateTarget.name} · ${row.keyPrefix}`);setRotateTarget(null);setRotateConfirmation('');await load();setMsg('API key dirotasi. Secret lama langsung tidak berlaku.');}catch(error){setMsg(error instanceof Error?error.message:'Gagal rotate key');}finally{setBusy(false);}}
+  return <section className="stack">
+    <Panel eyebrow="INTEGRATION SECURITY" title="API Keys" badge={`${rows.filter(x=>x.isActive).length} aktif`}>
+      <p className="sectionHelp">Lifecycle operator lengkap: create, rotate one-time secret, usage visibility, expiry, dan revoke. Secret penuh tidak pernah dapat dibaca ulang.</p>
+      <form className="formStack" onSubmit={create}><label>Nama integrasi<input required value={name} onChange={e=>setName(e.target.value)}/></label><label>Scopes (pisahkan koma)<input required value={scopes} onChange={e=>setScopes(e.target.value)}/></label><button disabled={busy}>Buat API key</button></form>
+      {secret&&<div className="notice"><strong>SECRET SEKALI TAMPIL — {secretLabel}</strong><br/><code style={{wordBreak:'break-all'}}>{secret}</code><div className="actionRow"><button type="button" className="secondary" onClick={()=>{setSecret('');setSecretLabel('');}}>Saya sudah menyimpan secret</button></div></div>}
+      <Table head={['Nama','Prefix / Last use','Scopes','Status','Aksi']} rows={rows.map(k=>[<strong key={`${k.id}-name`}>{k.name}</strong>,<span key={`${k.id}-usage`}><code>{k.keyPrefix}</code><small>{k.lastUsedAt?`last ${new Date(k.lastUsedAt).toLocaleString('id-ID')}`:'belum digunakan'}{k.expiresAt?` · exp ${new Date(k.expiresAt).toLocaleDateString('id-ID')}`:''}</small></span>,<small key={`${k.id}-scopes`}>{k.scopes.join(', ')}</small>,<StatusChip key={`${k.id}-status`} status={k.isActive?'ACTIVE':'INACTIVE'}/>,k.isActive?<div className="actionRow" key={`${k.id}-actions`}><button type="button" className="secondary" disabled={busy} onClick={()=>{setRotateTarget(k);setRotateConfirmation('');}}>Rotate</button><button type="button" className="secondary" disabled={busy} onClick={()=>void revoke(k.id)}>Revoke</button></div>:'-'])} empty="Belum ada API key"/>
+      <p className="sectionHelp">Pemakaian integrasi: header <code>x-api-key</code>. Untuk perusahaan multi-cabang tambahkan <code>x-toko360-branch-id</code>. Scope mengikuti permission domain.action.</p>
+    </Panel>
+    {rotateTarget&&<Panel eyebrow="KEY ROTATION" title={`Rotate ${rotateTarget.name}`} badge="ONE-TIME SECRET"><form className="formStack" onSubmit={rotate}><p className="sectionHelp">Rotasi langsung membatalkan secret lama. Ketik <strong>ROTATE</strong> untuk melanjutkan tanpa native browser confirm.</p><label>Konfirmasi<input value={rotateConfirmation} onChange={(e)=>setRotateConfirmation(e.target.value)} placeholder="ROTATE" required/></label><div className="actionRow"><button type="button" className="secondary" onClick={()=>{setRotateTarget(null);setRotateConfirmation('');}}>Batal</button><button disabled={busy||rotateConfirmation!=='ROTATE'}>Rotate key</button></div></form></Panel>}
+    {msg&&<div className="notice">{msg}</div>}
+  </section>;
+}

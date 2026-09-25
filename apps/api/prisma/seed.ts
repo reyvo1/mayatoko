@@ -353,9 +353,36 @@ async function main() {
     ['gate_pass', true, 'implemented-foundation'], ['operations_automation', true, 'worker-ready'],
     ['fleet_gps', false, 'adapter-ready'],
   ];
+  const maturityTruth = (maturity: string) => {
+    const normalized = maturity.toLowerCase();
+    if (normalized.includes('adapter-ready') || normalized.includes('object-storage-required')) return {
+      maturityClass: 'ADAPTER_REQUIRED',
+      operatorVisibility: 'CONFIGURATION_ONLY',
+      ownership: 'EXTERNAL_ADAPTER',
+      helpText: 'Fondasi/adapter tersedia, tetapi capability memerlukan provider atau storage eksternal sebelum dapat dianggap operasional.',
+    };
+    if (normalized.includes('foundation') || normalized.includes('api-ready') || normalized.includes('data-model-ready') || normalized.includes('data-ready') || normalized.includes('plugin-sdk') || normalized.includes('worker-ready')) return {
+      maturityClass: 'FOUNDATION',
+      operatorVisibility: 'FOUNDATION_ONLY',
+      ownership: 'PLATFORM_FOUNDATION',
+      helpText: 'Fondasi source tersedia. Status ini tidak berarti workflow operator dan runtime acceptance sudah lengkap.',
+    };
+    if (normalized.includes('moving-average') || normalized.includes('baseline')) return {
+      maturityClass: 'LIMITED',
+      operatorVisibility: 'OPERATOR_VISIBLE_LIMITED',
+      ownership: 'TOKO360_RUNTIME',
+      helpText: 'Capability operasional dengan metode terbatas yang dijelaskan eksplisit; bukan klaim AI/advanced analytics penuh.',
+    };
+    return {
+      maturityClass: 'OPERATIONAL',
+      operatorVisibility: 'OPERATOR_VISIBLE',
+      ownership: 'TOKO360_RUNTIME',
+      helpText: 'Capability memiliki implementasi runtime; product-completeness tetap mengikuti matrix canonical dan evidence phase.',
+    };
+  };
   for (const [key, enabled, maturity] of featureDefaults) {
     const existing = await prisma.featureFlag.findFirst({ where: { companyId: company.id, branchId: null, userId: null, key } });
-    const data = { companyId: company.id, key, enabled, config: { maturity, configurable: true } };
+    const data = { companyId: company.id, key, enabled, config: { maturity, configurable: true, ...maturityTruth(maturity) } };
     if (existing) await prisma.featureFlag.update({ where: { id: existing.id }, data });
     else await prisma.featureFlag.create({ data });
   }

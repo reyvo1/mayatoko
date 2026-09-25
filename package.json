@@ -120,7 +120,8 @@
     "audit:product:completeness": "node scripts/audit-product-completeness.mjs",
     "audit:admin:contextual": "node scripts/audit-admin-contextual-workflows.mjs",
     "ci:p2a:multi-uom-probe": "node scripts/ci-p2a-multi-uom-runtime-probe.mjs",
-    "ci:p2:payroll-probe": "node scripts/ci-p2-payroll-runtime-probe.mjs"
+    "ci:p2:payroll-probe": "node scripts/ci-p2-payroll-runtime-probe.mjs",
+    "ci:p3:probe": "node scripts/ci-p3-productization-probe.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

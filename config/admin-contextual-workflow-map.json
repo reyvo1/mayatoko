@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "TOKO360 Admin Contextual Workflow Map",
-  "expectedContextualViews": 62,
+  "expectedContextualViews": 63,
   "rows": [
     {
       "workspace": "master-data",
@@ -434,6 +434,13 @@
       "workspace": "settings",
       "view": "api-keys",
       "renderer": "ApiKeysView",
+      "status": "SOURCE_IMPLEMENTED",
+      "sourceFile": "apps/admin/app/page.tsx"
+    },
+    {
+      "workspace": "settings",
+      "view": "data-governance",
+      "renderer": "DataGovernanceView",
       "status": "SOURCE_IMPLEMENTED",
       "sourceFile": "apps/admin/app/page.tsx"
     }

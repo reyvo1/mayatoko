@@ -213,6 +213,8 @@ export class UpsertDataRetentionPolicyDto {
 export class RunDataArchiveDto {
   @ApiProperty() @IsString() policyId!: string;
   @ApiPropertyOptional({ description: 'Batas akhir arsip. Tidak boleh lebih baru dari cutoff warmDays policy.' }) @IsOptional() @IsDateString() rangeEnd?: string;
+  @ApiProperty({ enum: ['ARCHIVE'], description: 'Konfirmasi eksplisit operator untuk menjalankan arsip.' })
+  @IsString() @IsIn(['ARCHIVE']) confirmation!: 'ARCHIVE';
 }
 
 export class UpsertExternalMappingDto {

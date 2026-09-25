@@ -18,13 +18,14 @@ import {
 } from 'lucide-react';
 
 export type AdminIdentity = { sub?: string; roles: string[]; permissions: string[] };
-export type RuntimeModule = { code: string; name: string; category: string; featureKey?: string | null; isCore: boolean };
+export type RuntimeModule = { code: string; name: string; category: string; featureKey?: string | null; isCore: boolean; description?: string | null; capabilities?: unknown };
+export type RuntimeFeatureConfig = { maturity?: string; maturityClass?: 'OPERATIONAL'|'LIMITED'|'FOUNDATION'|'ADAPTER_REQUIRED'; operatorVisibility?: string; ownership?: string; helpText?: string; configurable?: boolean; [key: string]: unknown };
 export type RuntimeUiSchema = { code: string; surface: string; version: number; schema: unknown };
 export type AdminRuntimeManifest = {
   version?: string;
   company?: { id: string; name: string };
   branch?: { id: string; code?: string; name: string };
-  features: Record<string, { enabled: boolean; config?: unknown }>;
+  features: Record<string, { enabled: boolean; configuredEnabled?: boolean; config?: RuntimeFeatureConfig }>;
   modules: RuntimeModule[];
   navigation?: unknown[];
   uiSchemas?: RuntimeUiSchema[];

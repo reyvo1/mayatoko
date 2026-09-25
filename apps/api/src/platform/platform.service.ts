@@ -233,7 +233,19 @@ export class PlatformService {
     ]);
     flags.sort((left, right) => this.configRank(left) - this.configRank(right));
     settings.sort((left, right) => this.configRank(left) - this.configRank(right));
-    const featureMap = Object.fromEntries(flags.map((flag) => [flag.key, { enabled: this.rolloutEnabled(flag, tenant.companyId, tenant.branchId, tenant.userId), configuredEnabled: flag.enabled, config: flag.config }]));
+    const featureMap: Record<string, { enabled: boolean; configuredEnabled: boolean; config: Record<string, unknown> }> = {};
+    for (const flag of flags) {
+      const prior = featureMap[flag.key];
+      const priorConfig = prior?.config ?? {};
+      const nextConfig = flag.config && typeof flag.config === 'object' && !Array.isArray(flag.config)
+        ? flag.config as Record<string, unknown>
+        : {};
+      featureMap[flag.key] = {
+        enabled: this.rolloutEnabled(flag, tenant.companyId, tenant.branchId, tenant.userId),
+        configuredEnabled: flag.enabled,
+        config: { ...priorConfig, ...nextConfig },
+      };
+    }
     const settingMap = Object.fromEntries(settings.map((setting) => [`${setting.namespace}.${setting.key}`, setting.value]));
     return {
       version: process.env.APP_VERSION ?? '0.5.3', company: tenant.company, branch: tenant.branch,

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "TOKO360 Canonical Product Completeness Matrix",
-  "updatedAt": "2026-09-25T20:30:00+08:00",
+  "updatedAt": "2026-09-26T02:18:00+08:00",
   "authoritative": true,
   "productReady": false,
   "humanStage20": "PENDING",
@@ -651,11 +651,15 @@
       "title": "Multi-UOM end-to-end transaction lineage completion",
       "severity": "CRITICAL",
       "targetPhase": "P2",
-      "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "P2A source persists immutable UOM lineage on OrderItem and all return families, centralizes ProductUnit conversion authority for POS/storefront orders, keeps fulfillment inventory in base units, copies historical snapshots into returns/refunds, and exposes storefront UOM selection. Static/migration evidence at exact-source 34a7034a... is not sufficient for runtime closure; dedicated ci:p2a:multi-uom-probe evidence is now required before RUNTIME_VERIFIED.",
+      "status": "RUNTIME_VERIFIED",
+      "notes": "P2 FULL exact-source runtime verified on commit 899685ce23c08c8a0246867afc0c78a36507e674 and source fingerprint 36af0df55489492e4389f7bf0a511bbaa60cae761937b77edcd310003cdfa04d. Dedicated P2A and Payroll probes, Stage-19, payroll staging, automated Stage-20, R8 and aggregate all PASS; Human Stage-20 remains separate PENDING.",
       "evidence": [
-        "Source implementation: apps/api/src/common/transaction-uom.ts; OrderItem/OrderReturnItem/SaleReturnItem/PurchaseReturnItem schema snapshots; T360-20260925-p2a-transaction-uom-lineage expand migration; storefront UOM selection/return flow; product-completion-p2a-multi-uom-lineage.test.mjs.",
-        "Required runtime gate: handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json from ci:p2a:multi-uom-probe must PASS on exact-source PostgreSQL runtime and is aggregate-required."
+        "logs_97956083014.zip",
+        "logs_97956083090.zip",
+        "logs_97956083356.zip",
+        "handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json",
+        "handoff/quality/github-p2-payroll-runtime-probe-latest.json",
+        "handoff/quality/github-full-system-simulation-latest.json"
       ]
     },
     {
@@ -665,11 +669,15 @@
       "title": "Payroll GROSS/GROSS_UP/NET and split-period completion",
       "severity": "HIGH",
       "targetPhase": "P2",
-      "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "P2 source implements executable GROSS/GROSS_UP/NET tax methods, actual temporal allocation for effective-dated component/profile/rule changes, operator selection, balanced posting and differential recovery path. Dedicated exact-source PostgreSQL ci:p2:payroll-probe evidence is required before RUNTIME_VERIFIED.",
+      "status": "RUNTIME_VERIFIED",
+      "notes": "P2 FULL exact-source runtime verified on commit 899685ce23c08c8a0246867afc0c78a36507e674 and source fingerprint 36af0df55489492e4389f7bf0a511bbaa60cae761937b77edcd310003cdfa04d. Dedicated P2A and Payroll probes, Stage-19, payroll staging, automated Stage-20, R8 and aggregate all PASS; Human Stage-20 remains separate PENDING.",
       "evidence": [
-        "Source implementation: apps/api/src/payroll/payroll-method-engine.ts; payroll.service.ts temporal segmentation/allocation; payroll DTO/Admin tax-method selection; docs PAYROLL-TAX-INDONESIA and HRIS-ATTENDANCE-PAYROLL.",
-        "Required runtime gate: handoff/quality/github-p2-payroll-runtime-probe-latest.json from ci:p2:payroll-probe must PASS on exact-source PostgreSQL runtime with GROSS/GROSS_UP/NET, split-period rule/profile/component behavior, balanced posting, salary settlement, adjustment recovery and recovery settlement."
+        "logs_97956083014.zip",
+        "logs_97956083090.zip",
+        "logs_97956083356.zip",
+        "handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json",
+        "handoff/quality/github-p2-payroll-runtime-probe-latest.json",
+        "handoff/quality/github-full-system-simulation-latest.json"
       ]
     },
     {
@@ -679,8 +687,13 @@
       "title": "Retention/archive backend has no operator UI",
       "severity": "HIGH",
       "targetPhase": "P3",
-      "status": "PARTIAL",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
+      "notes": "Retention/archive now has a dedicated Admin Data Governance surface for policy lifecycle, explicit archive execution, run history, status/error, checksum, artifact URI/provider and typed safety confirmation. P3 exact-runtime gate is mandatory before RUNTIME_VERIFIED.",
+      "evidence": [
+        "tests/product-completion-p3-hidden-capability-productization.test.mjs",
+        "scripts/ci-p3-productization-probe.mjs",
+        "handoff/quality/github-p3-productization-probe-latest.json"
+      ]
     },
     {
       "id": "audit:A-06",
@@ -689,8 +702,13 @@
       "title": "API key rotation and session management lack Admin UI",
       "severity": "HIGH",
       "targetPhase": "P3",
-      "status": "PARTIAL",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
+      "notes": "Admin now exposes API-key rotation/one-time secret lifecycle and active-session inventory with individual revoke plus logout-all confirmation and audited server actions. P3 exact-runtime gate is mandatory before RUNTIME_VERIFIED.",
+      "evidence": [
+        "tests/product-completion-p3-hidden-capability-productization.test.mjs",
+        "scripts/ci-p3-productization-probe.mjs",
+        "handoff/quality/github-p3-productization-probe-latest.json"
+      ]
     },
     {
       "id": "audit:A-07",
@@ -709,8 +727,13 @@
       "title": "Feature catalog contains many foundation/baseline/adapter-ready capabilities",
       "severity": "HIGH",
       "targetPhase": "P3",
-      "status": "PARTIAL",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
+      "notes": "Runtime feature catalog now carries explicit maturityClass/operatorVisibility/ownership/helpText and preserves maturity truth across scoped feature overrides; Admin surfaces that truth instead of equating enabled with complete. P3 exact-runtime gate is mandatory before RUNTIME_VERIFIED.",
+      "evidence": [
+        "tests/product-completion-p3-hidden-capability-productization.test.mjs",
+        "scripts/ci-p3-productization-probe.mjs",
+        "handoff/quality/github-p3-productization-probe-latest.json"
+      ]
     },
     {
       "id": "audit:A-09",
@@ -739,8 +762,13 @@
       "title": "Daily summary materialization is backend-only",
       "severity": "MEDIUM",
       "targetPhase": "P3",
-      "status": "PARTIAL",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
+      "notes": "Daily summary ownership is explicitly ADMIN_EXPLICIT: Data Governance materializes and inspects DailySalesSummary/DailyFinanceSummary; worker automatic ownership is not claimed. P3 exact-runtime gate is mandatory before RUNTIME_VERIFIED.",
+      "evidence": [
+        "tests/product-completion-p3-hidden-capability-productization.test.mjs",
+        "scripts/ci-p3-productization-probe.mjs",
+        "handoff/quality/github-p3-productization-probe-latest.json"
+      ]
     },
     {
       "id": "audit:A-12",
@@ -793,6 +821,6 @@
     "P6",
     "P7"
   ],
-  "currentPhase": "P2",
+  "currentPhase": "P3",
   "currentPhaseStatus": "IMPLEMENTED_RUNTIME_PENDING"
 }

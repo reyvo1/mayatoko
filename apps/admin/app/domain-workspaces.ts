@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import {
-  Activity, BadgeDollarSign, Banknote, BellRing, Boxes, BrainCircuit, Building2, ClipboardCheck, ClipboardList,
+  Activity, Archive, BadgeDollarSign, Banknote, BellRing, Boxes, BrainCircuit, Building2, ClipboardCheck, ClipboardList,
   CreditCard, FileBarChart, FileCheck2, Gauge, KeyRound, Landmark, MessageCircleMore, PackageCheck, PackageSearch,
   ReceiptText, RefreshCcw, Route, ScanLine, Settings2, ShieldCheck, ShoppingBag, Sparkles, Truck, UserCog,
   Users, Warehouse, Wrench,
@@ -102,6 +102,7 @@ export const ADMIN_DOMAIN_WORKSPACES: AdminDomainWorkspace[] = [
     { key: 'audit-ops', roles: ['SUPER_ADMIN','OWNER','ADMIN','AUDITOR'], permissionPrefixes: ['audit'], label: 'Audit & Ops', title: 'Audit log, outbox & ops health', description: 'Audit trail, event outbox, operational health, dan recovery queue.', Icon:Activity },
     { key: 'security', roles: ['SUPER_ADMIN','OWNER','ADMIN'], permissionPrefixes: ['user','platform'], label: 'Security', title: 'Account security', description: '2FA, recovery, session security, throttle, dan protected account controls.', Icon:ShieldCheck },
     { key: 'api-keys', roles: ['SUPER_ADMIN','OWNER','ADMIN'], permissionPrefixes: ['api_key','integration'], label: 'API Key', title: 'Integration API keys', description: 'Scoped API key, one-time secret, rotation, dan revoke.', Icon:KeyRound },
+    { key: 'data-governance', roles: ['SUPER_ADMIN','OWNER','ADMIN','AUDITOR'], permissionPrefixes: ['report','audit'], label: 'Data Governance', title: 'Retention, archive & daily summaries', description: 'Retention policy, archive execution/history, checksum/artifact, dan explicit Admin-owned daily summary materialization.', Icon:Archive },
   ]},
 ];
 

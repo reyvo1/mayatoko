@@ -50,3 +50,9 @@
 | `gate_pass` | Gate control | aktif | Barang dan kendaraan masuk/keluar |
 | `operations_automation` | Automation jobs | aktif | Worker, retry, idempotency |
 | `fleet_gps` | GPS/telematics adapter | nonaktif | Membutuhkan provider |
+
+## P3 runtime maturity presentation
+
+P3 keeps the original `Maturity` column above as source vocabulary, but runtime presentation normalizes it so an enabled flag cannot masquerade as product completion. Seeded feature metadata now includes `maturityClass`, `operatorVisibility`, `ownership`, and `helpText`; scoped feature overrides preserve those fields.
+
+Runtime classes are `OPERATIONAL`, `LIMITED`, `FOUNDATION`, and `ADAPTER_REQUIRED`. `FOUNDATION` and `ADAPTER_REQUIRED` are explicitly non-complete product states even when a feature flag is enabled. Canonical product-completeness status remains `config/product-completeness.json`.

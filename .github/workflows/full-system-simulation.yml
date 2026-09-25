@@ -317,6 +317,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r6:probe
 
+      - name: Exercise P3 hidden capability productization and maturity truth
+        id: p3_productization
+        continue-on-error: true
+        run: npm run ci:p3:probe
+
       - name: Exercise R3 residual payment reporting edge and marketplace operations
         id: r3_residual
         continue-on-error: true
@@ -540,6 +545,7 @@ jobs:
           T360_CI_STEP_P2_PAYROLL: ${{ steps.p2_payroll.outcome }}
           T360_CI_STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           T360_CI_STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
+          T360_CI_STEP_P3_PRODUCTIZATION: ${{ steps.p3_productization.outcome }}
           T360_CI_STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           T360_CI_STEP_R7_UI: ${{ steps.r7_ui.outcome }}
           T360_CI_STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}

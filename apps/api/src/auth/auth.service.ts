@@ -344,6 +344,27 @@ export class AuthService {
     };
   }
 
+  async revokeSession(id: string, user: AuthUser) {
+    if (!id.trim()) throw new BadRequestException('Session id wajib diisi.');
+    const result = await this.prisma.$transaction(async (tx) => {
+      const session = await tx.authSession.findFirst({
+        where: { id, userId: user.sub },
+        select: { id: true, revokedAt: true, expiresAt: true },
+      });
+      if (!session) throw new BadRequestException('Sesi tidak ditemukan.');
+      const revoked = await tx.authSession.updateMany({
+        where: { id: session.id, userId: user.sub, revokedAt: null, expiresAt: { gt: new Date() } },
+        data: { revokedAt: new Date(), revokeReason: session.id === user.sid ? 'SESSION_REVOKED_CURRENT' : 'SESSION_REVOKED' },
+      });
+      await tx.auditLog.create({ data: {
+        companyId: user.companyId ?? undefined, userId: user.sub, action: 'REVOKE_AUTH_SESSION', entityType: 'AuthSession', entityId: session.id,
+        payload: { branchId: user.branchId, current: session.id === user.sid, revoked: revoked.count === 1 },
+      } });
+      return revoked.count;
+    });
+    return { ok: true, revoked: result, sessionId: id, current: id === user.sid };
+  }
+
   async logout(user: AuthUser) {
     if (!user.sid) throw new UnauthorizedException('Sesi tidak valid.');
     const result = await this.prisma.$transaction(async (tx) => {

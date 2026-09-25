@@ -66,7 +66,7 @@ try {
 
   const policy = await request('/retention/policies', { method: 'POST', token, body: { entityType: 'AUDIT_LOG', hotDays: 1, warmDays: 1, archiveAfter: true, isActive: true } });
   const oldAudit = await prisma.auditLog.create({ data: { companyId: scope.companyId, userId: login.user?.sub || null, action: 'R6_ARCHIVE_FIXTURE', entityType: 'R6Probe', entityId: String(stamp), payload: { runtimeProbe: 'R6' }, createdAt: new Date(Date.now() - 10 * 86400000) } });
-  const archive = await request('/retention/archive-runs', { method: 'POST', token, body: { policyId: policy.id, rangeEnd: new Date(Date.now() - 2 * 86400000).toISOString() } });
+  const archive = await request('/retention/archive-runs', { method: 'POST', token, body: { policyId: policy.id, rangeEnd: new Date(Date.now() - 2 * 86400000).toISOString(), confirmation: 'ARCHIVE' } });
   if (archive.status !== 'COMPLETED' || archive.rowsProcessed < 1 || !String(archive.archiveUri || '').startsWith('local://') || !/^[a-f0-9]{64}$/.test(archive.checksum || '')) throw new Error(`R6 archive lifecycle gagal: ${JSON.stringify(archive)}`);
   const archiveRelativePath = String(archive.archiveUri).replace(/^local:\/\//, '');
   const archiveCandidates = [

@@ -1,3 +1,20 @@
+# CURRENT AUTHORITATIVE WORK — 2026-09-26 P3 FULL
+
+Active work item: `T360-20260925-180000-product-completion-after-full-audit.json`.
+
+- Current phase: **P3 — Hidden Capability Productization and Maturity Truth**.
+- Delivery boundary: **one P3 FULL atomic wave** covering A-05, A-06, A-08 and A-11 together; no per-subfeature operator boundary.
+- P2 FULL is **RUNTIME_VERIFIED** on commit `899685ce23c08c8a0246867afc0c78a36507e674`, source fingerprint `36af0df55489492e4389f7bf0a511bbaa60cae761937b77edcd310003cdfa04d`.
+- Supplied green GitHub evidence: `logs_97956083014.zip`, `logs_97956083090.zip`, `logs_97956083356.zip`; P2A, P2 Payroll, Stage-19 11/11, payroll staging, automated Stage-20, R8 and aggregate all PASS on the exact source.
+- Human Stage-20 remains **PENDING** and is never auto-promoted by automated P2/P3 evidence.
+- P2 business source is frozen unless new regression evidence appears.
+- P3 source wave productizes Retention/Archive in Settings → Data Governance, API-key rotation and session lifecycle in Settings, runtime feature maturity truth, and explicit Admin-owned daily-summary materialization.
+- Daily summary owner for P3 is **ADMIN_EXPLICIT**; worker automatic materialization is not claimed.
+- P3 exact-runtime closure requires `handoff/quality/github-p3-productization-probe-latest.json` PASS with `productionTouched=false` in both heavy GitHub workflows and aggregate reporting on the same source fingerprint.
+- P4 must not start until P3 exact-source runtime gate and aggregate are green.
+
+---
+
 # CURRENT AUTHORITATIVE WORK — 2026-09-25 P2 FULL
 
 Active work item: `T360-20260925-180000-product-completion-after-full-audit.json`.

@@ -285,6 +285,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r6:probe
 
+      - name: Exercise P3 hidden capability productization and maturity truth
+        id: p3_productization
+        continue-on-error: true
+        run: npm run ci:p3:probe
+
       - name: Exercise R3 residual payment reporting edge and marketplace operations
         id: r3_residual
         continue-on-error: true
@@ -455,6 +460,7 @@ jobs:
           STEP_P2_PAYROLL: ${{ steps.p2_payroll.outcome }}
           STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
+          STEP_P3_PRODUCTIZATION: ${{ steps.p3_productization.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           STEP_R7_UI: ${{ steps.r7_ui.outcome }}
           STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}
@@ -509,6 +515,7 @@ jobs:
           STEP_P2_PAYROLL: ${{ steps.p2_payroll.outcome }}
           STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
+          STEP_P3_PRODUCTIZATION: ${{ steps.p3_productization.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           STEP_R7_UI: ${{ steps.r7_ui.outcome }}
           STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}
@@ -549,6 +556,7 @@ jobs:
           check "P2 payroll runtime probe" "$STEP_P2_PAYROLL"
           check "R5 assets/fleet runtime probe" "$STEP_R5_ASSETS_FLEET"
           check "R6 scale/summary/archive/capability runtime probe" "$STEP_R6_SCALE_AI"
+          check "P3 hidden capability productization and maturity truth" "$STEP_P3_PRODUCTIZATION"
           check "R3 residual payment/reporting/edge/marketplace runtime probe" "$STEP_R3_RESIDUAL"
           check "R7 full UI / information architecture probe" "$STEP_R7_UI"
           check "R8 reporting/security runtime probe" "$STEP_R8_REPORTING_SECURITY"

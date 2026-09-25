@@ -19,6 +19,7 @@ import DeliveryLifecycle from './modules/delivery-lifecycle';
 import MasterDataView from './modules/master-data';
 import ApiKeysView from './modules/api-keys';
 import SecurityView from './modules/security';
+import DataGovernanceView from './modules/data-governance';
 import AutomationWorkspace from './modules/automation-workspace';
 import AiWorkspace from './modules/ai-workspace';
 import ReportingWorkspace from './modules/reporting-workspace';
@@ -502,13 +503,14 @@ export default function AdminPage() {
 
             {(!activeDomainView || activeDomainView.key === 'features') && <section className="panel">
               <div className="panelTitle"><div><span className="eyebrow">RUNTIME MODULES</span><h2>Feature flags</h2></div><span>{Object.values(manifest?.features ?? {}).filter((feature) => feature.enabled).length} aktif</span></div>
-              <p className="sectionHelp">Perubahan flag memengaruhi kemampuan runtime. Gunakan hanya untuk feature yang memang memiliki implementasi backend/UI.</p>
-              <div className="table">{manifest?.modules.map((module) => { const enabled = module.isCore || !module.featureKey || manifest.features[module.featureKey]?.enabled; return <div className="receipt" key={module.code}><div><strong>{module.name}</strong><small>{module.category} · {module.code}</small></div>{module.featureKey ? <button type="button" className="secondary" onClick={() => setFeatureChange({ key: module.featureKey!, enabled: !enabled })}>{enabled ? 'Nonaktifkan' : 'Aktifkan'}</button> : <span className="okText">CORE</span>}</div>; })}</div>
+              <p className="sectionHelp">Flag runtime bukan bukti product-completeness. Maturity dan ownership di bawah menjelaskan capability sebenarnya; FOUNDATION/ADAPTER_REQUIRED tidak boleh dibaca sebagai modul produksi selesai.</p>
+              <div className="table">{manifest?.modules.map((module) => { const feature = module.featureKey ? manifest.features[module.featureKey] : undefined; const enabled = module.isCore || !module.featureKey || feature?.enabled; const maturity = feature?.config?.maturityClass ?? (module.isCore ? 'OPERATIONAL' : 'UNKNOWN'); const help = feature?.config?.helpText ?? module.description ?? 'Capability core runtime.'; const configurable = feature?.config?.configurable !== false; return <div className="receipt" key={module.code}><div><strong>{module.name}</strong><small>{module.category} · {module.code}</small><small>Maturity: {maturity} · Ownership: {feature?.config?.ownership ?? (module.isCore ? 'TOKO360_RUNTIME' : 'UNDECLARED')}</small><small>{help}</small></div>{module.featureKey ? <div className="actionRow"><span className={enabled?'okText':''}>{enabled?'ENABLED':'DISABLED'}</span><button type="button" className="secondary" disabled={!configurable} onClick={() => setFeatureChange({ key: module.featureKey!, enabled: !enabled })}>{enabled ? 'Nonaktifkan' : 'Aktifkan'}</button></div> : <span className="okText">CORE</span>}</div>; })}</div>
             </section>}
             {activeDomainView?.key === 'users' && <AccessControlView token={token} canManageRoles={Boolean(identity?.roles.includes('SUPER_ADMIN'))} actorId={identity?.sub} />}
             {(['platform','custom-fields','approvals','webhooks','ui-config','audit-ops'] as const).includes(activeDomainView?.key as never) && activeDomainView && <PlatformControlView token={token} mode={activeDomainView.key as 'platform'|'custom-fields'|'approvals'|'webhooks'|'ui-config'|'audit-ops'} />}
             {activeDomainView?.key === 'security' && <SecurityView token={token} />}
             {activeDomainView?.key === 'api-keys' && <ApiKeysView token={token} />}
+            {activeDomainView?.key === 'data-governance' && <DataGovernanceView token={token} />}
           </>}
 
         {featureChange && <div className="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="feature-change-title">

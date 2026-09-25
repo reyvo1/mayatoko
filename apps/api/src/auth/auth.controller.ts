@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from './auth.types';
 import { AuthService } from './auth.service';
@@ -83,6 +83,12 @@ export class AuthController {
   @Get('sessions')
   sessions(@CurrentUser() user: AuthUser) {
     return this.auth.sessions(user);
+  }
+
+  @ApiBearerAuth()
+  @Post('sessions/:id/revoke')
+  revokeSession(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.auth.revokeSession(id, user);
   }
 
   @ApiBearerAuth()
