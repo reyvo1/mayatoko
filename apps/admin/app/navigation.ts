@@ -68,6 +68,7 @@ type NavigationOverride = { route?: unknown; label?: unknown; hidden?: unknown; 
 
 function hasPermission(identity: AdminIdentity | null, workspace: AdminWorkspace): boolean {
   if (!identity) return true;
+  if (identity.roles.some((role) => ['SUPER_ADMIN', 'OWNER', 'ADMIN'].includes(role))) return true;
   if (workspace.roles?.some((role) => identity.roles.includes(role))) return true;
   if (!workspace.permissionPrefixes?.length) return true;
   if (!identity.permissions.length) return false;
