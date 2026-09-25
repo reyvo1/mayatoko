@@ -44,6 +44,8 @@ test('R7 browser UAT proves canonical analytics and responsive runtime geometry'
   assert.match(browser, /data-chart-kind/);
   assert.match(browser, /ADMIN_RESPONSIVE_SHELL/);
   assert.match(browser, /ADMIN_ALL_NAVIGATION_RUNTIME/);
+  assert.match(browser, /querySelector\('\.navLabel strong'\)/);
+  assert.match(browser, /data-admin-route/);
   assert.match(browser, /STOREFRONT_NAVIGATION_RUNTIME/);
   assert.match(browser, /POS_ALL_WORKSPACES_RUNTIME/);
   assert.match(browser, /EMPLOYEE_PORTAL_RESPONSIVE/);

@@ -301,14 +301,23 @@ async function main() {
     }
     evidence.checks.push({ id: 'ADMIN_CANONICAL_ANALYTICS', status: 'PASS', ...analyticsContract, screenshot: await captureSuccessScreenshot(cdp, 'admin-dashboard-canonical-analytics') });
 
-    const adminWorkspaces = await clickAllNavigation(cdp, '.navItem', 'Admin workspace');
+    const adminWorkspaceEntries = await evaluateValue(cdp, `([...document.querySelectorAll('.navItem')])
+      .filter((node) => node.getClientRects().length)
+      .map((node) => ({
+        route: node.getAttribute('data-admin-route'),
+        label: (node.querySelector('.navLabel strong')?.textContent || '').trim(),
+      }))
+      .filter((entry) => entry.route && entry.label)`);
+    const adminWorkspaces = adminWorkspaceEntries.map((entry) => entry.label);
     const adminDomainViews = [];
-    for (const workspace of adminWorkspaces) {
-      const clicked = await evaluateValue(cdp, `(() => { const nodes=[...document.querySelectorAll('.navItem')]; const el=nodes.find(x => (x.textContent || '').trim() === ${JSON.stringify(workspace)}); if(!el)return false; el.click(); return true; })()`);
-      if (!clicked) throw new Error(`Admin workspace hilang saat domain sweep: ${workspace}`);
+    for (const entry of adminWorkspaceEntries) {
+      const clicked = await evaluateValue(cdp, `(() => { const el=document.querySelector('.navItem[data-admin-route=${JSON.stringify(entry.route)}]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`);
+      if (!clicked) throw new Error(`Admin workspace hilang saat domain sweep: ${entry.label}`);
       await sleep(350);
-      const domains = await clickAllNavigation(cdp, '.domainTabs button', `Admin domain ${workspace}`);
-      adminDomainViews.push({ workspace, domains });
+      await waitExpression(cdp, `Boolean(document.querySelector('.navItem[data-admin-route=${JSON.stringify(entry.route)}][aria-current="page"]'))`, `Admin workspace aktif: ${entry.label}`);
+      await assertViewportIntegrity(cdp, `Admin workspace: ${entry.label}`, 1440, 900);
+      const domains = await clickAllNavigation(cdp, '.domainTabs button', `Admin domain ${entry.label}`);
+      adminDomainViews.push({ workspace: entry.label, domains });
     }
     evidence.checks.push({ id: 'ADMIN_ALL_NAVIGATION_RUNTIME', status: 'PASS', workspaces: adminWorkspaces, domainViews: adminDomainViews, screenshot: await captureSuccessScreenshot(cdp, 'admin-navigation-success') });
 
