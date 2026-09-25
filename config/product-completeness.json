@@ -372,10 +372,10 @@
       "title": "Payroll run, result, slip, journal",
       "default": "on",
       "sourceMaturity": "implemented-foundation",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
       "operatorSurfaceRequired": true,
       "evidence": [],
-      "notes": "Canonical post-audit status; source maturity alone cannot close this capability."
+      "notes": "P2 source implements GROSS/GROSS_UP/NET, temporal split-period/proration, effective-dated rule segmentation and operator method selection. Exact-source PostgreSQL P2 payroll runtime evidence is required before RUNTIME_VERIFIED."
     },
     {
       "id": "feature:payroll_tax",
@@ -384,10 +384,10 @@
       "title": "Pajak dan jaminan sosial configurable",
       "default": "on",
       "sourceMaturity": "versioned-rule-engine",
-      "status": "PARTIAL",
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
       "operatorSurfaceRequired": true,
       "evidence": [],
-      "notes": "Canonical post-audit status; source maturity alone cannot close this capability."
+      "notes": "P2 source implements GROSS/GROSS_UP/NET, temporal split-period/proration, effective-dated rule segmentation and operator method selection. Exact-source PostgreSQL P2 payroll runtime evidence is required before RUNTIME_VERIFIED."
     },
     {
       "id": "feature:employee_portal",
@@ -648,24 +648,29 @@
       "id": "audit:A-03",
       "kind": "POST_AUDIT_FINDING",
       "key": "A-03",
-      "title": "Multi-UOM lineage incomplete for online orders/returns",
+      "title": "Multi-UOM end-to-end transaction lineage completion",
       "severity": "CRITICAL",
       "targetPhase": "P2",
       "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "P2A source now persists immutable UOM lineage on OrderItem and all return families, centralizes ProductUnit conversion authority for POS/storefront orders, keeps fulfillment inventory in base units, copies historical snapshots into returns/refunds, and exposes storefront UOM selection. Exact-source mixed-UOM order -> fulfill -> return/refund PostgreSQL runtime evidence is still required.",
+      "notes": "P2A source persists immutable UOM lineage on OrderItem and all return families, centralizes ProductUnit conversion authority for POS/storefront orders, keeps fulfillment inventory in base units, copies historical snapshots into returns/refunds, and exposes storefront UOM selection. Static/migration evidence at exact-source 34a7034a... is not sufficient for runtime closure; dedicated ci:p2a:multi-uom-probe evidence is now required before RUNTIME_VERIFIED.",
       "evidence": [
-        "Source implementation: apps/api/src/common/transaction-uom.ts; OrderItem/OrderReturnItem/SaleReturnItem/PurchaseReturnItem schema snapshots; T360-20260925-p2a-transaction-uom-lineage expand migration; storefront UOM selection/return flow; product-completion-p2a-multi-uom-lineage.test.mjs."
+        "Source implementation: apps/api/src/common/transaction-uom.ts; OrderItem/OrderReturnItem/SaleReturnItem/PurchaseReturnItem schema snapshots; T360-20260925-p2a-transaction-uom-lineage expand migration; storefront UOM selection/return flow; product-completion-p2a-multi-uom-lineage.test.mjs.",
+        "Required runtime gate: handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json from ci:p2a:multi-uom-probe must PASS on exact-source PostgreSQL runtime and is aggregate-required."
       ]
     },
     {
       "id": "audit:A-04",
       "kind": "POST_AUDIT_FINDING",
       "key": "A-04",
-      "title": "Payroll GROSS_UP/NET and split-period proration not implemented",
+      "title": "Payroll GROSS/GROSS_UP/NET and split-period completion",
       "severity": "HIGH",
       "targetPhase": "P2",
-      "status": "PARTIAL",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
+      "notes": "P2 source implements executable GROSS/GROSS_UP/NET tax methods, actual temporal allocation for effective-dated component/profile/rule changes, operator selection, balanced posting and differential recovery path. Dedicated exact-source PostgreSQL ci:p2:payroll-probe evidence is required before RUNTIME_VERIFIED.",
+      "evidence": [
+        "Source implementation: apps/api/src/payroll/payroll-method-engine.ts; payroll.service.ts temporal segmentation/allocation; payroll DTO/Admin tax-method selection; docs PAYROLL-TAX-INDONESIA and HRIS-ATTENDANCE-PAYROLL.",
+        "Required runtime gate: handoff/quality/github-p2-payroll-runtime-probe-latest.json from ci:p2:payroll-probe must PASS on exact-source PostgreSQL runtime with GROSS/GROSS_UP/NET, split-period rule/profile/component behavior, balanced posting, salary settlement, adjustment recovery and recovery settlement."
+      ]
     },
     {
       "id": "audit:A-05",

@@ -44,8 +44,8 @@ test('R2 employee assignment is effective-dated overlap-safe and audited', () =>
 
 test('R2 payroll profiles and accounting mapping are operator managed and fail closed', () => {
   for (const route of ["@Get('employee-profiles/:employeeId')", "@Post('employee-tax-profiles')", "@Post('employee-social-security-profiles')", "@Get('accounting-mappings')", "@Post('accounting-mappings')"]) assert.match(payrollController, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(payrollService, /Tax method \$\{dto\.taxMethod\} belum didukung aman/);
-  assert.match(payrollService, /supportedTaxMethods: \['GROSS'\]/);
+  assert.match(payrollService, /supportedTaxMethods: \['GROSS', 'GROSS_UP', 'NET'\]/);
+  assert.match(payrollService, /applyPayrollTaxMethod/);
   assert.match(payrollService, /UPSERT_EMPLOYEE_TAX_PROFILE/);
   assert.match(payrollService, /UPSERT_EMPLOYEE_SOCIAL_SECURITY_PROFILE/);
   assert.match(payrollService, /UPSERT_PAYROLL_ACCOUNTING_MAPPING/);
@@ -76,7 +76,9 @@ test('R2 GitHub runtime probe is mandatory in both full workflows and aggregate 
   const summary = read('scripts/ci-write-full-system-summary.mjs');
   const report = read('scripts/github-uat-report.mjs');
   assert.match(probe, /R2 HR\/payroll probe PASS/);
-  assert.match(probe, /unsupportedNetRejected/);
+  assert.match(probe, /supportedTaxMethods/);
+  assert.match(probe, /GROSS_UP/);
+  assert.match(probe, /NET/);
   assert.match(probe, /attendance\/corrections\/\$\{correction\.id\}\/review/);
   assert.match(probe, /channels\/verify/);
   assert.match(probe, /accounting-mappings/);

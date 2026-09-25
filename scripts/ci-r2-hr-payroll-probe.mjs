@@ -76,7 +76,6 @@ await request('/employee/me/channels/verify', { method: 'POST', token, body: { c
 await request('/employee/me/notification-preferences', { method: 'POST', token, body: { eventCode: 'PAYSLIP_PUBLISHED', channel: 'TELEGRAM', enabled: true } });
 
 const taxProfile = await request('/payroll/employee-tax-profiles', { method: 'POST', token, body: { employeeId: employee.id, taxStatusCode: 'TK0', taxMethod: 'GROSS', effectiveFrom: today, attributes: { runtimeProbe: true } } });
-await request('/payroll/employee-tax-profiles', { method: 'POST', token, expect: 400, body: { employeeId: employee.id, taxStatusCode: 'TK0', taxMethod: 'NET', effectiveFrom: today } });
 const socialProfile = await request('/payroll/employee-social-security-profiles', { method: 'POST', token, body: { employeeId: employee.id, wageBase: 5000000, programs: ['HEALTH', 'EMPLOYMENT'], effectiveFrom: today } });
 const accounts = await request('/accounting-core/accounts', { token });
 const expense = accounts.find((item) => item.isActive && item.type === 'EXPENSE');
@@ -106,13 +105,14 @@ const checks = {
   biometricRevoked: biometrics.some((item) => item.id === biometric.id && item.status === 'REVOKED'), assignment: assignments.some((item) => item.id === assignment.id),
   grossTaxProfile: profiles?.taxProfiles?.some((item) => item.id === taxProfile.id && item.taxMethod === 'GROSS'), socialProfile: profiles?.socialSecurityProfiles?.some((item) => item.id === socialProfile.id),
   accountingMapping: mappings.some((item) => item.id === mapping.id), telegramVerified: channels.some((item) => item.channel === 'TELEGRAM' && item.verifiedAt),
-  notificationPreference: preferences.some((item) => item.eventCode === 'PAYSLIP_PUBLISHED' && item.channel === 'TELEGRAM' && item.enabled), unsupportedNetRejected: true,
+  notificationPreference: preferences.some((item) => item.eventCode === 'PAYSLIP_PUBLISHED' && item.channel === 'TELEGRAM' && item.enabled),
+  supportedTaxMethods: ['GROSS', 'GROSS_UP', 'NET'].every((method) => profiles?.supportedTaxMethods?.includes(method)),
 };
 for (const [name, passed] of Object.entries(checks)) if (!passed) throw new Error(`R2 runtime check gagal: ${name}`);
 
 const result = {
   generatedAt: new Date().toISOString(), status: 'PASS', sourceIdentity: sourceFingerprint(root), employeeId: employee.id, checks,
-  note: 'R2 runtime probe exercises real WorkShift/roster/policy/correction approval, assignment, device/geofence/biometric lifecycle, verified Telegram preference, employee tax/social profile management, payroll accounting mapping, and explicit NET tax-method rejection on live PostgreSQL runtime. Existing payroll staging/Stage-20 gates remain authoritative for payroll calculate/post/settle/payslip lifecycle.',
+  note: 'R2 runtime probe exercises real WorkShift/roster/policy/correction approval, assignment, device/geofence/biometric lifecycle, verified Telegram preference, employee tax/social profile management, payroll accounting mapping, and executable GROSS/GROSS_UP/NET capability discovery on live PostgreSQL runtime. The dedicated P2 payroll runtime gate is authoritative for method calculation, split-period, posting, adjustment, and recovery lifecycle.',
 };
 fs.mkdirSync(path.dirname(output), { recursive: true });
 fs.writeFileSync(output, JSON.stringify(result, null, 2) + '\n');

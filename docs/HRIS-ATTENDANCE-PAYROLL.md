@@ -182,10 +182,21 @@ Untuk existing database, jalankan migration `database/migrations/T360-20260911-p
 
 ## Effective-dated profile safety
 
-Employee tax and social-security profiles are versioned by `(employeeId, effectiveFrom)`. The payroll engine deliberately requires one profile/rule version to cover the **entire** payroll period. A profile or statutory rule that starts/ends mid-period is not silently stretched across the month; the result must remain `REQUIRES_REVIEW` until a split-period/proration workflow is explicitly implemented.
+Employee tax and social-security profiles are versioned by `(employeeId, effectiveFrom)`. P2 builds effective-day segments across employee profiles and APPROVED statutory rule versions. Proratable employee components preserve their own active ranges and actual calculated amounts; temporal allocation maps those amounts into the statutory segments instead of stretching one monthly total across the period. Missing coverage or unsupported configuration remains `REQUIRES_REVIEW`, while valid mid-period changes are executable.
 
 ## Recovery R2 operator implementation — 2026-09-24
 
 R2 adds permissioned operator/API lifecycle for WorkShift, EmployeeSchedule roster, AttendancePolicy, AttendanceCorrection review, effective-dated EmployeeAssignment, attendance devices/geofences/biometric credentials, and employee channel/preferences. Attendance corrections cannot mutate payroll-locked records and approved corrections only apply an allowlisted AttendanceRecord patch. Employee Portal exposes separate self-service surfaces for attendance correction, leave/permission/sick through configured LeaveType, overtime, payslips, and verified Telegram/WhatsApp delivery preferences.
 
 Both heavy GitHub workflows require `ci:r2:probe` on the live PostgreSQL exact-runtime chain. Source/static evidence alone is not sufficient to close R2.
+
+
+## P2 payroll method and split-period completion
+
+- `GROSS`: income tax is employee deduction and reduces take-home.
+- `GROSS_UP`: engine iteratively solves a taxable tax allowance to cent precision; the generated allowance is persisted as `TAX_GROSS_UP_ALLOWANCE`.
+- `NET`: income tax is employer-borne; employee take-home is not reduced, while tax payable and employer-borne trace remain auditable.
+- `PayrollComponentDefinition.proratable=true` enables day-based split assignment proration. Attendance/overtime calculations remain range-scoped to actual attendance rather than double-prorated.
+- Tax/social profiles and APPROVED rule families may change mid-period. The engine uses all overlapping versions for the selected rule family and records segment/profile/rule IDs in calculation trace.
+- Temporal amount allocation preserves actual component timing and allocates any cent remainder to the last overlapping segment, preventing split-period rounding drift.
+- P2 exact-runtime evidence must prove calculation without `REQUIRES_REVIEW`, balanced regular posting, salary settlement, differential adjustment after payment, employee-receivable recovery, and recovery settlement on PostgreSQL.

@@ -265,6 +265,16 @@ jobs:
         continue-on-error: true
         run: npm run ci:r4:probe
 
+      - name: Exercise P2A mixed-UOM order fulfillment and historical return lifecycle
+        id: p2a_multi_uom
+        continue-on-error: true
+        run: npm run ci:p2a:multi-uom-probe
+
+      - name: Exercise P2 payroll methods split-period accounting and recovery lifecycle
+        id: p2_payroll
+        continue-on-error: true
+        run: npm run ci:p2:payroll-probe
+
       - name: Exercise R5 assets fleet and maintenance lifecycle
         id: r5_assets_fleet
         continue-on-error: true
@@ -441,6 +451,8 @@ jobs:
           STEP_R1_TENANT_ACCESS: ${{ steps.r1_tenant_access.outcome }}
           STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           STEP_R4_CORE_BUSINESS: ${{ steps.r4_core_business.outcome }}
+          STEP_P2A_MULTI_UOM: ${{ steps.p2a_multi_uom.outcome }}
+          STEP_P2_PAYROLL: ${{ steps.p2_payroll.outcome }}
           STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
@@ -493,6 +505,8 @@ jobs:
           STEP_R1_TENANT_ACCESS: ${{ steps.r1_tenant_access.outcome }}
           STEP_R2_HR_PAYROLL: ${{ steps.r2_hr_payroll.outcome }}
           STEP_R4_CORE_BUSINESS: ${{ steps.r4_core_business.outcome }}
+          STEP_P2A_MULTI_UOM: ${{ steps.p2a_multi_uom.outcome }}
+          STEP_P2_PAYROLL: ${{ steps.p2_payroll.outcome }}
           STEP_R5_ASSETS_FLEET: ${{ steps.r5_assets_fleet.outcome }}
           STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
@@ -531,6 +545,8 @@ jobs:
           check "R1 tenant/access runtime probe" "$STEP_R1_TENANT_ACCESS"
           check "R2 HR/attendance/payroll runtime probe" "$STEP_R2_HR_PAYROLL"
           check "R4 core-business runtime probe" "$STEP_R4_CORE_BUSINESS"
+          check "P2A mixed-UOM runtime probe" "$STEP_P2A_MULTI_UOM"
+          check "P2 payroll runtime probe" "$STEP_P2_PAYROLL"
           check "R5 assets/fleet runtime probe" "$STEP_R5_ASSETS_FLEET"
           check "R6 scale/summary/archive/capability runtime probe" "$STEP_R6_SCALE_AI"
           check "R3 residual payment/reporting/edge/marketplace runtime probe" "$STEP_R3_RESIDUAL"

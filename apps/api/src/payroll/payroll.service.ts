@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, type Employee } from '@prisma/client';
+import { Prisma, type AttendanceRecord, type Employee, type EmployeeSocialSecurityProfile, type EmployeeTaxProfile, type SocialSecurityRuleSet, type TaxRuleSet } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { AccountingCoreService } from '../accounting-core/accounting-core.service';
 import { AuthUser } from '../auth/auth.types';
@@ -8,6 +8,7 @@ import { nextDocumentNumber } from '../common/numbering';
 import { serializableTx } from '../common/serializable-tx';
 import { PrismaService } from '../prisma/prisma.service';
 import { evaluatePayrollFormula } from './payroll-formula';
+import { applyPayrollTaxMethod, dateProration, inclusiveUtcDays, money, utcDayStart } from './payroll-method-engine';
 import { AssignEmployeeComponentDto, CreatePayrollAdjustmentRunDto, CreatePayrollComponentDto, CreatePayrollPeriodDto, CreatePayrollRunDto, CreateRuleSetDto, CreateSocialSecurityRuleSetDto, PublishPayslipsDto, SettlePayrollPaymentDto, UpsertEmployeeSocialSecurityProfileDto, UpsertEmployeeTaxProfileDto, UpsertPayrollAccountingMappingDto } from './dto/payroll.dto';
 
 const decimal = (value: Prisma.Decimal.Value = 0) => new Prisma.Decimal(value);
@@ -36,6 +37,7 @@ type AttendanceStats = {
   hasUnresolved: boolean;
   changedAfterCutoff: boolean;
 };
+type TemporalAmount = { amount: number; effectiveFrom: Date; effectiveTo: Date };
 
 function lookupRate(bands: RateBand[], amount: number) {
   return bands.find((band) => amount >= (band.min ?? Number.NEGATIVE_INFINITY) && amount <= (band.max ?? band.upTo ?? Number.POSITIVE_INFINITY))?.rate ?? 0;
@@ -141,14 +143,6 @@ export class PayrollService {
     return ruleSet;
   }
 
-  private ruleSetApplies(ruleSet: { status: string; effectiveFrom: Date; effectiveTo: Date | null } | null, startDate: Date, endDate: Date) {
-    if (!ruleSet || ruleSet.status !== 'APPROVED') return false;
-    // This engine does not split one payroll period across multiple statutory rule versions.
-    // Fail safe unless one approved version covers the whole payroll period.
-    if (ruleSet.effectiveFrom > startDate) return false;
-    if (ruleSet.effectiveTo && ruleSet.effectiveTo < endDate) return false;
-    return true;
-  }
 
   async createPeriod(dto: CreatePayrollPeriodDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
@@ -228,7 +222,8 @@ export class PayrollService {
       const component = await tx.payrollComponentDefinition.create({ data: {
         companyId: scope.companyId, code: dto.code, name: dto.name, componentType: dto.componentType as never,
         calculationType: dto.calculationType as never, defaultAmount: dto.defaultAmount, formula: dto.formula,
-        taxable: dto.taxable ?? true, attendanceBased: dto.attendanceBased ?? false,
+        taxable: dto.taxable ?? true, affectsGross: dto.affectsGross ?? true, affectsNet: dto.affectsNet ?? true,
+        proratable: dto.proratable ?? false, attendanceBased: dto.attendanceBased ?? false,
       } });
       await tx.auditLog.create({ data: { companyId: scope.companyId, userId: user.sub, action: 'CREATE_PAYROLL_COMPONENT', entityType: 'PayrollComponentDefinition', entityId: component.id } });
       return component;
@@ -246,6 +241,12 @@ export class PayrollService {
       const effectiveFrom = parseDate(dto.effectiveFrom, 'Tanggal efektif komponen');
       const effectiveTo = dto.effectiveTo ? parseRangeEnd(dto.effectiveTo, 'Tanggal akhir komponen') : null;
       if (effectiveTo && effectiveTo < effectiveFrom) throw new BadRequestException('Tanggal akhir komponen tidak boleh sebelum tanggal mulai.');
+      const overlap = await tx.employeePayrollComponent.findFirst({ where: {
+        companyId: scope.companyId, employeeId: dto.employeeId, componentId: dto.componentId, isActive: true,
+        effectiveFrom: { lte: effectiveTo ?? new Date('9999-12-31T23:59:59.999Z') },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: effectiveFrom } }],
+      }, select: { id: true } });
+      if (overlap) throw new ConflictException('Rentang EmployeePayrollComponent bertumpang tindih dengan assignment lain untuk komponen yang sama.');
       const assignment = await tx.employeePayrollComponent.create({ data: {
         companyId: scope.companyId, employeeId: dto.employeeId, componentId: dto.componentId,
         amount: dto.amount, percentage: dto.percentage, effectiveFrom, effectiveTo,
@@ -456,23 +457,110 @@ export class PayrollService {
     });
   }
 
-  private calculateTax(
+  private rowEffectiveAt<T extends { effectiveFrom: Date; effectiveTo: Date | null }>(rows: T[], at: Date): T | null {
+    const day = utcDayStart(at).getTime();
+    return rows.find((row) => {
+      const from = utcDayStart(row.effectiveFrom).getTime();
+      const to = row.effectiveTo ? utcDayStart(row.effectiveTo).getTime() : Number.POSITIVE_INFINITY;
+      return from <= day && to >= day;
+    }) ?? null;
+  }
+
+  private buildEffectiveSegments(
+    periodStart: Date,
+    periodEnd: Date,
+    rows: Array<{ effectiveFrom: Date; effectiveTo: Date | null }>,
+  ) {
+    const start = utcDayStart(periodStart);
+    const end = utcDayStart(periodEnd);
+    const endExclusive = new Date(end.getTime() + 86_400_000);
+    const points = new Set<number>([start.getTime(), endExclusive.getTime()]);
+    for (const row of rows) {
+      const overlap = dateProration(start, end, row);
+      if (!overlap) continue;
+      points.add(utcDayStart(overlap.activeFrom).getTime());
+      points.add(utcDayStart(overlap.activeTo).getTime() + 86_400_000);
+    }
+    const sorted = [...points].sort((a, b) => a - b);
+    const periodDays = inclusiveUtcDays(start, end);
+    return sorted.slice(0, -1).map((fromMs, index) => {
+      const toExclusive = sorted[index + 1];
+      const segmentStart = new Date(fromMs);
+      const segmentEnd = new Date(toExclusive - 86_400_000);
+      const activeDays = inclusiveUtcDays(segmentStart, segmentEnd);
+      return { start: segmentStart, end: segmentEnd, activeDays, factor: activeDays / periodDays };
+    }).filter((segment) => segment.activeDays > 0);
+  }
+
+  private allocateTemporalAmounts(
+    segments: Array<{ start: Date; end: Date }>,
+    rows: TemporalAmount[],
+  ) {
+    const allocated = segments.map(() => 0);
+    for (const row of rows) {
+      const rowStart = utcDayStart(row.effectiveFrom);
+      const rowEnd = utcDayStart(row.effectiveTo);
+      const rowDays = inclusiveUtcDays(rowStart, rowEnd);
+      if (!rowDays || !row.amount) continue;
+      const overlaps = segments.map((segment, index) => {
+        const start = utcDayStart(segment.start) > rowStart ? utcDayStart(segment.start) : rowStart;
+        const end = utcDayStart(segment.end) < rowEnd ? utcDayStart(segment.end) : rowEnd;
+        return { index, days: inclusiveUtcDays(start, end) };
+      }).filter((item) => item.days > 0);
+      let recognized = 0;
+      overlaps.forEach((item, index) => {
+        const amount = index === overlaps.length - 1 ? money(row.amount - recognized) : money(row.amount * item.days / rowDays);
+        allocated[item.index] = money(allocated[item.index] + amount);
+        recognized = money(recognized + amount);
+      });
+    }
+    return allocated;
+  }
+
+  private attendanceStats(
+    records: AttendanceRecord[],
+    rangeStart: Date,
+    rangeEnd: Date,
+    cutoffAt: Date | null,
+  ): AttendanceStats {
+    const from = utcDayStart(rangeStart).getTime();
+    const to = utcDayStart(rangeEnd).getTime();
+    const scoped = records.filter((item) => {
+      const day = utcDayStart(item.workDate).getTime();
+      return day >= from && day <= to;
+    });
+    return {
+      records: scoped.length,
+      payableDays: scoped.filter((item) => ['PRESENT', 'LATE', 'EARLY_LEAVE'].includes(item.status)).length,
+      absent: scoped.filter((item) => item.status === 'ABSENT').length,
+      lateMinutes: scoped.reduce((sum, item) => sum + item.lateMinutes, 0),
+      workedMinutes: scoped.reduce((sum, item) => sum + item.workedMinutes, 0),
+      overtimeMinutes: scoped.reduce((sum, item) => sum + item.overtimeMinutes, 0),
+      allLocked: scoped.length > 0 && scoped.every((item) => Boolean(item.lockedAt)),
+      hasUnresolved: scoped.some((item) => !FINAL_ATTENDANCE_STATUSES.has(item.status)),
+      changedAfterCutoff: Boolean(cutoffAt && scoped.some((item) => item.updatedAt > cutoffAt)),
+    };
+  }
+
+  private calculateTaxBase(
     taxableIncome: number,
-    taxProfile: { taxStatusCode: string | null; taxMethod: string } | null,
-    ruleSet: { calculationMode: string; parameters: unknown; status: string } | null,
+    taxProfile: Pick<EmployeeTaxProfile, 'taxStatusCode'> | null,
+    ruleSet: Pick<TaxRuleSet, 'calculationMode' | 'parameters' | 'status'> | null,
+    periodFraction = 1,
   ) {
     if (taxableIncome <= 0) return { amount: 0, trace: { status: 'NOT_APPLICABLE', reason: 'No taxable income.' } };
-    if (!taxProfile) return { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: 'Employee tax profile is missing.' } };
-    if (taxProfile.taxMethod !== 'GROSS') return { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: `Tax method ${taxProfile.taxMethod} is not implemented safely.` } };
-    if (!ruleSet || ruleSet.status !== 'APPROVED') return { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: 'No approved/effective tax rule set.' } };
+    if (!taxProfile) return { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: 'Employee tax profile is missing for an effective segment.' } };
+    if (!ruleSet || ruleSet.status !== 'APPROVED') return { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: 'No approved/effective tax rule set for an effective segment.' } };
     const parameters = (ruleSet.parameters ?? {}) as Record<string, unknown>;
+    const fraction = Math.max(0.000001, Math.min(1, periodFraction));
+    const periodEquivalentIncome = taxableIncome / fraction;
     if (ruleSet.calculationMode === 'LOOKUP_TABLE') {
       const category = taxProfile.taxStatusCode ?? String(parameters.defaultCategory ?? 'A');
       const categories = (parameters.categories ?? {}) as Record<string, RateBand[]>;
       const bands = categories[category] ?? [];
       if (!bands.length) return { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: `Rate table category ${category} is empty.` } };
-      const rate = lookupRate(bands, taxableIncome);
-      return { amount: taxableIncome * rate, trace: { status: 'CALCULATED', engine: 'LOOKUP_TABLE', category, rate, taxableIncome } };
+      const rate = lookupRate(bands, periodEquivalentIncome);
+      return { amount: money(taxableIncome * rate), trace: { status: 'CALCULATED', engine: 'LOOKUP_TABLE', category, rate, taxableIncome, periodEquivalentIncome, periodFraction: fraction } };
     }
     if (ruleSet.calculationMode === 'ANNUAL_PROGRESSIVE') {
       const periodsPerYear = asNumber(parameters.periodsPerYear ?? 12);
@@ -480,32 +568,154 @@ export class PayrollService {
         return { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: 'Progressive tax parameters are incomplete.' } };
       }
       const allowance = asNumber(parameters.allowance);
-      const annualized = taxableIncome * periodsPerYear;
+      const annualized = periodEquivalentIncome * periodsPerYear;
       const taxableAnnual = Math.max(0, annualized - allowance);
       const annualTax = progressiveTax(parameters.brackets as RateBand[], taxableAnnual);
-      return { amount: annualTax / periodsPerYear, trace: { status: 'CALCULATED', engine: 'ANNUAL_PROGRESSIVE', annualized, taxableAnnual, taxableIncome } };
+      return { amount: money((annualTax / periodsPerYear) * fraction), trace: { status: 'CALCULATED', engine: 'ANNUAL_PROGRESSIVE', annualized, taxableAnnual, taxableIncome, periodEquivalentIncome, periodFraction: fraction } };
     }
     return { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: `Unsupported calculation mode ${ruleSet.calculationMode}` } };
   }
 
-  private calculateSocialSecurity(gross: number, profile: { wageBase: Prisma.Decimal | null; programs: unknown } | null, ruleSet: { parameters: unknown; status: string } | null) {
+  private calculateTaxAcrossSegments(
+    taxableRows: TemporalAmount[],
+    netRows: TemporalAmount[],
+    profiles: EmployeeTaxProfile[],
+    ruleSets: TaxRuleSet[],
+    periodStart: Date,
+    periodEnd: Date,
+  ) {
+    const taxableIncome = money(taxableRows.reduce((sum, row) => sum + row.amount, 0));
+    const netBeforeTax = money(netRows.reduce((sum, row) => sum + row.amount, 0));
+    if (taxableIncome <= 0) {
+      return {
+        amount: 0, employeeDeduction: 0, employerBorneTax: 0, grossAdjustment: 0, taxableAdjustment: 0,
+        netAfterTax: netBeforeTax,
+        trace: { status: 'NOT_APPLICABLE', reason: 'No taxable income.', segments: [] as unknown[] },
+      };
+    }
+    const segments = this.buildEffectiveSegments(periodStart, periodEnd, [...profiles, ...ruleSets]);
+    const taxableBySegment = this.allocateTemporalAmounts(segments, taxableRows);
+    const netBySegment = this.allocateTemporalAmounts(segments, netRows);
+    let amount = 0; let employeeDeduction = 0; let employerBorneTax = 0; let grossAdjustment = 0; let taxableAdjustment = 0; let netAfterTax = 0;
+    let requiresReview = false;
+    const traceSegments: Array<Record<string, unknown>> = [];
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index];
+      const profile = this.rowEffectiveAt(profiles, segment.start);
+      const ruleSet = this.rowEffectiveAt(ruleSets, segment.start);
+      const segmentTaxable = taxableBySegment[index] ?? 0;
+      const segmentNetBeforeTax = netBySegment[index] ?? 0;
+      if (!profile || !ruleSet) {
+        requiresReview = true;
+        traceSegments.push({
+          status: 'REQUIRES_REVIEW', start: segment.start.toISOString(), end: segment.end.toISOString(), factor: segment.factor,
+          reason: !profile ? 'EmployeeTaxProfile coverage gap.' : 'Approved TaxRuleSet coverage gap.',
+          taxProfileId: profile?.id ?? null, taxRuleSetId: ruleSet?.id ?? null, taxableIncome: segmentTaxable, netBeforeTax: segmentNetBeforeTax,
+        });
+        netAfterTax += segmentNetBeforeTax;
+        continue;
+      }
+      try {
+        const methodResult = applyPayrollTaxMethod({
+          method: profile.taxMethod,
+          taxableIncome: segmentTaxable,
+          netBeforeTax: segmentNetBeforeTax,
+          taxCalculator: (value) => this.calculateTaxBase(value, profile, ruleSet, segment.factor).amount,
+        });
+        const finalTaxTrace = this.calculateTaxBase(segmentTaxable + methodResult.taxableAdjustment, profile, ruleSet, segment.factor).trace;
+        if (finalTaxTrace.status === 'REQUIRES_REVIEW') requiresReview = true;
+        amount += methodResult.taxPayable;
+        employeeDeduction += methodResult.employeeTaxDeduction;
+        employerBorneTax += methodResult.employerBorneTax;
+        grossAdjustment += methodResult.grossAdjustment;
+        taxableAdjustment += methodResult.taxableAdjustment;
+        netAfterTax += methodResult.netAfterTax;
+        traceSegments.push({
+          status: finalTaxTrace.status,
+          start: segment.start.toISOString(), end: segment.end.toISOString(), factor: segment.factor,
+          method: profile.taxMethod, taxProfileId: profile.id, taxRuleSetId: ruleSet.id,
+          taxableIncome: money(segmentTaxable), netBeforeTax: money(segmentNetBeforeTax), taxPayable: methodResult.taxPayable,
+          employeeTaxDeduction: methodResult.employeeTaxDeduction, employerBorneTax: methodResult.employerBorneTax,
+          grossAdjustment: methodResult.grossAdjustment, taxableAdjustment: methodResult.taxableAdjustment,
+          grossEquivalentAdjustment: methodResult.grossEquivalentAdjustment, iterations: methodResult.iterations,
+          engine: finalTaxTrace,
+        });
+      } catch (error) {
+        requiresReview = true;
+        netAfterTax += segmentNetBeforeTax;
+        traceSegments.push({
+          status: 'REQUIRES_REVIEW', start: segment.start.toISOString(), end: segment.end.toISOString(), factor: segment.factor,
+          method: profile.taxMethod, taxProfileId: profile.id, taxRuleSetId: ruleSet.id, taxableIncome: segmentTaxable, netBeforeTax: segmentNetBeforeTax,
+          reason: error instanceof Error ? error.message : 'Tax method calculation failed.',
+        });
+      }
+    }
+    return {
+      amount: money(amount), employeeDeduction: money(employeeDeduction), employerBorneTax: money(employerBorneTax),
+      grossAdjustment: money(grossAdjustment), taxableAdjustment: money(taxableAdjustment), netAfterTax: money(netAfterTax),
+      trace: { status: requiresReview ? 'REQUIRES_REVIEW' : 'CALCULATED', taxableIncome, netBeforeTax, segments: traceSegments },
+    };
+  }
+
+  private calculateSocialSecurity(
+    gross: number,
+    profile: Pick<EmployeeSocialSecurityProfile, 'wageBase' | 'programs'> | null,
+    ruleSet: Pick<SocialSecurityRuleSet, 'parameters' | 'status'> | null,
+    periodFraction = 1,
+  ) {
     if (!profile) return { employee: 0, employer: 0, lines: [] as Array<{ code: string; base: number; employeeAmount: number; employerAmount: number }>, trace: { status: 'NOT_APPLICABLE', reason: 'No employee social-security profile.' } };
     if (!ruleSet || ruleSet.status !== 'APPROVED') return { employee: 0, employer: 0, lines: [] as Array<{ code: string; base: number; employeeAmount: number; employerAmount: number }>, trace: { status: 'REQUIRES_REVIEW', reason: 'No approved/effective social-security rule set.' } };
     const parameters = (ruleSet.parameters ?? {}) as { programs?: Array<{ code: string; employeeRate?: number; employerRate?: number; maxWage?: number; minWage?: number }> };
     const selected = new Set(Array.isArray(profile.programs) ? profile.programs.map(String) : []);
     if (selected.size && !(parameters.programs ?? []).length) return { employee: 0, employer: 0, lines: [] as Array<{ code: string; base: number; employeeAmount: number; employerAmount: number }>, trace: { status: 'REQUIRES_REVIEW', reason: 'Social-security program rates are empty.' } };
-    const wage = Number(profile.wageBase ?? gross);
+    const factor = Math.max(0.000001, Math.min(1, periodFraction));
+    const wage = profile.wageBase == null ? gross : Number(profile.wageBase) * factor;
     let employee = 0; let employer = 0;
     const lines = (parameters.programs ?? []).filter((item) => selected.has(item.code)).map((item) => {
-      const base = Math.max(item.minWage ?? 0, Math.min(wage, item.maxWage ?? wage));
-      const employeeAmount = base * (item.employeeRate ?? 0);
-      const employerAmount = base * (item.employerRate ?? 0);
+      const minWage = (item.minWage ?? 0) * factor;
+      const maxWage = item.maxWage == null ? wage : item.maxWage * factor;
+      const base = Math.max(minWage, Math.min(wage, maxWage));
+      const employeeAmount = money(base * (item.employeeRate ?? 0));
+      const employerAmount = money(base * (item.employerRate ?? 0));
       employee += employeeAmount; employer += employerAmount;
-      return { code: item.code, base, employeeAmount, employerAmount };
+      return { code: item.code, base: money(base), employeeAmount, employerAmount };
     });
     const unknownPrograms = [...selected].filter((code) => !(parameters.programs ?? []).some((item) => item.code === code));
-    if (unknownPrograms.length) return { employee, employer, lines, trace: { status: 'REQUIRES_REVIEW', wage, unknownPrograms } };
-    return { employee, employer, lines, trace: { status: 'CALCULATED', wage } };
+    if (unknownPrograms.length) return { employee: money(employee), employer: money(employer), lines, trace: { status: 'REQUIRES_REVIEW', wage: money(wage), periodFraction: factor, unknownPrograms } };
+    return { employee: money(employee), employer: money(employer), lines, trace: { status: 'CALCULATED', wage: money(wage), periodFraction: factor } };
+  }
+
+  private calculateSocialAcrossSegments(
+    grossRows: TemporalAmount[],
+    profiles: EmployeeSocialSecurityProfile[],
+    ruleSets: SocialSecurityRuleSet[],
+    periodStart: Date,
+    periodEnd: Date,
+  ) {
+    if (!profiles.length) return { employee: 0, employer: 0, lines: [] as Array<{ code: string; base: number; employeeAmount: number; employerAmount: number; metadata?: Prisma.InputJsonValue }>, employeeTemporal: [] as TemporalAmount[], trace: { status: 'NOT_APPLICABLE', reason: 'No employee social-security profile.', segments: [] as unknown[] } };
+    const segments = this.buildEffectiveSegments(periodStart, periodEnd, [...profiles, ...ruleSets]);
+    const grossBySegment = this.allocateTemporalAmounts(segments, grossRows);
+    let employee = 0; let employer = 0; let requiresReview = false;
+    const lines: Array<{ code: string; base: number; employeeAmount: number; employerAmount: number; metadata?: Prisma.InputJsonValue }> = [];
+    const employeeTemporal: TemporalAmount[] = [];
+    const traceSegments: Array<Record<string, unknown>> = [];
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index];
+      const profile = this.rowEffectiveAt(profiles, segment.start);
+      const ruleSet = this.rowEffectiveAt(ruleSets, segment.start);
+      if (!profile || !ruleSet) {
+        requiresReview = true;
+        traceSegments.push({ status: 'REQUIRES_REVIEW', start: segment.start.toISOString(), end: segment.end.toISOString(), factor: segment.factor, reason: !profile ? 'EmployeeSocialSecurityProfile coverage gap.' : 'Approved SocialSecurityRuleSet coverage gap.' });
+        continue;
+      }
+      const calculated = this.calculateSocialSecurity(grossBySegment[index] ?? 0, profile, ruleSet, segment.factor);
+      if (calculated.trace.status === 'REQUIRES_REVIEW') requiresReview = true;
+      employee += calculated.employee; employer += calculated.employer;
+      if (calculated.employee) employeeTemporal.push({ amount: -calculated.employee, effectiveFrom: segment.start, effectiveTo: segment.end });
+      for (const line of calculated.lines) lines.push({ ...line, metadata: { start: segment.start.toISOString(), end: segment.end.toISOString(), factor: segment.factor, profileId: profile.id, ruleSetId: ruleSet.id } });
+      traceSegments.push({ ...calculated.trace, gross: money(grossBySegment[index] ?? 0), start: segment.start.toISOString(), end: segment.end.toISOString(), factor: segment.factor, profileId: profile.id, ruleSetId: ruleSet.id });
+    }
+    return { employee: money(employee), employer: money(employer), lines, employeeTemporal, trace: { status: requiresReview ? 'REQUIRES_REVIEW' : 'CALCULATED', segments: traceSegments } };
   }
 
   private calculateComponentAmount(
@@ -613,10 +823,16 @@ export class PayrollService {
         recognitionRunIds = [source.id, ...priorAdjustments.map((item) => item.id)];
       }
 
-      const rawTaxRuleSet = await this.assertTaxRuleSet(tx, user, scope, run.taxRuleSetId ?? undefined);
-      const rawSocialRuleSet = await this.assertSocialRuleSet(tx, user, scope, run.socialSecurityRuleSetId ?? undefined);
-      const taxRuleSet = this.ruleSetApplies(rawTaxRuleSet, period.startDate, period.endDate) ? rawTaxRuleSet : null;
-      const socialRuleSet = this.ruleSetApplies(rawSocialRuleSet, period.startDate, period.endDate) ? rawSocialRuleSet : null;
+      const selectedTaxRuleSet = await this.assertTaxRuleSet(tx, user, scope, run.taxRuleSetId ?? undefined);
+      const selectedSocialRuleSet = await this.assertSocialRuleSet(tx, user, scope, run.socialSecurityRuleSetId ?? undefined);
+      const taxRuleSets = selectedTaxRuleSet ? await tx.taxRuleSet.findMany({ where: {
+        companyId: scope.companyId, code: selectedTaxRuleSet.code, status: 'APPROVED',
+        effectiveFrom: { lte: period.endDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.startDate } }],
+      }, orderBy: [{ effectiveFrom: 'asc' }, { version: 'asc' }] }) : [];
+      const socialRuleSets = selectedSocialRuleSet ? await tx.socialSecurityRuleSet.findMany({ where: {
+        companyId: scope.companyId, code: selectedSocialRuleSet.code, status: 'APPROVED',
+        effectiveFrom: { lte: period.endDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.startDate } }],
+      }, orderBy: [{ effectiveFrom: 'asc' }, { version: 'asc' }] }) : [];
 
       const recognizedResults = recognitionRunIds.length ? await tx.payrollResult.findMany({
         where: { companyId: scope.companyId, payrollRunId: { in: recognitionRunIds } },
@@ -660,73 +876,99 @@ export class PayrollService {
           companyId: scope.companyId, branchId: scope.branchId, employeeId: employee.id,
           workDate: { gte: period.startDate, lte: period.endDate },
         } });
-        const attendance: AttendanceStats = {
-          records: attendanceRecords.length,
-          payableDays: attendanceRecords.filter((item) => ['PRESENT', 'LATE', 'EARLY_LEAVE'].includes(item.status)).length,
-          absent: attendanceRecords.filter((item) => item.status === 'ABSENT').length,
-          lateMinutes: attendanceRecords.reduce((sum, item) => sum + item.lateMinutes, 0),
-          workedMinutes: attendanceRecords.reduce((sum, item) => sum + item.workedMinutes, 0),
-          overtimeMinutes: attendanceRecords.reduce((sum, item) => sum + item.overtimeMinutes, 0),
-          allLocked: attendanceRecords.length > 0 && attendanceRecords.every((item) => Boolean(item.lockedAt)),
-          hasUnresolved: attendanceRecords.some((item) => !FINAL_ATTENDANCE_STATUSES.has(item.status)),
-          changedAfterCutoff: Boolean(period.attendanceCutoffAt && attendanceRecords.some((item) => item.updatedAt > period.attendanceCutoffAt!)),
-        };
+        const attendance = this.attendanceStats(attendanceRecords, period.startDate, period.endDate, period.attendanceCutoffAt);
 
         let percentageBase = 0;
         for (const assignment of assignments) {
           const definition = byId.get(assignment.componentId);
           if (!definition || !['FIXED', 'MANUAL'].includes(definition.calculationType) || !definition.affectsGross) continue;
           if (!['EARNING', 'REIMBURSEMENT'].includes(definition.componentType)) continue;
-          percentageBase += Number(assignment.amount ?? definition.defaultAmount ?? 0);
+          const proration = dateProration(period.startDate, period.endDate, assignment);
+          if (!proration) continue;
+          let base = Number(assignment.amount ?? definition.defaultAmount ?? 0);
+          if (proration.factor < 1) {
+            if (!definition.proratable) continue;
+            base = money(base * proration.factor);
+          }
+          percentageBase += base;
         }
 
-        let gross = 0; let netAdditions = 0; let otherDeductions = 0; let taxableIncome = 0;
+        let gross = 0; let otherDeductions = 0; let taxableIncome = 0;
+        const grossTemporal: TemporalAmount[] = [];
+        const netTemporal: TemporalAmount[] = [];
+        const taxableTemporal: TemporalAmount[] = [];
         const componentReviews: Array<{ code: string; reasons: string[] }> = [];
         const targetLines: Array<{ componentId?: string; code: string; name: string; componentType: never; amount: number; taxableAmount: number; employerAmount: number; source: string; metadata?: Prisma.InputJsonValue }> = [];
         for (const assignment of assignments) {
           const definition = byId.get(assignment.componentId); if (!definition) continue;
-          const calculated = this.calculateComponentAmount(definition, assignment, attendance, percentageBase);
-          const requiresProration = assignment.effectiveFrom > period.startDate || Boolean(assignment.effectiveTo && assignment.effectiveTo < period.endDate);
-          if (requiresProration) {
-            calculated.reviewReasons.push('split-period-proration-not-supported');
-            calculated.amount = 0;
+          const proration = dateProration(period.startDate, period.endDate, assignment);
+          if (!proration) continue;
+          const assignmentAttendance = this.attendanceStats(attendanceRecords, proration.activeFrom, proration.activeTo, period.attendanceCutoffAt);
+          const calculated = this.calculateComponentAmount(definition, assignment, assignmentAttendance, percentageBase);
+          const isSplit = proration.factor < 1;
+          if (isSplit) {
+            if (!definition.proratable) {
+              calculated.reviewReasons.push('split-period-component-not-proratable');
+              calculated.amount = 0;
+            } else if (!['ATTENDANCE', 'OVERTIME'].includes(definition.calculationType)) {
+              calculated.amount = money(calculated.amount * proration.factor);
+            }
           }
           if (calculated.reviewReasons.length) componentReviews.push({ code: definition.code, reasons: calculated.reviewReasons });
           const positiveType = definition.componentType === 'EARNING' || definition.componentType === 'REIMBURSEMENT';
-          if (positiveType && definition.affectsGross) gross += calculated.amount;
-          if (positiveType && definition.affectsNet) netAdditions += calculated.amount;
-          if (definition.componentType === 'DEDUCTION' && definition.affectsNet) otherDeductions += calculated.amount;
+          if (positiveType && definition.affectsGross) {
+            gross += calculated.amount;
+            grossTemporal.push({ amount: money(calculated.amount), effectiveFrom: proration.activeFrom, effectiveTo: proration.activeTo });
+          }
+          if (positiveType && definition.affectsNet) {
+            netTemporal.push({ amount: money(calculated.amount), effectiveFrom: proration.activeFrom, effectiveTo: proration.activeTo });
+          }
+          if (definition.componentType === 'DEDUCTION' && definition.affectsNet) {
+            otherDeductions += calculated.amount;
+            netTemporal.push({ amount: -money(calculated.amount), effectiveFrom: proration.activeFrom, effectiveTo: proration.activeTo });
+          }
           const taxableAmount = positiveType && definition.taxable ? calculated.amount : 0;
           taxableIncome += taxableAmount;
+          if (taxableAmount) taxableTemporal.push({ amount: money(taxableAmount), effectiveFrom: proration.activeFrom, effectiveTo: proration.activeTo });
           targetLines.push({
             componentId: definition.id, code: definition.code, name: definition.name, componentType: definition.componentType as never,
-            amount: calculated.amount, taxableAmount, employerAmount: 0, source: definition.calculationType,
-            metadata: calculated.reviewReasons.length ? { reviewReasons: calculated.reviewReasons } : undefined,
+            amount: money(calculated.amount), taxableAmount: money(taxableAmount), employerAmount: 0, source: definition.calculationType,
+            metadata: {
+              ...(calculated.reviewReasons.length ? { reviewReasons: calculated.reviewReasons } : {}),
+              proration: { applied: isSplit && definition.proratable, factor: proration.factor, activeDays: proration.activeDays, periodDays: proration.periodDays, activeFrom: proration.activeFrom.toISOString(), activeTo: proration.activeTo.toISOString() },
+            } as Prisma.InputJsonValue,
           });
         }
 
-        const taxProfile = await tx.employeeTaxProfile.findFirst({ where: {
-          employeeId: employee.id, companyId: scope.companyId, effectiveFrom: { lte: period.startDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.endDate } }],
-        }, orderBy: { effectiveFrom: 'desc' } });
-        const socialProfile = await tx.employeeSocialSecurityProfile.findFirst({ where: {
-          employeeId: employee.id, companyId: scope.companyId, effectiveFrom: { lte: period.startDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.endDate } }],
-        }, orderBy: { effectiveFrom: 'desc' } });
-        const partialTaxProfile = taxProfile ? null : await tx.employeeTaxProfile.findFirst({ where: {
-          employeeId: employee.id, companyId: scope.companyId, effectiveFrom: { lte: period.endDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.startDate } }],
-        } });
-        const partialSocialProfile = socialProfile ? null : await tx.employeeSocialSecurityProfile.findFirst({ where: {
-          employeeId: employee.id, companyId: scope.companyId, effectiveFrom: { lte: period.endDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.startDate } }],
-        } });
-        const tax = partialTaxProfile
-          ? { amount: 0, trace: { status: 'REQUIRES_REVIEW', reason: 'EmployeeTaxProfile changes inside payroll period; split-period proration is not implemented safely.' } }
-          : this.calculateTax(taxableIncome, taxProfile, taxRuleSet);
-        const social = partialSocialProfile
-          ? { employee: 0, employer: 0, lines: [] as Array<{ code: string; base: number; employeeAmount: number; employerAmount: number }>, trace: { status: 'REQUIRES_REVIEW', reason: 'EmployeeSocialSecurityProfile changes inside payroll period; split-period proration is not implemented safely.' } }
-          : this.calculateSocialSecurity(gross, socialProfile, socialRuleSet);
-        const net = netAdditions - otherDeductions - tax.amount - social.employee;
+        const taxProfiles = await tx.employeeTaxProfile.findMany({ where: {
+          employeeId: employee.id, companyId: scope.companyId,
+          effectiveFrom: { lte: period.endDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.startDate } }],
+        }, orderBy: { effectiveFrom: 'asc' } });
+        const socialProfiles = await tx.employeeSocialSecurityProfile.findMany({ where: {
+          employeeId: employee.id, companyId: scope.companyId,
+          effectiveFrom: { lte: period.endDate }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: period.startDate } }],
+        }, orderBy: { effectiveFrom: 'asc' } });
+        const social = this.calculateSocialAcrossSegments(grossTemporal, socialProfiles, socialRuleSets, period.startDate, period.endDate);
+        const netBeforeTaxTemporal = [...netTemporal, ...social.employeeTemporal];
+        const tax = this.calculateTaxAcrossSegments(taxableTemporal, netBeforeTaxTemporal, taxProfiles, taxRuleSets, period.startDate, period.endDate);
+        gross = money(gross + tax.grossAdjustment);
+        taxableIncome = money(taxableIncome + tax.taxableAdjustment);
+        const net = tax.netAfterTax;
         if (net < 0) throw new BadRequestException(`Gaji bersih target ${employee.employeeNumber} bernilai negatif.`);
-        if (tax.amount > 0) targetLines.push({ code: 'INCOME_TAX', name: 'Pajak Penghasilan', componentType: 'TAX' as never, amount: tax.amount, taxableAmount: 0, employerAmount: 0, source: 'TAX_ENGINE' });
-        for (const item of social.lines) targetLines.push({ code: item.code, name: item.code, componentType: 'DEDUCTION' as never, amount: item.employeeAmount, taxableAmount: 0, employerAmount: item.employerAmount, source: 'SOCIAL_SECURITY' });
+        if (tax.grossAdjustment > 0) targetLines.push({
+          code: 'TAX_GROSS_UP_ALLOWANCE', name: 'Tunjangan Pajak Gross-Up', componentType: 'EARNING' as never,
+          amount: tax.grossAdjustment, taxableAmount: tax.taxableAdjustment, employerAmount: 0, source: 'TAX_METHOD_ENGINE',
+          metadata: { taxMethod: 'GROSS_UP', generated: true },
+        });
+        if (tax.amount > 0) targetLines.push({
+          code: 'INCOME_TAX', name: 'Pajak Penghasilan', componentType: 'TAX' as never, amount: tax.amount, taxableAmount: 0,
+          employerAmount: tax.employerBorneTax, source: 'TAX_METHOD_ENGINE',
+          metadata: { employeeTaxDeduction: tax.employeeDeduction, employerBorneTax: tax.employerBorneTax, trace: tax.trace } as Prisma.InputJsonValue,
+        });
+        for (const item of social.lines) targetLines.push({
+          code: item.code, name: item.code, componentType: 'DEDUCTION' as never, amount: item.employeeAmount, taxableAmount: 0,
+          employerAmount: item.employerAmount, source: 'SOCIAL_SECURITY', metadata: item.metadata,
+        });
 
         const recognized = recognizedByEmployee.get(employee.id) ?? [];
         const recognizedGross = recognized.reduce((sum, row) => sum.plus(row.grossPay), decimal(0));
@@ -752,7 +994,7 @@ export class PayrollService {
           tax: tax.trace,
           socialSecurity: social.trace,
           attendance: { ...attendance, cutoffAt: period.attendanceCutoffAt?.toISOString() ?? null },
-          ruleVersions: { taxRuleSetId: taxRuleSet?.id ?? null, socialSecurityRuleSetId: socialRuleSet?.id ?? null },
+          ruleVersions: { taxRuleSetIds: taxRuleSets.map((item) => item.id), socialSecurityRuleSetIds: socialRuleSets.map((item) => item.id) },
           ...(isAdjustment ? { adjustment: {
             sourcePayrollRunId: run.adjustmentOfRunId, recognitionRunIds,
             target: { grossPay: gross, taxableIncome, employeeContribution: social.employee, employerContribution: social.employer, incomeTax: tax.amount, otherDeductions, netPay: net },
@@ -1273,8 +1515,7 @@ export class PayrollService {
     ]);
     return {
       employeeId,
-      supportedTaxMethods: ['GROSS'],
-      unsupportedTaxMethods: { GROSS_UP: 'Belum memiliki engine gross-up yang tervalidasi.', NET: 'Belum memiliki engine net-to-gross yang tervalidasi.' },
+      supportedTaxMethods: ['GROSS', 'GROSS_UP', 'NET'],
       taxProfiles,
       socialSecurityProfiles: socialProfiles,
     };
@@ -1286,7 +1527,6 @@ export class PayrollService {
 
   async upsertEmployeeTaxProfile(dto: UpsertEmployeeTaxProfileDto, user: AuthUser) {
     const scope = this.requireTenantScope(user);
-    if (dto.taxMethod !== 'GROSS') throw new BadRequestException(`Tax method ${dto.taxMethod} belum didukung aman. Metode yang executable saat ini hanya GROSS.`);
     const effectiveFrom = parseDate(dto.effectiveFrom, 'EmployeeTaxProfile.effectiveFrom');
     const effectiveTo = dto.effectiveTo ? parseRangeEnd(dto.effectiveTo, 'EmployeeTaxProfile.effectiveTo') : null;
     this.assertEffectiveRange(effectiveFrom, effectiveTo, 'EmployeeTaxProfile');

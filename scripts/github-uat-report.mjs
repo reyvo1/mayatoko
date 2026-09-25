@@ -19,6 +19,8 @@ const rows = [
   ['R1 tenant/access runtime probe', process.env.STEP_R1_TENANT_ACCESS],
   ['R2 HR/attendance/payroll runtime probe', process.env.STEP_R2_HR_PAYROLL],
   ['R4 core-business runtime probe', process.env.STEP_R4_CORE_BUSINESS],
+  ['P2A mixed-UOM runtime probe', process.env.STEP_P2A_MULTI_UOM],
+  ['P2 payroll runtime probe', process.env.STEP_P2_PAYROLL],
   ['R5 assets/fleet runtime probe', process.env.STEP_R5_ASSETS_FLEET],
   ['R6 scale/summary/archive/capability runtime probe', process.env.STEP_R6_SCALE_AI],
   ['R3 residual payment/reporting/edge/marketplace runtime probe', process.env.STEP_R3_RESIDUAL],

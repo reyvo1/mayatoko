@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsDateString, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
 
 export class CreatePayrollPeriodDto {
   @ApiPropertyOptional({ description: 'Kompatibilitas lama; company tetap berasal dari token.' }) @IsOptional() @IsUUID() companyId?: string;
@@ -39,8 +39,11 @@ export class CreatePayrollComponentDto {
   @ApiProperty() @IsString() calculationType!: string;
   @ApiPropertyOptional() @IsOptional() @IsNumber() defaultAmount?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() formula?: string;
-  @ApiPropertyOptional() @IsOptional() taxable?: boolean;
-  @ApiPropertyOptional() @IsOptional() attendanceBased?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() taxable?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() affectsGross?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() affectsNet?: boolean;
+  @ApiPropertyOptional({ description: 'Prorata otomatis bila assignment hanya aktif pada sebagian periode payroll.' }) @IsOptional() @IsBoolean() proratable?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() attendanceBased?: boolean;
 }
 
 export class AssignEmployeeComponentDto {
@@ -91,7 +94,7 @@ export class PublishPayslipsDto {
 export class UpsertEmployeeTaxProfileDto {
   @ApiProperty() @IsUUID() employeeId!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() taxStatusCode?: string;
-  @ApiProperty({ example: 'GROSS', description: 'Saat ini hanya GROSS executable; metode lain disimpan hanya bila backend mendukungnya secara eksplisit.' }) @IsString() taxMethod!: string;
+  @ApiProperty({ example: 'GROSS', enum: ['GROSS', 'GROSS_UP', 'NET'], description: 'Metode pajak payroll executable: GROSS, GROSS_UP, atau NET.' }) @IsString() @IsIn(['GROSS', 'GROSS_UP', 'NET']) taxMethod!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() annualizationMethod?: string;
   @ApiProperty() @IsDateString() effectiveFrom!: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() effectiveTo?: string;

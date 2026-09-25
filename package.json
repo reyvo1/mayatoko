@@ -118,7 +118,9 @@
     "ci:r8:probe": "node scripts/ci-r8-release-evidence-probe.mjs",
     "ci:r8:reporting-security-probe": "node scripts/ci-r8-reporting-security-probe.mjs",
     "audit:product:completeness": "node scripts/audit-product-completeness.mjs",
-    "audit:admin:contextual": "node scripts/audit-admin-contextual-workflows.mjs"
+    "audit:admin:contextual": "node scripts/audit-admin-contextual-workflows.mjs",
+    "ci:p2a:multi-uom-probe": "node scripts/ci-p2a-multi-uom-runtime-probe.mjs",
+    "ci:p2:payroll-probe": "node scripts/ci-p2-payroll-runtime-probe.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

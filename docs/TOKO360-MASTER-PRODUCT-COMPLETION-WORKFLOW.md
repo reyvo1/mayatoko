@@ -125,6 +125,8 @@ The following **never** close a capability by themselves:
 
 **Audit findings:** A-03, A-04.
 
+**Atomic delivery boundary:** P2 is one complete delivery wave. P2A and P2B are internal implementation streams only; do not require operator apply/test/commit between them. Run focused tests internally as needed, then deliver one P2 FULL package, one full exact-source GitHub gate, and one atomic commit/push boundary.
+
 ## P2A — Multi-UOM end-to-end
 
 Complete UOM lineage across all transaction families, not only POS/Purchase:

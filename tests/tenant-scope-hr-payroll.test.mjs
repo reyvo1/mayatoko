@@ -70,8 +70,10 @@ test('payroll calculation scopes employees, attendance, components, and profiles
   assert.match(payrollService, /where: \{ companyId: scope\.companyId, branchId: scope\.branchId, isActive: true \}/);
   assert.match(payrollService, /companyId: scope\.companyId,\s*employeeId: employee\.id/);
   assert.match(payrollService, /companyId: scope\.companyId,\s*branchId: scope\.branchId,\s*employeeId: employee\.id/);
-  assert.match(payrollService, /employeeTaxProfile\.findFirst\(\{ where: \{[\s\S]*?employeeId: employee\.id, companyId: scope\.companyId,[\s\S]*?effectiveFrom: \{ lte: period\.startDate \}[\s\S]*?effectiveTo: \{ gte: period\.endDate \}/);
-  assert.match(payrollService, /employeeSocialSecurityProfile\.findFirst\(\{ where: \{[\s\S]*?employeeId: employee\.id, companyId: scope\.companyId,[\s\S]*?effectiveFrom: \{ lte: period\.startDate \}[\s\S]*?effectiveTo: \{ gte: period\.endDate \}/);
+  assert.match(payrollService, /employeeTaxProfile\.findMany\(\{ where: \{[\s\S]*?employeeId: employee\.id, companyId: scope\.companyId,[\s\S]*?effectiveFrom: \{ lte: period\.endDate \}[\s\S]*?effectiveTo: \{ gte: period\.startDate \}/);
+  assert.match(payrollService, /employeeSocialSecurityProfile\.findMany\(\{ where: \{[\s\S]*?employeeId: employee\.id, companyId: scope\.companyId,[\s\S]*?effectiveFrom: \{ lte: period\.endDate \}[\s\S]*?effectiveTo: \{ gte: period\.startDate \}/);
+  assert.match(payrollService, /private buildEffectiveSegments/);
+  assert.match(payrollService, /private allocateTemporalAmounts/);
 });
 
 test('payroll approval, accounting posting, and payslip publication remain branch scoped and audited', () => {

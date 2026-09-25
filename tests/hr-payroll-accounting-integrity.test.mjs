@@ -17,7 +17,7 @@ test('payroll period blocks overlapping ranges and locks attendance before atten
   assert.match(payroll, /endDate: \{ gte: startDate \}/);
   assert.match(payroll, /LOCK_PAYROLL_ATTENDANCE/);
   assert.match(payroll, /pendingCorrections \|\| pendingLeave \|\| pendingOvertime \|\| unresolvedRecords/);
-  assert.match(payroll, /allLocked: attendanceRecords\.length > 0 && attendanceRecords\.every/);
+  assert.match(payroll, /allLocked: scoped\.length > 0 && scoped\.every/);
   assert.match(payroll, /attendance-not-locked/);
 });
 
@@ -32,15 +32,16 @@ test('payroll calculation is serializable, effective-dated and uses taxable comp
 });
 
 
-test('effective-dated employee payroll profiles support history and require full-period coverage', () => {
+test('effective-dated employee payroll profiles support history and split-period segmentation', () => {
   for (const schema of schemas) {
     assert.doesNotMatch(schema, /employeeId\s+String\s+@unique/);
     assert.match(schema, /@@unique\(\[employeeId, effectiveFrom\]\)/);
     assert.match(schema, /@@index\(\[companyId, employeeId, effectiveFrom\]\)/);
   }
-  assert.match(payroll, /ruleSet\.effectiveFrom > startDate/);
-  assert.match(payroll, /ruleSet\.effectiveTo && ruleSet\.effectiveTo < endDate/);
-  assert.match(payroll, /effectiveFrom: \{ lte: period\.startDate \}[\s\S]*?effectiveTo: \{ gte: period\.endDate \}/);
+  assert.match(payroll, /private buildEffectiveSegments/);
+  assert.match(payroll, /private allocateTemporalAmounts/);
+  assert.match(payroll, /employeeTaxProfile\.findMany\(\{ where: \{[\s\S]*?effectiveFrom: \{ lte: period\.endDate \}[\s\S]*?effectiveTo: \{ gte: period\.startDate \}/);
+  assert.match(payroll, /employeeSocialSecurityProfile\.findMany\(\{ where: \{[\s\S]*?effectiveFrom: \{ lte: period\.endDate \}[\s\S]*?effectiveTo: \{ gte: period\.startDate \}/);
   const pg = read('database/migrations/T360-20260911-payroll-liability-integrity/postgresql-expand.sql');
   const sqlite = read('database/migrations/T360-20260911-payroll-liability-integrity/sqlite-expand.sql');
   assert.match(pg, /DROP CONSTRAINT IF EXISTS "EmployeeTaxProfile_employeeId_key"/);

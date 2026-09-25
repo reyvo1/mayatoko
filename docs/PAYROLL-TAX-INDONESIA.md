@@ -24,7 +24,7 @@ Perhitungan payroll selalu menyimpan calculation trace dan rule version. Jika pr
 
 ## Effective-dated profile safety
 
-Employee tax and social-security profiles are versioned by `(employeeId, effectiveFrom)`. The payroll engine deliberately requires one profile/rule version to cover the **entire** payroll period. A profile or statutory rule that starts/ends mid-period is not silently stretched across the month; the result must remain `REQUIRES_REVIEW` until a split-period/proration workflow is explicitly implemented.
+Employee tax and social-security profiles are versioned by `(employeeId, effectiveFrom)`. P2 evaluates every effective-dated profile and every APPROVED statutory rule version that overlaps the payroll period. The engine splits the period into deterministic UTC-day segments, allocates actual effective-dated component amounts to those segments with exact remainder handling, and applies profile/rule semantics only to their real active ranges. Coverage gaps still fail closed as `REQUIRES_REVIEW`; a valid mid-period change no longer does.
 
 ## Koreksi payroll setelah posting
 
@@ -34,6 +34,6 @@ Untuk kewajiban eksternal, koreksi negatif hanya dapat mengurangi bagian PPh/BPJ
 
 ## Recovery R2 support truth — 2026-09-24
 
-EmployeeTaxProfile, EmployeeSocialSecurityProfile, and PayrollAccountingMapping are operator-managed and effective-dated. The executable employee tax method remains **GROSS only**. `NET` and `GROSS_UP` are rejected explicitly until a documented and validated net-to-gross/gross-up engine exists; the application must not approximate them.
+EmployeeTaxProfile, EmployeeSocialSecurityProfile, and PayrollAccountingMapping are operator-managed and effective-dated. P2 makes **GROSS**, **GROSS_UP**, and **NET** executable methods. GROSS deducts calculated tax from employee take-home; GROSS_UP solves a taxable allowance iteratively until allowance and tax converge to cent precision; NET records the tax as employer-borne cost without reducing employee take-home and preserves the gross-equivalent adjustment in calculation trace.
 
-Payroll also fails closed when an employee component or statutory profile changes inside one payroll period without full-period coverage. Split-period/proration is therefore **not silently inferred**. Such rows require review/a supported future proration implementation before approval and posting. Existing payroll calculation, approval, balanced journal posting, settlement, and secure-link payslip gates remain authoritative.
+Effective-dated component assignments may split inside a payroll period when the component is marked `proratable`. Fixed/manual/formula amounts are prorated by actual active days; attendance/overtime components use attendance scoped to the assignment range. Tax/social profiles and APPROVED rule versions are evaluated by their real effective ranges. Unsupported or incomplete configuration still becomes `REQUIRES_REVIEW`, but supported method/split behavior must never do so merely because an engine is missing. Exact-source PostgreSQL closure is provided by the required P2 payroll runtime probe covering method differences, mid-period rule changes, balanced posting, paid-salary adjustment, employee-receivable recovery, and recovery settlement.

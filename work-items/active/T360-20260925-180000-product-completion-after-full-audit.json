@@ -34,7 +34,11 @@
     "Browser UAT critical Admin journeys must resolve through config/admin-contextual-workflow-map.json and stable Admin workspace/view semantics; legacy hard-coded workspace ownership is forbidden.",
     "P2A transaction UOM authority is ProductUnit at order/sale creation; persisted transaction snapshots are immutable historical authority for fulfillment, return and refund, so current ProductUnit changes must never reinterpret old transactions.",
     "OrderItem.quantity and return-item quantity remain canonical integer base-unit quantities for inventory/batch/serial movements; unitQuantity and quantityFactor preserve operator/customer transaction UOM.",
-    "Prisma schema-only validate/generate commands must be provider-safe without rewriting the active .env; database-touching commands must still require a real provider-matching protected DATABASE_URL."
+    "Prisma schema-only validate/generate commands must be provider-safe without rewriting the active .env; database-touching commands must still require a real provider-matching protected DATABASE_URL.",
+    "P2 is one atomic delivery wave; P2A/P2B are internal implementation streams and must not create separate operator apply/test/commit boundaries.",
+    "P2 runtime closure requires both dedicated exact-source PostgreSQL gates: ci:p2a:multi-uom-probe for A-03 and ci:p2:payroll-probe for A-04; migration/source tests or unrelated recovery probes cannot promote either finding to RUNTIME_VERIFIED.",
+    "Payroll tax methods GROSS, GROSS_UP and NET are executable supported configuration; valid effective-dated component/profile/rule changes are segmented by actual active dates and must not return REQUIRES_REVIEW solely because they occur inside one payroll period.",
+    "Split-period tax/social allocation must use actual temporal component amounts with exact remainder handling; proportional stretching of one period total across statutory segments is forbidden."
   ],
   "acceptanceCriteria": [
     "P0-P7 are executed in order without skipping dependency gates.",
@@ -64,7 +68,8 @@
     "Runtime accounting invariant: journal entries remain balanced debit=credit and reversal/posting traces remain canonical",
     "Runtime sync invariant: idempotency, retry, offline replay, and conflict handling remain fail-closed where affected",
     "Browser contextual-route contract audit must pass before exact-source Browser UAT and must reject stale capability ownership.",
-    "P2A exact-source PostgreSQL runtime: create mixed-UOM storefront order, fulfill it, mutate/deactivate current ProductUnit, then return/refund and prove persisted UOM snapshot, inventory base quantity, tax and accounting reversal remain consistent."
+    "P2A exact-source PostgreSQL runtime: create mixed-UOM storefront order, fulfill it, mutate/deactivate current ProductUnit, then return/refund and prove persisted UOM snapshot, inventory base quantity, tax and accounting reversal remain consistent.",
+    "P2A exact-source gate must produce handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json with PASS, matching source fingerprint, productionTouched=false, historical UOM after ProductUnit deactivation, balanced fulfillment/return journals, exact amount remainder, and base-inventory round-trip."
   ],
   "migrationPlan": "Use expand-only migrations for new persistence required by functional-completeness fixes. Rehearse PostgreSQL migrations before exact-runtime closure. Never rewrite applied migration history.",
   "rollbackPlan": "Rollback one atomic wave at a time to the preceding clean exact-source checkpoint. Schema-changing waves require a documented compatibility/roll-forward strategy; do not use destructive migration rollback against shared data.",
@@ -79,5 +84,9 @@
     "docs/PRODUCT-COMPLETENESS-STATUS.md"
   ],
   "createdAt": "2026-09-25T18:00:00+08:00",
-  "updatedAt": "2026-09-25T21:45:00+08:00"
+  "updatedAt": "2026-09-25T22:05:00+08:00",
+  "verificationGates": [
+    "P2 Payroll exact-source PostgreSQL runtime: execute GROSS, GROSS_UP and NET in one effective-dated payroll period, prove actual split component/rule allocation, balanced posting, salary settlement, post-payment differential adjustment, employee-receivable recovery and recovery settlement.",
+    "P2 full aggregate gate requires both handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json and handoff/quality/github-p2-payroll-runtime-probe-latest.json PASS on matching source fingerprints with productionTouched=false."
+  ]
 }

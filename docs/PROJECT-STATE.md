@@ -115,10 +115,17 @@ Historical `docs/TOKO360-MASTER-RECOVERY-WORKFLOW.md` remains preserved as recov
 - P0 atomic source is complete; active product-completion phase moved to P1.
 - 62/62 Admin contextual destinations now have explicit canonical renderer mappings in `config/admin-contextual-workflow-map.json`; Customer is split from Category/Subcategory after operator discoverability review.
 - Six previously non-isolated workspaces and two partial workspaces now route active contextual destinations into dedicated component modes.
-- P1 canonical navigation root is runtime-verified by green Browser/R7 evidence. P1 remains open for Human IA acceptance; the category/customer discoverability correction must be re-run through Browser/R7 before acceptance and P2.
+- P1 canonical navigation root and 62-route category/customer correction are runtime-verified by green exact-source Browser/R7 evidence. Human IA/Stage-20 acceptance remains a separate pending gate; user explicitly authorized continuation into Product Completion phases while preserving that human-pending truth.
 
 ## 2026-09-25 — P1 runtime verification / P2A Multi-UOM source implementation
 
 P1 canonical Admin routing including the 62-route Master Data Category/Subcategory vs Customer split is runtime-verified on exact-source commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29`: Browser UAT, Built Browser UAT, R7/R8, worker/API/runtime sweeps, Stage-18, Stage-19, automated Stage-20 and aggregate gates passed. Human IA/Stage-20 acceptance remains a separate PENDING gate and is not replaced by automation. The user explicitly instructed continuation, so current implementation work advances to P2 while preserving that human-pending truth.
 
 P2A source implementation centralizes POS/storefront selling-UOM resolution in `apps/api/src/common/transaction-uom.ts`; expands OrderItem, OrderReturnItem, SaleReturnItem and PurchaseReturnItem with immutable UOM lineage; keeps inventory/serial/batch quantities in integer base units; carries selling-UOM snapshots into shipment/accounting traceability; and makes Storefront product/cart/return flows UOM-aware. Historical return/refund logic copies source snapshots and never reconstructs OrderReturn conversion from current ProductUnit configuration. A-03 is `IMPLEMENTED_RUNTIME_PENDING` until the required exact-source PostgreSQL mixed-UOM order -> fulfill -> ProductUnit-change -> return/refund journey passes with inventory/accounting/tax invariants.
+
+
+## 2026-09-25 — P2 FULL source implementation
+
+P2 is now executed as one atomic delivery wave rather than separate operator-facing P2A/P2B waves. Multi-UOM persistence/runtime proof and Payroll method/split-period completeness ship together. P2 source adds historical transaction-UOM authority and required mixed-UOM PostgreSQL probe; Payroll adds executable GROSS/GROSS_UP/NET, temporal amount allocation for effective-dated component/profile/rule changes, operator method selection, and an exact-source PostgreSQL probe that posts payroll, settles salary, creates a post-payment differential adjustment, creates employee-receivable recovery, and settles that recovery.
+
+A-03 and A-04 remain `IMPLEMENTED_RUNTIME_PENDING` until both dedicated P2 runtime evidence files pass on the exact source. P3 must not start until the P2 FULL wave is committed/pushed/clean and aggregate exact-source GitHub evidence is green. Human Stage-20 remains PENDING and is not auto-promoted by P2.

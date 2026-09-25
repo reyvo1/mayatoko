@@ -1,3 +1,18 @@
+# CURRENT AUTHORITATIVE WORK — 2026-09-25 P2 FULL
+
+Active work item: `T360-20260925-180000-product-completion-after-full-audit.json`.
+
+- Current phase: **P2 — Critical Transaction and Payroll Functional Completeness**.
+- Delivery boundary: **one P2 FULL atomic wave**; P2A/P2B are internal streams only.
+- P1 exact-source runtime is verified; Human Stage-20 remains PENDING and separate.
+- A-03 Multi-UOM is `IMPLEMENTED_RUNTIME_PENDING`; required exact-source evidence: `handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json`.
+- A-04 Payroll GROSS/GROSS_UP/NET + split-period is `IMPLEMENTED_RUNTIME_PENDING`; required exact-source evidence: `handoff/quality/github-p2-payroll-runtime-probe-latest.json`.
+- P3 is blocked until the P2 FULL source is locally green, committed/pushed/clean, both dedicated PostgreSQL probes PASS on the same source fingerprint, and the aggregate GitHub gate is green.
+- Human Stage-20 is never auto-promoted by automated P2 evidence.
+- P2 FULL packaging correction: v1 omitted the updated payroll contract tests `tests/hr-payroll-accounting-integrity.test.mjs` and `tests/tenant-scope-hr-payroll.test.mjs`; P2 FULL v2 includes them. Source payroll logic was unchanged by this correction; focused payroll contracts are 27/27 PASS and full dependency-free regression is 962/962 PASS.
+
+---
+
 # CURRENT AUTHORITATIVE RECOVERY — 2026-09-25 R7
 
 Active work item: `T360-20260923-221011` — Full UI rebuild with Tailwind and GitHub full-system UAT expansion.
@@ -393,7 +408,7 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 
 ## P1 exact-source runtime green / P2A Multi-UOM source implementation — 2026-09-25
 - Exact-source commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29` passed Browser UAT, Built Browser UAT, R7, R8, worker/API/runtime sweeps, Stage-18, Stage-19, automated Stage-20 and aggregate gates. P1 routing is therefore `RUNTIME_VERIFIED`; Human IA/Stage-20 remains PENDING and separate.
-- User explicitly instructed continuation after green evidence. P2A is the active implementation wave; do not start P2B Payroll until P2A is committed/pushed/clean and exact-source runtime evidence is stable.
+- User explicitly instructed continuation after green evidence. P2 is now one atomic delivery wave; P2A Multi-UOM and P2B Payroll are internal implementation streams and no longer create separate operator apply/test/commit boundaries.
 - P2A root contract: ProductUnit is authoritative only when creating a new transaction. Persisted transaction UOM snapshots are historical authority afterward; fulfillment/return/refund must never read current ProductUnit to reinterpret an old line.
 - POS and online orders now share `apps/api/src/common/transaction-uom.ts`. OrderItem stores `variantId`, `productUnitId`, `unitCode`, `unitQuantity`, `quantityFactor`, `sourceBarcode`; `quantity` remains integer base units.
 - OrderReturnItem, SaleReturnItem and PurchaseReturnItem carry equivalent snapshots. Customer order-return quantity is transaction-UOM quantity and is converted from persisted OrderItem factor; sale/purchase return inventory quantities remain base-unit compatible while preserving source snapshots.
@@ -405,4 +420,23 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 - Ubuntu P2A gate proved SQLite schema valid, then `prisma:validate:postgres` failed before schema validation because the workspace script always loaded the active root `.env`, which correctly remained SQLite for local development.
 - Root correction: schema-only `validate`/`generate` commands now use `scripts/run-prisma-schema-command.mjs`; they respect an inherited provider-matching `DATABASE_URL`, otherwise use a non-connecting provider-specific placeholder and never rewrite `.env`.
 - Database-touching PostgreSQL commands (`push`, `migrate`, `seed`, `studio`) remain on the protected active environment and require a real PostgreSQL URL; no credential or safety gate is weakened.
-- This correction is part of P2A verification infrastructure. P2A remains `IMPLEMENTED_RUNTIME_PENDING` until Ubuntu Prisma validate/generate + workspace lint + 952+ regression pass, then atomic commit/push and exact-source PostgreSQL mixed-UOM runtime evidence pass.
+- This correction is part of P2 verification infrastructure. The later P2 FULL cadence supersedes any separate P2A commit boundary: validate Multi-UOM and Payroll together, then perform one P2 FULL atomic commit/push and require both exact-source PostgreSQL runtime evidences.
+
+## P2A exact-runtime gate hardening — 2026-09-25
+
+- Exact-source GitHub logs for `34a7034a33ad320119993175a606a2c11cca4daa` prove the P2A expand migration, static P2A tests 611-615, Browser/Built Browser UAT, R1-R8 runtime probes, Stage-18/19/20 automated, and aggregate gates are green.
+- Those logs did **not** execute the required mixed-UOM PostgreSQL lifecycle itself, so A-03 remains `IMPLEMENTED_RUNTIME_PENDING`; do not infer runtime closure from migration/source tests or unrelated recovery probes.
+- Added required `ci:p2a:multi-uom-probe` to both exact-source GitHub workflows. It creates a factor-2 ProductUnit, orders 2 transaction units / 4 base units, proves reservation and fulfillment base inventory, verifies shipment/accounting UOM snapshots, deactivates the ProductUnit, executes two 1-transaction-unit historical returns, proves balanced return journals, exact net/tax/gross remainder allocation, inventory round-trip, and final `REFUNDED` status.
+- Runtime evidence authority is `handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json`, bound to source fingerprint and `productionTouched=false`; the full-system aggregate and manual UAT enforcement now fail closed if this probe is missing or failed.
+- The P2A runtime gate remains required, but Payroll implementation is completed inside the same P2 FULL source wave. P3 remains blocked until both P2 dedicated runtime gates pass and the P2 wave is atomic/clean.
+
+
+## P2 FULL source completion / exact-runtime pending — 2026-09-25
+- User changed delivery cadence: one phase is one atomic delivery wave. P2A/P2B are internal streams only; no separate user apply/test/commit boundary.
+- Multi-UOM source + exact runtime gate remain part of P2 FULL: historical UOM snapshots are immutable authority after transaction creation; base inventory/accounting reversals must round-trip under the dedicated PostgreSQL probe.
+- Payroll source now supports executable `GROSS`, `GROSS_UP`, and `NET`. GROSS_UP uses iterative taxable allowance convergence; NET preserves take-home and records employer-borne tax. Admin no longer hard-locks GROSS.
+- Split-period root fix uses temporal amount rows. Proratable component amounts retain actual active ranges, are allocated into effective tax/social segments by overlap days, and cent remainder is assigned to the final overlapping segment. This prevents the previous error of stretching one period total uniformly across mid-period rule/profile changes.
+- APPROVED tax/social rule families are resolved across all versions overlapping the period; tax/social/profile coverage gaps still fail closed. Non-proratable split components still require review by explicit configuration policy.
+- Required Payroll exact-runtime gate: `ci:p2:payroll-probe` / `handoff/quality/github-p2-payroll-runtime-probe-latest.json`. It isolates one employee, executes GROSS/GROSS_UP/NET plus mid-period rule/component changes, requires CALCULATED (no missing-engine review), posts balanced accounting, settles salary, creates a post-payment differential deduction, posts employee-receivable recovery, and settles recovery.
+- Both exact-source GitHub workflows and aggregate summary require the P2A mixed-UOM and P2 Payroll gates. A-03/A-04 remain `IMPLEMENTED_RUNTIME_PENDING` until those exact-source evidences pass.
+- Dependency-free regression after source/runtime-gate implementation: 962/962 PASS before final docs/governance validation. P3 is blocked until one P2 FULL package passes local full gate, is atomic committed/pushed/clean, and exact-source GitHub aggregate is green. Human Stage-20 remains PENDING.
