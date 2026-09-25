@@ -334,3 +334,11 @@ R4 scope is F30/F34/F35/F36/F38/F40/F41: AccountingCloseControl runtime enforcem
 - Residual source now exposes payment provider diagnostics, multi-outlet/cashier-target reporting, tenant-scoped device sync diagnostics with ack/requeue, and marketplace order list/import in Admin Integrations.
 - `ci:r3:residual-probe` is required in both PostgreSQL workflows and aggregate evidence. F37/F39/F42/F43 may not close until exact-source runtime probe PASS.
 - R7 remains BLOCKED until R3 residual runtime closure. Atomic wave rule remains mandatory.
+
+## R8 implementation prepared — 2026-09-25
+
+- Baseline source: `5c9558c65a95a5000482decfc0f9185de042ffe3`.
+- R7 remains VERIFICATION; do not classify R8 CLOSED before exact-source R7 PASS.
+- R8 source is implemented: source-contract/runtime separation (F04/F05), two-domain Browser mutations (F06), PostgreSQL reporting/security probe (F23/F24/F25/F44), 12-scenario executed evidence, workflow/summary/report wiring.
+- Human Stage-20 remains PENDING and is never auto-approved.
+- Atomic wave rule applies before any subsequent source change.

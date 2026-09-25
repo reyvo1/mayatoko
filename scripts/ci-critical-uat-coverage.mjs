@@ -57,7 +57,9 @@ export function writeScenarioCoverageEvidence(root = process.cwd()) {
       status: 'PASS',
       sourceIdentity,
       scenarioCount: 12,
-      note: 'This evidence maps the 12 critical UAT scenarios to automated regression files. It does NOT replace human Stage-20 UAT approval.',
+      evidenceClass: 'SOURCE_CONTRACT',
+      runtimeClosure: false,
+      note: 'Source-contract inventory only: maps the 12 critical UAT scenarios to regression files. R8 exact runtime closure is emitted separately by ci:r8:probe and Human Stage-20 remains separate.',
       scenarios: Object.entries(scenarioCoverage).map(([id, files]) => ({ id, automatedRegressionFiles: files })),
     };
     writeEvidence(root, evidence);
@@ -78,7 +80,7 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   try {
     const evidence = writeScenarioCoverageEvidence();
-    console.log(`Critical UAT automated coverage PASS: ${evidence.scenarioCount}/12 scenarios mapped. Human Stage-20 UAT remains separate.`);
+    console.log(`Critical UAT source-contract coverage PASS: ${evidence.scenarioCount}/12 scenarios mapped. Runtime closure belongs to ci:r8:probe; Human Stage-20 remains separate.`);
   } catch (error) {
     console.error(`CRITICAL_UAT_COVERAGE_ERROR: ${error instanceof Error ? error.message : error}`);
     process.exitCode = 1;

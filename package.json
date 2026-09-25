@@ -114,7 +114,9 @@
     "ci:r5:probe": "node scripts/ci-r5-assets-fleet-probe.mjs",
     "ci:r6:probe": "node scripts/ci-r6-scale-ai-probe.mjs",
     "ci:r3:residual-probe": "node scripts/ci-r3-residual-probe.mjs",
-    "ci:r7:probe": "node scripts/ci-r7-ui-probe.mjs"
+    "ci:r7:probe": "node scripts/ci-r7-ui-probe.mjs",
+    "ci:r8:probe": "node scripts/ci-r8-release-evidence-probe.mjs",
+    "ci:r8:reporting-security-probe": "node scripts/ci-r8-reporting-security-probe.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

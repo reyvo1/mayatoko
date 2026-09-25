@@ -51,6 +51,7 @@ jobs:
       SEED_EMPLOYEE_PASSWORD: CI-Only-Employee-Password-2026!
       T360_UAT_ADMIN_EMAIL: ci-admin@example.invalid
       T360_UAT_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
+      T360_UAT_HR_MUTATIONS: 'true'
       T360_UAT_EXPECTED_HOST: localhost
       T360_UAT_EXPECTED_DATABASE: toko360_staging
       T360_ALLOW_PRESERVE_ARTIFACT: "1"
@@ -255,6 +256,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r3:residual-probe
 
+      - name: Exercise R8 reporting security and owner-digest runtime controls
+        id: r8_reporting_security
+        continue-on-error: true
+        run: npm run ci:r8:reporting-security-probe
+
       - name: Sweep every documented OpenAPI operation against exact runtime
         id: api_sweep
         continue-on-error: true
@@ -363,6 +369,10 @@ jobs:
           console.log('UAT candidate fail-closed assertion PASS: hanya Human Stage-20 yang masih pending.');
           NODE
 
+      - name: Verify R8 exact-source runtime UAT and release evidence
+        id: r8_release
+        run: npm run ci:r8:probe
+
       - name: Build GitHub UAT report
         if: always()
         shell: bash
@@ -386,6 +396,8 @@ jobs:
           STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           STEP_R7_UI: ${{ steps.r7_ui.outcome }}
+          STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}
+          STEP_R8_RELEASE: ${{ steps.r8_release.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -436,6 +448,8 @@ jobs:
           STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           STEP_R7_UI: ${{ steps.r7_ui.outcome }}
+          STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}
+          STEP_R8_RELEASE: ${{ steps.r8_release.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           STEP_STAGE18: ${{ steps.stage18.outcome }}
           STEP_STAGE19: ${{ steps.stage19.outcome }}
@@ -472,6 +486,8 @@ jobs:
           check "R6 scale/summary/archive/capability runtime probe" "$STEP_R6_SCALE_AI"
           check "R3 residual payment/reporting/edge/marketplace runtime probe" "$STEP_R3_RESIDUAL"
           check "R7 full UI / information architecture probe" "$STEP_R7_UI"
+          check "R8 reporting/security runtime probe" "$STEP_R8_REPORTING_SECURITY"
+          check "R8 exact-source release evidence" "$STEP_R8_RELEASE"
           check "Telegram/WhatsApp provider probe" "$STEP_PROVIDER_PROBE"
           check "Stage 18" "$STEP_STAGE18"
           check "Stage 19" "$STEP_STAGE19"

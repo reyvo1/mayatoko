@@ -130,7 +130,7 @@
       "title": "Mayoritas regression adalah source-contract, bukan eksekusi bisnis",
       "primaryWave": "R8",
       "secondaryWave": "R0",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING_R8",
       "closureRequirement": "Separate source-contract tests from runtime evidence; critical/high findings require runtime evidence before closure.",
       "runtimeEvidenceRequired": true
     },
@@ -141,7 +141,7 @@
       "title": "Critical UAT coverage hanya memetakan skenario ke file",
       "primaryWave": "R8",
       "secondaryWave": "R0",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING_R8",
       "closureRequirement": "Critical UAT coverage must execute/reference scenario evidence, not only test filenames.",
       "runtimeEvidenceRequired": true
     },
@@ -152,7 +152,7 @@
       "title": "Browser UAT resmi sengaja read-only",
       "primaryWave": "R8",
       "secondaryWave": "R7",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING_R8",
       "closureRequirement": "Expand browser UAT from read-only checks to safe mutation journeys in R8.",
       "runtimeEvidenceRequired": true
     },
@@ -344,7 +344,7 @@
       "title": "Owner daily digest mutation tidak punya permission decorator",
       "primaryWave": "R3",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING_R8",
       "closureRequirement": "Add explicit permissions/roles and denial tests to owner digest mutations.",
       "runtimeEvidenceRequired": true
     },
@@ -355,7 +355,7 @@
       "title": "Daily digest enabled flag tidak mencegah manual send",
       "primaryWave": "R3",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING_R8",
       "closureRequirement": "Make enabled flag authoritative for dispatch unless a deliberate override contract exists.",
       "runtimeEvidenceRequired": true
     },
@@ -366,7 +366,7 @@
       "title": "Low-stock digest bisa melewatkan stok menipis",
       "primaryWave": "R3",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING_R8",
       "closureRequirement": "Fix low-stock digest query to compare available stock against item minStock correctly.",
       "runtimeEvidenceRequired": true
     },
@@ -585,7 +585,7 @@
       "title": "Owner report recipient memakai raw string tanpa binding verification",
       "primaryWave": "R3",
       "secondaryWave": "R8",
-      "status": "OPEN_REVALIDATION_REQUIRED",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_EVIDENCE_PENDING_R8",
       "closureRequirement": "Add verified owner recipient binding lifecycle.",
       "runtimeEvidenceRequired": true
     },
@@ -644,5 +644,5 @@
     "R7 final UI closure is blocked until R1-R6 functional prerequisites are stable.",
     "R8 final evidence must bind one exact commit/source fingerprint/build artifact."
   ],
-  "updatedAt": "2026-09-24T02:24:00+08:00"
+  "updatedAt": "2026-09-25T14:30:00+08:00"
 }

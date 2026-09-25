@@ -63,6 +63,7 @@ jobs:
       T360_UAT_ADMIN_EMAIL: ci-admin@example.invalid
       T360_UAT_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
       T360_UAT_PREPARE_EMPLOYEE_SELF: 'true'
+      T360_UAT_HR_MUTATIONS: 'true'
       T360_UAT_EXPECTED_HOST: localhost
       T360_UAT_EXPECTED_DATABASE: toko360_staging
       T360_API_URL: http://localhost:4000/api/v1
@@ -311,6 +312,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r3:residual-probe
 
+      - name: Exercise R8 reporting security and owner-digest runtime controls
+        id: r8_reporting_security
+        continue-on-error: true
+        run: npm run ci:r8:reporting-security-probe
+
       - name: Sweep every documented OpenAPI operation against exact runtime
         id: api_sweep
         continue-on-error: true
@@ -422,6 +428,10 @@ jobs:
           fi
           node -e "const fs=require('fs'); const p='handoff/quality/uat-candidate-latest.json'; if(!fs.existsSync(p)) process.exit(1); const d=JSON.parse(fs.readFileSync(p)); if(d.status==='PASS'||d.passed===true) process.exit(1);"
 
+      - name: Verify R8 exact-source runtime UAT and release evidence
+        id: r8_release
+        run: npm run ci:r8:probe
+
       - name: Verify exact build outputs were not rebuilt or mutated
         id: artifact_preserved
         shell: bash
@@ -520,6 +530,8 @@ jobs:
           T360_CI_STEP_R6_SCALE_AI: ${{ steps.r6_scale_ai.outcome }}
           T360_CI_STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           T360_CI_STEP_R7_UI: ${{ steps.r7_ui.outcome }}
+          T360_CI_STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}
+          T360_CI_STEP_R8_RELEASE: ${{ steps.r8_release.outcome }}
           T360_CI_STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
           T360_CI_STEP_STAGING_CERTIFICATION: ${{ steps.staging_certification.outcome }}
           T360_CI_STEP_LOAD_SMOKE: ${{ steps.load_smoke.outcome }}

@@ -350,6 +350,20 @@ async function main() {
     }
     evidence.checks.push({ id: 'ADMIN_ALL_NAVIGATION_RUNTIME', status: 'PASS', workspaces: adminWorkspaces, domainViews: adminDomainViews, screenshot: await captureSuccessScreenshot(cdp, 'admin-navigation-success') });
 
+    const clickIntegrationsForR8 = `(() => { const el=document.querySelector('.navItem[data-admin-route="/integrations"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
+    await waitExpression(cdp, clickIntegrationsForR8, 'R8 Integrasi & Notifikasi workspace');
+    await waitExpression(cdp, `document.body && document.body.innerText.includes('Owner Daily Digest') && [...document.querySelectorAll('button')].some(x=>x.textContent?.trim()==='Simpan daily digest')`, 'R8 owner daily digest operator surface', 45000);
+    const digestBefore = await evaluateValue(cdp, `(() => { const panel=[...document.querySelectorAll('.panel')].find(x=>x.textContent?.includes('Owner Daily Digest')); if(!panel)return null; const enabled=panel.querySelector('input[type="checkbox"]'); const hour=[...panel.querySelectorAll('input[type="number"]')][0]; return { enabled:!!enabled?.checked, hour:Number(hour?.value ?? 21) }; })()`);
+    if (!digestBefore || !Number.isInteger(digestBefore.hour)) throw new Error('R8 daily digest state tidak dapat dibaca dari UI.');
+    const digestMutatedHour = (digestBefore.hour + 1) % 24;
+    const mutateDigest = `(() => { const panel=[...document.querySelectorAll('.panel')].find(x=>x.textContent?.includes('Owner Daily Digest')); const input=panel?.querySelector('input[type="number"]'); const button=[...(panel?.querySelectorAll('button')||[])].find(x=>x.textContent?.trim()==='Simpan daily digest'); if(!input||!button)return false; const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set; setter?.call(input,${digestMutatedHour}); input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true})); button.click(); return true; })()`;
+    await waitExpression(cdp, mutateDigest, 'R8 mutate daily digest hour');
+    await waitExpression(cdp, `document.body && document.body.innerText.includes('Konfigurasi owner daily digest tersimpan.')`, 'R8 daily digest mutation persisted', 45000);
+    const restoreDigest = `(() => { const panel=[...document.querySelectorAll('.panel')].find(x=>x.textContent?.includes('Owner Daily Digest')); const input=panel?.querySelector('input[type="number"]'); const button=[...(panel?.querySelectorAll('button')||[])].find(x=>x.textContent?.trim()==='Simpan daily digest'); if(!input||!button)return false; const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set; setter?.call(input,${digestBefore.hour}); input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true})); button.click(); return true; })()`;
+    await waitExpression(cdp, restoreDigest, 'R8 restore daily digest hour');
+    await waitExpression(cdp, `document.body && document.body.innerText.includes('Konfigurasi owner daily digest tersimpan.')`, 'R8 daily digest restore persisted', 45000);
+    evidence.checks.push({ id: 'R8_DAILY_DIGEST_CONFIG_MUTATION', status: 'PASS', before: digestBefore, mutatedHour: digestMutatedHour, restoredHour: digestBefore.hour, assertions: ['mutate through Admin UI', 'restore original hour through Admin UI'] });
+
     const clickFleet = `(() => { const el=document.querySelector('.navItem[data-admin-route="/assets-fleet"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
     await waitExpression(cdp, clickFleet, 'Menu /assets-fleet');
     await waitExpression(cdp, `Boolean(document.querySelector('.navItem[data-admin-route="/assets-fleet"][aria-current="page"]')) && document.body && document.body.innerText.includes('Outbound / Delivery Lifecycle') && document.body.innerText.includes('TRIP WORKBENCH')`, 'Delivery Lifecycle Admin', 45000);
@@ -402,6 +416,10 @@ async function main() {
       await waitExpression(cdp, `(() => { const row=[...document.querySelectorAll('.tr')].find(x=>x.textContent?.includes(${JSON.stringify(employeeNumber)})); return !!row && [...row.querySelectorAll('button')].some(x=>x.textContent?.trim()==='Nonaktifkan'); })()`, 'Employee active state restored', 45000);
       evidence.checks.push({ id: 'ADMIN_EMPLOYEE_MASTER_MUTATIONS', status: 'PASS', employeeNumber, assertions: ['create', 'edit', 'deactivate', 'reactivate'] });
     }
+
+    const r8MutationChecks = ['R8_DAILY_DIGEST_CONFIG_MUTATION', 'ADMIN_EMPLOYEE_MASTER_MUTATIONS'].map((id) => evidence.checks.find((check) => check.id === id));
+    if (r8MutationChecks.some((check) => !check || check.status !== 'PASS')) throw new Error(`R8 safe mutation evidence tidak lengkap: ${JSON.stringify(r8MutationChecks)}`);
+    evidence.checks.push({ id: 'R8_SAFE_MUTATION_JOURNEYS', status: 'PASS', journeys: r8MutationChecks.map((check) => check.id), domains: ['owner-reporting', 'hr-employee-master'], productionTouched: false });
 
     await navigateAndAssert(cdp, storefrontUrl, `document.body && document.body.innerText.includes('TOKO360 OFFICIAL STORE') && document.body.innerText.includes('Belanja langsung dari toko')`, 'Storefront browser render');
     evidence.checks.push({ id: 'STOREFRONT_BROWSER_RENDER', status: 'PASS', url: storefrontUrl });
