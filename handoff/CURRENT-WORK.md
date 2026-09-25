@@ -365,3 +365,9 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 - Canonical contextual map: `config/admin-contextual-workflow-map.json` = 61/61 destinations.
 - New fail-closed gate: `npm run audit:admin:contextual`.
 - P1 remains `IMPLEMENTED_RUNTIME_PENDING`; do not start P2 until Ubuntu lint/build + browser contextual sweep + screenshot evidence + human IA acceptance pass.
+
+## P1 Browser contextual regression correction — 2026-09-25
+- Latest two GitHub workflows on exact source `9017a98f8a2ca99bff721824d7f81cf3aeee2a54` passed the 938-test/build gate but Browser UAT failed at the R8 Owner Daily Digest check.
+- Root cause: after P1 contextual isolation, `/integrations` correctly defaults to provider view while Owner Daily Digest lives under `/integrations/notifications`; the historical Browser UAT still expected the digest on the workspace root.
+- Browser UAT now navigates explicitly to `/integrations/notifications`, requires that contextual route to be active, then performs the existing digest mutation/restore proof.
+- Do not revert contextual isolation to satisfy legacy browser expectations. P1 remains `IMPLEMENTED_RUNTIME_PENDING` until the corrected exact-source GitHub browser/R7 evidence is green and human IA acceptance is recorded.

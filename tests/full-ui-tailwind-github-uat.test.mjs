@@ -56,6 +56,8 @@ test('browser UAT traverses navigation and checks desktop tablet mobile geometry
   assert.match(browser,/\[1024,768\]/);
   assert.match(browser,/\[390,844\]/);
   assert.match(browser,/ADMIN_ALL_NAVIGATION_RUNTIME/);
+  assert.match(browser,/\/integrations\/notifications/);
+  assert.match(browser,/R8 contextual route \/integrations\/notifications active/);
   assert.match(browser,/POS_ALL_WORKSPACES_RUNTIME/);
   assert.match(browser,/STOREFRONT_NAVIGATION_RUNTIME/);
   assert.match(browser,/EMPLOYEE_ALL_SELF_SERVICE_ROUTES/);

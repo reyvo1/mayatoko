@@ -350,8 +350,9 @@ async function main() {
     }
     evidence.checks.push({ id: 'ADMIN_ALL_NAVIGATION_RUNTIME', status: 'PASS', workspaces: adminWorkspaces, domainViews: adminDomainViews, screenshot: await captureSuccessScreenshot(cdp, 'admin-navigation-success') });
 
-    const clickIntegrationsForR8 = `(() => { const el=document.querySelector('.navItem[data-admin-route="/integrations"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickIntegrationsForR8, 'R8 Integrasi & Notifikasi workspace');
+    const clickNotificationsForR8 = `(() => { const el=document.querySelector('.domainTabs [data-admin-route="/integrations/notifications"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
+    await waitExpression(cdp, clickNotificationsForR8, 'R8 Integrasi & Notifikasi / Notifikasi contextual view');
+    await waitExpression(cdp, `Boolean(document.querySelector('.domainTabs [data-admin-route="/integrations/notifications"][aria-current="page"]'))`, 'R8 contextual route /integrations/notifications active');
     await waitExpression(cdp, `document.body && document.body.innerText.includes('Owner Daily Digest') && [...document.querySelectorAll('button')].some(x=>x.textContent?.trim()==='Simpan daily digest')`, 'R8 owner daily digest operator surface', 45000);
     const digestBefore = await evaluateValue(cdp, `(() => { const panel=[...document.querySelectorAll('.panel')].find(x=>x.textContent?.includes('Owner Daily Digest')); if(!panel)return null; const enabled=panel.querySelector('input[type="checkbox"]'); const hour=[...panel.querySelectorAll('input[type="number"]')][0]; return { enabled:!!enabled?.checked, hour:Number(hour?.value ?? 21) }; })()`);
     if (!digestBefore || !Number.isInteger(digestBefore.hour)) throw new Error('R8 daily digest state tidak dapat dibaca dari UI.');
