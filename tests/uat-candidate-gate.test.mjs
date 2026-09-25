@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { sourceFingerprint } from '../scripts/lib/source-fingerprint.mjs';
 
 const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
@@ -19,6 +20,30 @@ test('source fingerprint is deterministic and covers executable source roots', (
   assert.equal(a.value, b.value);
   assert.match(a.value, /^[0-9a-f]{64}$/);
   assert.ok(a.fileCount > 100);
+});
+
+test('source fingerprint uses Git-tracked authored files and ignores runtime-created untracked files', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 't360-fingerprint-git-'));
+  try {
+    fs.mkdirSync(path.join(root, 'apps', 'demo'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'apps', 'demo', 'index.ts'), 'export const value = 1;\n');
+    fs.writeFileSync(path.join(root, 'package.json'), '{\"name\":\"fingerprint-git-test\"}\n');
+    fs.writeFileSync(path.join(root, 'package-lock.json'), '{\"lockfileVersion\":3}\n');
+    assert.equal(spawnSync('git', ['init', '-q'], { cwd: root }).status, 0);
+    assert.equal(spawnSync('git', ['add', 'apps/demo/index.ts', 'package.json', 'package-lock.json'], { cwd: root }).status, 0);
+
+    const before = sourceFingerprint(root);
+    fs.writeFileSync(path.join(root, 'apps', 'demo', 'runtime-evidence.json'), '{\"generated\":true}\n');
+    const withRuntimeFile = sourceFingerprint(root);
+    assert.equal(withRuntimeFile.value, before.value);
+    assert.equal(withRuntimeFile.fileCount, before.fileCount);
+
+    fs.writeFileSync(path.join(root, 'apps', 'demo', 'index.ts'), 'export const value = 2;\n');
+    const trackedMutation = sourceFingerprint(root);
+    assert.notEqual(trackedMutation.value, before.value);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('source fingerprint ignores generated TypeScript and Next metadata but still tracks authored source', () => {

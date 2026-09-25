@@ -39,7 +39,8 @@
     "P2 runtime closure requires both dedicated exact-source PostgreSQL gates: ci:p2a:multi-uom-probe for A-03 and ci:p2:payroll-probe for A-04; migration/source tests or unrelated recovery probes cannot promote either finding to RUNTIME_VERIFIED.",
     "Payroll tax methods GROSS, GROSS_UP and NET are executable supported configuration; valid effective-dated component/profile/rule changes are segmented by actual active dates and must not return REQUIRES_REVIEW solely because they occur inside one payroll period.",
     "Split-period tax/social allocation must use actual temporal component amounts with exact remainder handling; proportional stretching of one period total across statutory segments is forbidden.",
-    "Exact-runtime probes must self-provision deterministic fixtures for the capability under test; they must not depend on mutable demo seed/catalog stock or artifacts left by earlier probes. Any direct fixture mutation must be locked to the exact expected non-production PostgreSQL host/database before writing."
+    "Exact-runtime probes must self-provision deterministic fixtures for the capability under test; they must not depend on mutable demo seed/catalog stock or artifacts left by earlier probes. Any direct fixture mutation must be locked to the exact expected non-production PostgreSQL host/database before writing.",
+    "Exact-source identity in a Git worktree must hash Git-tracked authored source files only; runtime-created untracked/generated files must not change the source fingerprint, while any content change to a tracked source file must still change it."
   ],
   "acceptanceCriteria": [
     "P0-P7 are executed in order without skipping dependency gates.",
@@ -71,7 +72,8 @@
     "Browser contextual-route contract audit must pass before exact-source Browser UAT and must reject stale capability ownership.",
     "P2A exact-source PostgreSQL runtime: create mixed-UOM storefront order, fulfill it, mutate/deactivate current ProductUnit, then return/refund and prove persisted UOM snapshot, inventory base quantity, tax and accounting reversal remain consistent.",
     "P2A exact-source gate must produce handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json with PASS, matching source fingerprint, productionTouched=false, historical UOM after ProductUnit deactivation, balanced fulfillment/return journals, exact amount remainder, and base-inventory round-trip.",
-    "P2A fixture isolation regression: the mixed-UOM runtime probe must create its own untracked/batch-free/serial-free product inventory fixture with >=8 base units, must not scan for pre-existing >=4 stock, and must fail closed unless DATABASE_URL matches the expected CI/UAT non-production host/database."
+    "P2A fixture isolation regression: the mixed-UOM runtime probe must create its own untracked/batch-free/serial-free product inventory fixture with >=8 base units, must not scan for pre-existing >=4 stock, and must fail closed unless DATABASE_URL matches the expected CI/UAT non-production host/database.",
+    "Exact-source fingerprint regression: in a Git worktree, adding an untracked runtime artifact under apps/ must not change the fingerprint, while modifying a tracked authored file must change it."
   ],
   "migrationPlan": "Use expand-only migrations for new persistence required by functional-completeness fixes. Rehearse PostgreSQL migrations before exact-runtime closure. Never rewrite applied migration history.",
   "rollbackPlan": "Rollback one atomic wave at a time to the preceding clean exact-source checkpoint. Schema-changing waves require a documented compatibility/roll-forward strategy; do not use destructive migration rollback against shared data.",
@@ -86,7 +88,7 @@
     "docs/PRODUCT-COMPLETENESS-STATUS.md"
   ],
   "createdAt": "2026-09-25T18:00:00+08:00",
-  "updatedAt": "2026-09-25T23:55:00+08:00",
+  "updatedAt": "2026-09-26T00:20:00+08:00",
   "verificationGates": [
     "P2 Payroll exact-source PostgreSQL runtime: execute GROSS, GROSS_UP and NET in one effective-dated payroll period, prove actual split component/rule allocation, balanced posting, salary settlement, post-payment differential adjustment, employee-receivable recovery and recovery settlement.",
     "P2 full aggregate gate requires both handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json and handoff/quality/github-p2-payroll-runtime-probe-latest.json PASS on matching source fingerprints with productionTouched=false."
