@@ -66,11 +66,6 @@ const GROUP_ORDER: AdminWorkspace['group'][] = ['Ringkasan','Operasional','Keuan
 export type ResolvedAdminNavigation = Array<{ group: AdminWorkspace['group']; items: AdminWorkspace[] }>;
 type NavigationOverride = { route?: unknown; label?: unknown; hidden?: unknown; order?: unknown };
 
-function enabledModuleCodes(manifest: AdminRuntimeManifest | null): Set<string> | null {
-  if (!manifest?.modules?.length) return null;
-  return new Set(manifest.modules.filter((module) => module.isCore || !module.featureKey || manifest.features?.[module.featureKey]?.enabled === true).map((module) => module.code));
-}
-
 function hasPermission(identity: AdminIdentity | null, workspace: AdminWorkspace): boolean {
   if (!identity) return true;
   if (workspace.roles?.some((role) => identity.roles.includes(role))) return true;
@@ -97,13 +92,10 @@ function readOverrides(manifest: AdminRuntimeManifest | null): Map<string, Navig
 }
 
 export function resolveAdminNavigation(manifest: AdminRuntimeManifest | null, identity: AdminIdentity | null): ResolvedAdminNavigation {
-  const activeModules = enabledModuleCodes(manifest);
   const overrides = readOverrides(manifest);
   const visible = ADMIN_WORKSPACES.filter((workspace) => {
     const override = overrides.get(workspace.route);
-    if (override?.hidden === true || !hasPermission(identity, workspace)) return false;
-    if (!activeModules || ['dashboard','settings','organization'].includes(workspace.key)) return true;
-    return workspace.moduleCodes.some((code) => activeModules.has(code));
+    return override?.hidden !== true && hasPermission(identity, workspace);
   }).map((workspace) => {
     const override = overrides.get(workspace.route);
     return typeof override?.label === 'string' && override.label.trim() ? { ...workspace, label: override.label.trim() } : workspace;

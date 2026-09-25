@@ -21,6 +21,8 @@ test('R7 keeps one primary + one contextual Admin navigation layer with 14 expli
   assert.match(shell, /<aside className=\{`sidebar/);
   assert.match(shell, /<nav className="domainTabs"/);
   assert.doesNotMatch(shell, /className="workspaceRail"|className="domainDeck"|className="domainContext"|className="statusbar"/);
+  assert.doesNotMatch(navigation, /activeModules|enabledModuleCodes/);
+  assert.match(navigation, /return override\?\.hidden !== true && hasPermission\(identity, workspace\)/);
 });
 
 test('R7 replaces ad-hoc analytics palette with reusable canonical chart primitives', () => {

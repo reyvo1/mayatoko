@@ -40,9 +40,11 @@ test('UI-P6 redirects a runtime-hidden nested deep link to canonical domain root
   assert.match(page,/parts\.length !== 2/);
 });
 
-test('UI-P6 preserves top-level fail-closed navigation and backend authority',()=>{
+test('UI-P6 preserves canonical top-level discoverability while contextual views keep runtime constraints and backend authority',()=>{
   assert.match(navigation,/resolveAdminNavigation/);
-  assert.match(navigation,/manifest\.features\?\.\[module\.featureKey\]\?\.enabled === true/);
+  assert.doesNotMatch(navigation,/enabledModuleCodes|activeModules/);
   assert.match(navigation,/identity\.permissions/);
+  assert.match(domain,/manifest\.features\?\.\[module\.featureKey\]\?\.enabled === true/);
+  assert.match(domain,/moduleCodes\.some/);
   assert.match(page,/authFetch/);
 });
