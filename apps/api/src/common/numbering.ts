@@ -3,15 +3,42 @@ import { Prisma, PrismaClient } from '@prisma/client';
 
 type DbClient = Prisma.TransactionClient | PrismaClient;
 
-function formatNumber(prefix: string, now: Date, seq: number, padding: number): string {
+async function resolveDocumentScopeCode(
+  tx: DbClient,
+  companyId: string,
+  branchId?: string | null,
+): Promise<string> {
+  if (branchId) {
+    const branch = await tx.branch.findFirst({
+      where: { id: branchId, companyId },
+      select: { code: true },
+    });
+    if (!branch) throw new Error('Branch nomor dokumen tidak ditemukan pada company yang diminta.');
+    return branch.code;
+  }
+
+  const company = await tx.company.findUnique({
+    where: { id: companyId },
+    select: { slug: true },
+  });
+  if (!company) throw new Error('Company nomor dokumen tidak ditemukan.');
+  return company.slug?.trim() || companyId;
+}
+
+function formatNumber(prefix: string, scopeCode: string, now: Date, seq: number, padding: number): string {
   const yyyy = now.getUTCFullYear();
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-  return `${prefix}-${yyyy}${mm}-${String(seq).padStart(padding, '0')}`;
+  return `${prefix}-${scopeCode}-${yyyy}${mm}-${String(seq).padStart(padding, '0')}`;
 }
 
 /**
  * Ambil nomor dokumen berikutnya secara ATOMIK per company/branch/documentType.
  * WAJIB dipanggil di dalam transaksi yang sama dengan pembuatan dokumen.
+ *
+ * Nomor user-facing membawa branch code (atau company slug/id untuk sequence tanpa branch)
+ * karena sequence memang tenant-scoped sementara banyak kolom nomor transaksi memiliki
+ * unique constraint global. Dengan demikian sequence 000001 dari dua tenant tidak dapat
+ * menghasilkan nomor bisnis global yang sama.
  *
  * Atomicity:
  * - PostgreSQL (production): transaksi default READ COMMITTED; dua transaksi bersamaan
@@ -37,6 +64,7 @@ export async function nextDocumentNumber(
     : opts.resetPolicy === 'YEARLY'
       ? String(now.getUTCFullYear())
       : `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const scopeCode = await resolveDocumentScopeCode(tx, opts.companyId, opts.branchId);
 
   // Cari row sequence (findFirst karena compound unique tidak mendukung null secara type-safe)
   let row = await tx.numberSequence.findFirst({
@@ -63,7 +91,7 @@ export async function nextDocumentNumber(
   });
   if (bumped.count !== 1) throw new Error(`Konflik sequence ${opts.documentType}; ulangi transaksi.`);
 
-  return formatNumber(opts.prefix, now, current, opts.padding ?? 6);
+  return formatNumber(opts.prefix, scopeCode, now, current, opts.padding ?? 6);
 }
 
 /** Legacy fallback (random) — dipertahankan untuk konteks tanpa tenant. */
