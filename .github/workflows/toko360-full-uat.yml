@@ -329,6 +329,17 @@ jobs:
           set -o pipefail
           npm run db:payroll-adjustment:stage:postgres:artifact 2>&1 | tee logs/github-uat/80-payroll.log
 
+      - name: Prepare isolated PostgreSQL DR scratch database
+        shell: bash
+        env:
+          PGPASSWORD: toko360_ci_password
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='toko360_dr_restore' AND pid <> pg_backend_pid();
+          DROP DATABASE IF EXISTS toko360_dr_restore;
+          CREATE DATABASE toko360_dr_restore OWNER postgres;
+          SQL
+
       - name: PostgreSQL disaster-recovery rehearsal to isolated scratch database
         id: dr_rehearsal
         continue-on-error: true

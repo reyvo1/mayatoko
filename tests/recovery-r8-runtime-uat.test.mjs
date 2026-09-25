@@ -79,6 +79,9 @@ test('R8 UAT workflow provides worker target lock and PostgreSQL DR evidence',()
  assert.match(workflow,/T360_CI_EXPECTED_HOST: localhost/);
  assert.match(workflow,/T360_CI_EXPECTED_DATABASE: toko360_staging/);
  assert.match(workflow,/id: worker_probe/);
+ assert.match(workflow,/Prepare isolated PostgreSQL DR scratch database/);
+ assert.match(workflow,/DROP DATABASE IF EXISTS toko360_dr_restore/);
+ assert.match(workflow,/CREATE DATABASE toko360_dr_restore OWNER postgres/);
  assert.match(workflow,/id: dr_rehearsal/);
  assert.match(workflow,/npm run db:dr:rehearse:postgres/);
  assert.match(workflow,/T360_DR_RESTORE_DATABASE_URL: postgresql:\/\/postgres:toko360_ci_password@localhost:5432\/toko360_dr_restore\?schema=public/);
