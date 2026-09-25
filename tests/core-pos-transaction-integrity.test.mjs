@@ -88,7 +88,7 @@ test('sync pull and outbox events are tenant-scoped and pageable without timesta
 
 test('tax calculation in sale, storefront order and goods receipt is company-scoped', () => {
   assert.match(sales, /calculateTax\([\s\S]*discountedBase,[\s\S]*scope\.companyId,[\s\S]*occurredAt,[\s\S]*\['SALE', 'OTHER'\]/);
-  assert.match(orders, /discountedBase,\s*branch\.companyId,\s*new Date\(\),\s*\['SALE', 'OTHER'\],\s*\)/);
+  assert.match(orders, /discountedBase,\s*branch\.companyId,\s*transactionAt,\s*\['SALE', 'OTHER'\],\s*\)/);
   assert.match(receipts, /purchaseTaxCodeId \?\? undefined,[\s\S]*base,[\s\S]*scope\.companyId,[\s\S]*new Date\(\),[\s\S]*\['PURCHASE', 'OTHER'\]/);
 });
 

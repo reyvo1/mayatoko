@@ -9,6 +9,7 @@ const po = read('apps/api/src/purchase-orders/purchase-orders.service.ts');
 const gr = read('apps/api/src/goods-receipts/goods-receipts.service.ts');
 const saleDto = read('apps/api/src/sales/dto/create-sale.dto.ts');
 const sales = read('apps/api/src/sales/sales.service.ts');
+const transactionUom = read('apps/api/src/common/transaction-uom.ts');
 const products = read('apps/api/src/products/products.service.ts');
 const pos = read('apps/pos/app/page.tsx');
 const admin = read('apps/admin/app/page.tsx');
@@ -42,9 +43,10 @@ test('F11 purchase resolves ProductUnit authoritatively and stores inventory qua
 
 test('F11 Sales and POS select ProductUnit directly while barcode remains only a shortcut', () => {
   assert.match(saleDto, /productUnitId\?: string/);
-  assert.match(sales, /input\.productUnitId/);
-  assert.match(sales, /client\.productUnit\.findFirst/);
-  assert.match(sales, /barcode\.productUnitId/);
+  assert.match(sales, /resolveSellingUnitLine/);
+  assert.match(transactionUom, /input\.productUnitId/);
+  assert.match(transactionUom, /client\.productUnit\.findFirst/);
+  assert.match(transactionUom, /barcode\.productUnitId/);
   assert.match(sales, /productUnitId: item\.conversion\.productUnitId/);
   assert.match(products, /units: \{ where: \{ isActive: true \}/);
   assert.match(pos, /productUnitId\?: string/);

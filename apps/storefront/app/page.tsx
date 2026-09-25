@@ -13,23 +13,54 @@ type Product = {
   sku: string;
   name: string;
   description?: string | null;
+  unit: string;
   salePrice: string | number;
   effectiveSalePrice?: string | number;
+  variants?: Array<{ id: string; code: string; name: string; salePrice?: string | number | null }>;
+  units?: Array<{
+    id: string;
+    variantId?: string | null;
+    unitCode: string;
+    quantityFactor: number;
+    isDefaultSale: boolean;
+    effectiveSalePrice?: string | number;
+    variant?: { id: string; code: string; name: string } | null;
+  }>;
   inventories: Array<{ available: number; warehouse: { name: string } }>;
 };
 type CursorPage<T> = { items: T[]; pageInfo: { limit: number; nextCursor: string | null; hasMore: boolean } };
 type RuntimeManifest = { company?: { name?: string }; branch?: { code?: string; name?: string }; features: Record<string, { enabled: boolean }> };
 type StorefrontBranch = { id: string; code: string; name: string; address?: string | null };
-type CartItem = { product: Product; quantity: number };
+type CartItem = { product: Product; quantity: number; productUnitId?: string; variantId?: string; unitCode: string; quantityFactor: number; unitPrice: number };
+type SellingOption = { productUnitId?: string; variantId?: string; unitCode: string; quantityFactor: number; unitPrice: number; label: string };
 type OrderResult = { number: string; total: string | number; status: string; accessToken: string; fulfillmentType?: string; shippingCost?: string | number; shippingMethodName?: string | null };
 type CustomerAccount = { id: string; name: string; email?: string | null; phone?: string | null; emailVerifiedAt?: string | null; phoneVerifiedAt?: string | null; address?: string | null; points: number; lifetimePoints?: number; loyaltyTier?: string; customerType: string };
-type AccountOrder = { id: string; number: string; total: string | number; shippingCost?: string | number; fulfillmentType?: string; shippingMethodName?: string | null; address?: string; status: string; createdAt: string; items: Array<{ id: string; productId: string; quantity: number; product: { id: string; sku: string; name: string } }>; payments: Array<{ method: string; status: string }>; shipments: Array<{ status: string; carrier?: string | null; trackingNumber?: string | null; deliveredAt?: string | null }> };
-type AccountOrderReturn = { id: string; number: string; status: string; refundAmount: string | number; reason?: string | null; createdAt: string; order: { id: string; number: string }; items: Array<{ id: string; orderItemId: string; quantity: number; condition: string; restock: boolean; product: { sku: string; name: string } }> };
+type AccountOrder = { id: string; number: string; total: string | number; shippingCost?: string | number; fulfillmentType?: string; shippingMethodName?: string | null; address?: string; status: string; createdAt: string; items: Array<{ id: string; productId: string; quantity: number; unitQuantity?: number | null; quantityFactor?: number; unitCode?: string | null; productUnitId?: string | null; variantId?: string | null; product: { id: string; sku: string; name: string } }>; payments: Array<{ method: string; status: string }>; shipments: Array<{ status: string; carrier?: string | null; trackingNumber?: string | null; deliveredAt?: string | null }> };
+type AccountOrderReturn = { id: string; number: string; status: string; refundAmount: string | number; reason?: string | null; createdAt: string; order: { id: string; number: string }; items: Array<{ id: string; orderItemId: string; quantity: number; unitQuantity?: number | null; unitCode?: string | null; quantityFactor?: number; condition: string; restock: boolean; product: { sku: string; name: string } }> };
 type CustomerAddress = { id: string; label: string; recipientName: string; phone: string; addressLine: string; district?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; notes?: string | null; isDefault: boolean };
 type FulfillmentMethod = { code: string; name: string; fulfillmentType: 'DELIVERY' | 'PICKUP'; price: number };
 type Tone = 'info' | 'success' | 'error';
 
 function productPrice(product: Product) { return Number(product.effectiveSalePrice ?? product.salePrice); }
+function sellingOptions(product: Product): SellingOption[] {
+  const base: SellingOption = { unitCode: product.unit || 'PCS', quantityFactor: 1, unitPrice: productPrice(product), label: `${product.unit || 'PCS'} · base unit` };
+  const units = (product.units ?? []).map((unit): SellingOption => ({
+    productUnitId: unit.id,
+    variantId: unit.variantId ?? undefined,
+    unitCode: unit.unitCode,
+    quantityFactor: Number(unit.quantityFactor),
+    unitPrice: Number(unit.effectiveSalePrice ?? productPrice(product) * Number(unit.quantityFactor)),
+    label: `${unit.unitCode} · isi ${unit.quantityFactor}${unit.variant ? ` · ${unit.variant.code}` : ''}`,
+  }));
+  return [base, ...units];
+}
+function defaultSellingOption(product: Product): SellingOption {
+  const preferred = (product.units ?? []).find((unit) => unit.isDefaultSale);
+  return preferred ? sellingOptions(product).find((option) => option.productUnitId === preferred.id) ?? sellingOptions(product)[0] : sellingOptions(product)[0];
+}
+function sellingOptionKey(productId: string, option: SellingOption) { return `${productId}:${option.productUnitId ?? 'BASE'}:${option.variantId ?? 'BASE'}`; }
+function cartItemKey(item: CartItem) { return `${item.product.id}:${item.productUnitId ?? 'BASE'}:${item.variantId ?? 'BASE'}`; }
+function maxUnitQuantity(product: Product, factor: number) { return Math.floor(stockOf(product) / Math.max(1, factor)); }
 function rupiah(value: string | number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value));
 }
@@ -51,6 +82,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
   const [search, setSearch] = useState('');
   const [activeView, setActiveView] = useState<StorefrontView>(initialView);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedSellingUnitId, setSelectedSellingUnitId] = useState('BASE');
   const [sortMode, setSortMode] = useState<'relevance' | 'name' | 'price-asc' | 'price-desc' | 'stock'>('relevance');
   const [submitting, setSubmitting] = useState(false);
   const [paymentBusy, setPaymentBusy] = useState(false);
@@ -60,7 +92,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
   const [accountReturns, setAccountReturns] = useState<AccountOrderReturn[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [reviewForm, setReviewForm] = useState({ orderId: '', productId: '', productName: '', rating: 5, title: '', body: '' });
-  const [returnForm, setReturnForm] = useState({ orderId: '', orderItemId: '', orderNumber: '', productName: '', maxQuantity: 1, quantity: 1, reason: '' });
+  const [returnForm, setReturnForm] = useState({ orderId: '', orderItemId: '', orderNumber: '', productName: '', unitCode: '', maxQuantity: 1, quantity: 1, reason: '' });
   const [accountMode, setAccountMode] = useState<'login' | 'register'>('login');
   const [accountBusy, setAccountBusy] = useState(false);
   const [authForm, setAuthForm] = useState({ name: '', email: '', phone: '', address: '', password: '' });
@@ -212,15 +244,15 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     void loadAccount(token).catch(() => { localStorage.removeItem('toko360.customer.session'); setAccountToken(''); setAccount(null); setAccountOrders([]); setAccountReturns([]); setFavoriteIds([]); setVerificationForm({ type: '', code: '' }); });
   }, []);
 
-  const total = useMemo(() => cart.reduce((sum, item) => sum + productPrice(item.product) * item.quantity, 0), [cart]);
+  const total = useMemo(() => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0), [cart]);
   const visibleProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = q
       ? products.filter((product) => product.name.toLowerCase().includes(q) || product.sku.toLowerCase().includes(q) || product.description?.toLowerCase().includes(q))
       : [...products];
     if (sortMode === 'name') return filtered.sort((a, b) => a.name.localeCompare(b.name, 'id'));
-    if (sortMode === 'price-asc') return filtered.sort((a, b) => productPrice(a) - productPrice(b));
-    if (sortMode === 'price-desc') return filtered.sort((a, b) => productPrice(b) - productPrice(a));
+    if (sortMode === 'price-asc') return filtered.sort((a, b) => defaultSellingOption(a).unitPrice - defaultSellingOption(b).unitPrice);
+    if (sortMode === 'price-desc') return filtered.sort((a, b) => defaultSellingOption(b).unitPrice - defaultSellingOption(a).unitPrice);
     if (sortMode === 'stock') return filtered.sort((a, b) => stockOf(b) - stockOf(a));
     return filtered;
   }, [products, search, sortMode]);
@@ -228,6 +260,11 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     () => products.find((product) => product.id === selectedProductId) ?? null,
     [products, selectedProductId],
   );
+  const selectedSellingOption = useMemo(() => {
+    if (!selectedProduct) return null;
+    const options = sellingOptions(selectedProduct);
+    return options.find((option) => (option.productUnitId ?? 'BASE') === selectedSellingUnitId) ?? defaultSellingOption(selectedProduct);
+  }, [selectedProduct, selectedSellingUnitId]);
 
   function navigate(view: StorefrontView) {
     setActiveView(view);
@@ -235,7 +272,9 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
   }
 
   function openProduct(product: Product) {
+    const option = defaultSellingOption(product);
     setSelectedProductId(product.id);
+    setSelectedSellingUnitId(option.productUnitId ?? 'BASE');
     navigate('product');
   }
 
@@ -277,21 +316,25 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     await loadAccount(accountToken); notify('Alamat dinonaktifkan.', 'success');
   }
 
-  function add(product: Product) {
-    const stock = stockOf(product);
+  function add(product: Product, option: SellingOption = defaultSellingOption(product)) {
+    const maxQuantity = maxUnitQuantity(product, option.quantityFactor);
+    const key = sellingOptionKey(product.id, option);
     setCart((current) => {
-      const existing = current.find((item) => item.product.id === product.id);
-      if (existing && existing.quantity >= stock) return current;
-      if (existing) return current.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      return stock > 0 ? [...current, { product, quantity: 1 }] : current;
+      const existing = current.find((item) => cartItemKey(item) === key);
+      if (existing && existing.quantity >= maxQuantity) return current;
+      if (existing) return current.map((item) => cartItemKey(item) === key ? { ...item, quantity: item.quantity + 1 } : item);
+      return maxQuantity > 0 ? [...current, {
+        product, quantity: 1, productUnitId: option.productUnitId, variantId: option.variantId, unitCode: option.unitCode,
+        quantityFactor: option.quantityFactor, unitPrice: option.unitPrice,
+      }] : current;
     });
   }
 
-  function update(productId: string, quantity: number) {
+  function update(key: string, quantity: number) {
     setCart((current) => current.flatMap((item) => {
-      if (item.product.id !== productId) return [item];
+      if (cartItemKey(item) !== key) return [item];
       if (quantity <= 0) return [];
-      return [{ ...item, quantity: Math.min(quantity, stockOf(item.product)) }];
+      return [{ ...item, quantity: Math.min(quantity, maxUnitQuantity(item.product, item.quantityFactor)) }];
     }));
   }
 
@@ -302,7 +345,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     try {
       const response = await fetch(`${API}/orders`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(accountToken ? { 'x-customer-session': accountToken } : {}) },
-        body: JSON.stringify({ branchCode: branchCode, ...customer, customerEmail: customer.customerEmail || undefined, customerPhone: customer.customerPhone || undefined, address: fulfillmentType === 'DELIVERY' ? customer.address : undefined, fulfillmentType, customerAddressId: fulfillmentType === 'DELIVERY' && selectedAddressId ? selectedAddressId : undefined, shippingMethodCode: shippingMethodCode || undefined, promoCode: promoCode.trim() || undefined, items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity })) }),
+        body: JSON.stringify({ branchCode: branchCode, ...customer, customerEmail: customer.customerEmail || undefined, customerPhone: customer.customerPhone || undefined, address: fulfillmentType === 'DELIVERY' ? customer.address : undefined, fulfillmentType, customerAddressId: fulfillmentType === 'DELIVERY' && selectedAddressId ? selectedAddressId : undefined, shippingMethodCode: shippingMethodCode || undefined, promoCode: promoCode.trim() || undefined, items: cart.map((item) => ({ productId: item.product.id, quantity: item.quantity, productUnitId: item.productUnitId, variantId: item.variantId })) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Pesanan gagal dibuat.');
@@ -322,7 +365,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
     });
     const data = await response.json();
     if (!response.ok) { notify(Array.isArray(data.message) ? data.message.join(', ') : data.message ?? 'Pengajuan retur gagal.', 'error'); return; }
-    setReturnForm({ orderId: '', orderItemId: '', orderNumber: '', productName: '', maxQuantity: 1, quantity: 1, reason: '' });
+    setReturnForm({ orderId: '', orderItemId: '', orderNumber: '', productName: '', unitCode: '', maxQuantity: 1, quantity: 1, reason: '' });
     await loadAccount(accountToken);
     notify(`Retur ${data.number} diajukan. Toko akan melakukan inspeksi barang sebelum refund.`, 'success');
   }
@@ -381,7 +424,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
       <section>
         <div className="sectionTitle"><div><span className="eyebrow">PILIHAN TOKO</span><h2>Produk untuk mulai belanja</h2></div><button type="button" className="textAction" onClick={() => navigate('catalog')}>Lihat semua <ArrowRight size={15} /></button></div>
         <div className="productGrid compactGrid">
-          {products.slice(0, 3).map((product) => { const stock = stockOf(product); return <article className="productCard" key={product.id}><div className="productImage" aria-hidden="true">{product.name.slice(0,1).toUpperCase()}</div><div className="body"><small>{product.sku}</small><h3>{product.name}</h3><div className="priceRow"><strong>{rupiah(productPrice(product))}</strong><span>Stok {stock}</span></div><button type="button" onClick={() => openProduct(product)}>Lihat produk</button></div></article>; })}
+          {products.slice(0, 3).map((product) => { const option = defaultSellingOption(product); const stock = maxUnitQuantity(product, option.quantityFactor); return <article className="productCard" key={product.id}><div className="productImage" aria-hidden="true">{product.name.slice(0,1).toUpperCase()}</div><div className="body"><small>{product.sku}</small><h3>{product.name}</h3><div className="priceRow"><strong>{rupiah(option.unitPrice)}</strong><span>Stok {stock} {option.unitCode}</span></div><button type="button" onClick={() => openProduct(product)}>Lihat produk</button></div></article>; })}
           {!loading && !products.length && <div className="emptyState"><h4>Katalog belum tersedia</h4><p>Produk akan tampil setelah cabang mengaktifkan katalog.</p></div>}
         </div>
       </section>
@@ -398,10 +441,11 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
           {loading && Array.from({ length: 6 }).map((_, i) => <article className="productCard" key={`sk${i}`} aria-busy="true"><div className="skeletonBlock tall" /><div className="body"><div className="skeletonBlock" style={{width:'35%'}} /><div className="skeletonBlock" style={{width:'70%',height:16}} /><div className="skeletonBlock" style={{width:'90%'}} /><div className="skeletonBlock" style={{width:'50%'}} /></div></article>)}
           {!loading && !visibleProducts.length && <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} strokeWidth={1.6} /></div><h4>{products.length ? 'Produk tidak ditemukan' : 'Katalog belum tersedia'}</h4><p>{products.length ? 'Coba kata kunci lain.' : 'Produk akan tampil setelah toko mengaktifkan katalog untuk cabang ini.'}</p></div>}
           {visibleProducts.map((product) => {
-            const stock = stockOf(product);
+            const option = defaultSellingOption(product);
+            const stock = maxUnitQuantity(product, option.quantityFactor);
             return <article className="productCard" key={product.id}>
               <div className="productImage" aria-hidden="true">{product.name.slice(0, 1).toUpperCase()}</div>
-              <div className="body"><small>{product.sku}</small><h3>{product.name}</h3><p>{product.description?.trim() || 'Detail produk belum tersedia.'}</p><div className="priceRow"><strong>{rupiah(productPrice(product))}</strong><span>Stok {stock}</span></div><div className="cardActions"><button type="button" className="secondary" onClick={() => openProduct(product)}>Lihat detail</button><button disabled={stock <= 0} onClick={() => add(product)}>{stock > 0 ? 'Tambah' : 'Stok habis'}</button></div><button type="button" className="favoriteAction secondary" onClick={() => void toggleFavorite(product.id)}><Heart size={15} fill={favoriteIds.includes(product.id) ? 'currentColor' : 'none'} />{favoriteIds.includes(product.id) ? 'Favorit' : 'Simpan favorit'}</button></div>
+              <div className="body"><small>{product.sku}</small><h3>{product.name}</h3><p>{product.description?.trim() || 'Detail produk belum tersedia.'}</p><div className="priceRow"><strong>{rupiah(option.unitPrice)}</strong><span>Stok {stock} {option.unitCode}</span></div><div className="cardActions"><button type="button" className="secondary" onClick={() => openProduct(product)}>Lihat detail</button><button disabled={stock <= 0} onClick={() => add(product, option)}>{stock > 0 ? `Tambah ${option.unitCode}` : 'Stok habis'}</button></div><button type="button" className="favoriteAction secondary" onClick={() => void toggleFavorite(product.id)}><Heart size={15} fill={favoriteIds.includes(product.id) ? 'currentColor' : 'none'} />{favoriteIds.includes(product.id) ? 'Favorit' : 'Simpan favorit'}</button></div>
             </article>;
           })}
         </div>
@@ -417,12 +461,18 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
             <span className="productSku">{selectedProduct.sku}</span>
             <h3>{selectedProduct.name}</h3>
             <p>{selectedProduct.description?.trim() || 'Detail produk belum tersedia.'}</p>
-            <div className="detailPrice">{rupiah(productPrice(selectedProduct))}</div>
-            <div className="inventoryList">{selectedProduct.inventories.map((item, index) => <span key={`${item.warehouse.name}-${index}`}>{item.warehouse.name}: <strong>{item.available}</strong></span>)}</div>
-            <div className="homeActions">
-              <button className="primary compact" type="button" disabled={stockOf(selectedProduct) <= 0} onClick={() => add(selectedProduct)}>{stockOf(selectedProduct) > 0 ? 'Tambah ke keranjang' : 'Stok habis'}</button>
-              <button className="secondary compact" type="button" onClick={() => void toggleFavorite(selectedProduct.id)}><Heart size={16} fill={favoriteIds.includes(selectedProduct.id) ? 'currentColor' : 'none'} />{favoriteIds.includes(selectedProduct.id) ? 'Tersimpan' : 'Simpan favorit'}</button>
-            </div>
+            {selectedSellingOption && <>
+              <label>Unit penjualan<select value={selectedSellingOption.productUnitId ?? 'BASE'} onChange={(event) => setSelectedSellingUnitId(event.target.value)}>
+                {sellingOptions(selectedProduct).map((option) => <option key={sellingOptionKey(selectedProduct.id, option)} value={option.productUnitId ?? 'BASE'}>{option.label} · {rupiah(option.unitPrice)}</option>)}
+              </select></label>
+              <div className="detailPrice">{rupiah(selectedSellingOption.unitPrice)} <small>/ {selectedSellingOption.unitCode}</small></div>
+              <small>{selectedSellingOption.quantityFactor === 1 ? `1 ${selectedSellingOption.unitCode} = 1 base unit` : `1 ${selectedSellingOption.unitCode} = ${selectedSellingOption.quantityFactor} ${selectedProduct.unit}`}</small>
+              <div className="inventoryList">{selectedProduct.inventories.map((item, index) => <span key={`${item.warehouse.name}-${index}`}>{item.warehouse.name}: <strong>{item.available} {selectedProduct.unit}</strong></span>)}</div>
+              <div className="homeActions">
+                <button className="primary compact" type="button" disabled={maxUnitQuantity(selectedProduct, selectedSellingOption.quantityFactor) <= 0} onClick={() => add(selectedProduct, selectedSellingOption)}>{maxUnitQuantity(selectedProduct, selectedSellingOption.quantityFactor) > 0 ? `Tambah ${selectedSellingOption.unitCode} ke keranjang` : 'Stok habis'}</button>
+                <button className="secondary compact" type="button" onClick={() => void toggleFavorite(selectedProduct.id)}><Heart size={16} fill={favoriteIds.includes(selectedProduct.id) ? 'currentColor' : 'none'} />{favoriteIds.includes(selectedProduct.id) ? 'Tersimpan' : 'Simpan favorit'}</button>
+              </div>
+            </>}
           </div>
         </div> : <div className="emptyState"><div className="emptyIcon"><PackageSearch size={28} /></div><h4>Belum ada produk dipilih</h4><p>Buka katalog lalu pilih “Lihat detail”.</p><button type="button" className="primary compact" onClick={() => navigate('catalog')}>Buka katalog</button></div>}
       </section>
@@ -433,7 +483,7 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
         <div className="panel">
           <div className="sectionTitle"><div><span className="eyebrow">KERANJANG</span><h2>Ringkasan belanja</h2></div></div>
           {!cart.length && <div className="emptyState"><div className="emptyIcon"><ShoppingBag size={24} strokeWidth={1.6} /></div><h4>Keranjang masih kosong</h4><p>Tambahkan produk dari katalog untuk mulai belanja.</p></div>}
-          {cart.map((item) => <div className="cartRow" key={item.product.id}><div><strong>{item.product.name}</strong><small>{rupiah(productPrice(item.product))}</small></div><div className="qty"><button aria-label={`Kurangi ${item.product.name}`} onClick={() => update(item.product.id, item.quantity - 1)}><Minus size={14}/></button><span>{item.quantity}</span><button aria-label={`Tambah ${item.product.name}`} disabled={item.quantity >= stockOf(item.product)} onClick={() => update(item.product.id, item.quantity + 1)}><Plus size={14}/></button></div></div>)}
+          {cart.map((item) => { const key = cartItemKey(item); const maxQuantity = maxUnitQuantity(item.product, item.quantityFactor); return <div className="cartRow" key={key}><div><strong>{item.product.name}</strong><small>{rupiah(item.unitPrice)} / {item.unitCode} · {item.quantityFactor === 1 ? 'base unit' : `isi ${item.quantityFactor} ${item.product.unit}`}</small></div><div className="qty"><button aria-label={`Kurangi ${item.product.name} ${item.unitCode}`} onClick={() => update(key, item.quantity - 1)}><Minus size={14}/></button><span>{item.quantity} {item.unitCode}</span><button aria-label={`Tambah ${item.product.name} ${item.unitCode}`} disabled={item.quantity >= maxQuantity} onClick={() => update(key, item.quantity + 1)}><Plus size={14}/></button></div></div>; })}
           <div className="total"><span>Total sementara</span><strong>{rupiah(total)}</strong></div>
         </div>
 
@@ -490,10 +540,10 @@ export function StorefrontApp({ initialView = 'home' }: { initialView?: Storefro
           <div className="sectionTitle"><div><span className="eyebrow">RIWAYAT & TRACKING</span><h2>Pesanan saya</h2></div><span>{account ? `${accountOrders.length} order` : 'masuk dulu'}</span></div>
           {!account && <div className="emptyState"><h4>Riwayat terlindungi akun</h4><p>Masuk untuk melihat status pembayaran, fulfillment, carrier, dan nomor resi.</p></div>}
           {account && !accountOrders.length && <div className="emptyState"><h4>Belum ada pesanan akun</h4><p>Checkout berikutnya akan otomatis tertaut ke akun ini.</p></div>}
-          {accountOrders.slice(0, 8).map((item) => { const shipment = item.shipments[0]; return <div className="cartRow" key={item.id}><div><strong>{item.number}</strong><small>{new Date(item.createdAt).toLocaleString('id-ID')} · {item.fulfillmentType ?? 'DELIVERY'} / {item.shippingMethodName ?? '-'} · {item.payments[0]?.method ?? 'UNSELECTED'} / {item.payments[0]?.status ?? '-'}</small>{shipment && <small>{shipment.carrier ?? 'Shipment'} · {shipment.trackingNumber ?? shipment.status}</small>}{item.status === 'COMPLETED' && item.items.map((orderItem) => <span key={orderItem.id} style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}><button type="button" className="secondary" onClick={() => setReviewForm({ orderId: item.id, productId: orderItem.productId, productName: orderItem.product.name, rating: 5, title: '', body: '' })}>Ulas {orderItem.product.name}</button><button type="button" className="secondary" onClick={() => setReturnForm({ orderId: item.id, orderItemId: orderItem.id, orderNumber: item.number, productName: orderItem.product.name, maxQuantity: orderItem.quantity, quantity: 1, reason: '' })}>Retur {orderItem.product.name}</button></span>)}</div><div><strong>{item.status}</strong><small>{rupiah(item.total)}</small></div></div>; })}
+          {accountOrders.slice(0, 8).map((item) => { const shipment = item.shipments[0]; return <div className="cartRow" key={item.id}><div><strong>{item.number}</strong><small>{new Date(item.createdAt).toLocaleString('id-ID')} · {item.fulfillmentType ?? 'DELIVERY'} / {item.shippingMethodName ?? '-'} · {item.payments[0]?.method ?? 'UNSELECTED'} / {item.payments[0]?.status ?? '-'}</small>{shipment && <small>{shipment.carrier ?? 'Shipment'} · {shipment.trackingNumber ?? shipment.status}</small>}{item.status === 'COMPLETED' && item.items.map((orderItem) => <span key={orderItem.id} style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}><button type="button" className="secondary" onClick={() => setReviewForm({ orderId: item.id, productId: orderItem.productId, productName: orderItem.product.name, rating: 5, title: '', body: '' })}>Ulas {orderItem.product.name}</button><button type="button" className="secondary" onClick={() => setReturnForm({ orderId: item.id, orderItemId: orderItem.id, orderNumber: item.number, productName: orderItem.product.name, unitCode: orderItem.unitCode ?? 'base unit', maxQuantity: orderItem.unitQuantity ?? Math.floor(orderItem.quantity / Math.max(1, orderItem.quantityFactor ?? 1)), quantity: 1, reason: '' })}>Retur {orderItem.product.name}</button></span>)}</div><div><strong>{item.status}</strong><small>{rupiah(item.total)}</small></div></div>; })}
           {reviewForm.productId && <form onSubmit={submitReview}><h3>Ulas {reviewForm.productName}</h3><label>Rating<select value={reviewForm.rating} onChange={(e) => setReviewForm({ ...reviewForm, rating: Number(e.target.value) })}><option value={5}>5</option><option value={4}>4</option><option value={3}>3</option><option value={2}>2</option><option value={1}>1</option></select></label><label>Judul<input maxLength={120} value={reviewForm.title} onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })} /></label><label>Review<textarea maxLength={2000} value={reviewForm.body} onChange={(e) => setReviewForm({ ...reviewForm, body: e.target.value })} /></label><button type="submit">Simpan review</button><button type="button" className="secondary" onClick={() => setReviewForm({ orderId: '', productId: '', productName: '', rating: 5, title: '', body: '' })}>Batal</button></form>}
-          {returnForm.orderItemId && <form onSubmit={submitOrderReturn}><h3>Retur {returnForm.productName}</h3><small>Order {returnForm.orderNumber}. Refund final hanya diposting setelah barang diperiksa toko.</small><label>Jumlah<input type="number" min="1" max={returnForm.maxQuantity} step="1" value={returnForm.quantity} onChange={(e) => setReturnForm({ ...returnForm, quantity: Number(e.target.value) })} /></label><label>Alasan<textarea maxLength={1000} required value={returnForm.reason} onChange={(e) => setReturnForm({ ...returnForm, reason: e.target.value })} /></label><button type="submit">Ajukan retur</button><button type="button" className="secondary" onClick={() => setReturnForm({ orderId: '', orderItemId: '', orderNumber: '', productName: '', maxQuantity: 1, quantity: 1, reason: '' })}>Batal</button></form>}
-          {account && accountReturns.length > 0 && <div><h3>Riwayat retur</h3>{accountReturns.slice(0, 8).map((ret) => <div className="cartRow" key={ret.id}><div><strong>{ret.number}</strong><small>{ret.order.number} · {ret.items.map((line) => `${line.product.name} × ${line.quantity}`).join(', ')}</small>{ret.reason && <small>{ret.reason}</small>}</div><div><strong>{ret.status}</strong><small>{rupiah(ret.refundAmount)}</small></div></div>)}</div>}
+          {returnForm.orderItemId && <form onSubmit={submitOrderReturn}><h3>Retur {returnForm.productName}</h3><small>Order {returnForm.orderNumber}. Refund final hanya diposting setelah barang diperiksa toko.</small><label>Jumlah ({returnForm.unitCode})<input type="number" min="1" max={returnForm.maxQuantity} step="1" value={returnForm.quantity} onChange={(e) => setReturnForm({ ...returnForm, quantity: Number(e.target.value) })} /></label><label>Alasan<textarea maxLength={1000} required value={returnForm.reason} onChange={(e) => setReturnForm({ ...returnForm, reason: e.target.value })} /></label><button type="submit">Ajukan retur</button><button type="button" className="secondary" onClick={() => setReturnForm({ orderId: '', orderItemId: '', orderNumber: '', productName: '', unitCode: '', maxQuantity: 1, quantity: 1, reason: '' })}>Batal</button></form>}
+          {account && accountReturns.length > 0 && <div><h3>Riwayat retur</h3>{accountReturns.slice(0, 8).map((ret) => <div className="cartRow" key={ret.id}><div><strong>{ret.number}</strong><small>{ret.order.number} · {ret.items.map((line) => `${line.product.name} × ${line.unitQuantity ?? line.quantity} ${line.unitCode ?? 'base unit'}`).join(', ')}</small>{ret.reason && <small>{ret.reason}</small>}</div><div><strong>{ret.status}</strong><small>{rupiah(ret.refundAmount)}</small></div></div>)}</div>}
         </div>
       </section>
       </>}

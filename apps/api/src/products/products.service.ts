@@ -180,6 +180,14 @@ export class ProductsService {
       effectiveSalePrice: await resolveProductUnitPrice(this.prisma, {
         companyId: scope.companyId, branchId: scope.branchId, product: item, quantity: 1, segmentCode: 'RETAIL', unitCode: item.unit,
       }),
+      units: await Promise.all(item.units.map(async (unit) => ({
+        ...unit,
+        effectiveSalePrice: await resolveProductUnitPrice(this.prisma, {
+          companyId: scope.companyId, branchId: scope.branchId, product: item, quantity: 1, segmentCode: 'RETAIL',
+          unitCode: unit.unitCode, unitFactor: Number(unit.quantityFactor), variantId: unit.variantId,
+          variantSalePrice: unit.variant?.salePrice ? new Prisma.Decimal(unit.variant.salePrice).mul(Number(unit.quantityFactor)) : undefined,
+        }),
+      }))),
     })));
     if (user) return { ...page, items: pricedItems };
     return {
@@ -335,7 +343,15 @@ export class ProductsService {
     });
     if (product) {
       const effectiveSalePrice = await resolveProductUnitPrice(this.prisma, { companyId: scope.companyId, branchId: scope.branchId, product, quantity: 1, segmentCode: 'RETAIL', unitCode: product.unit });
-      const pricedProduct = { ...product, effectiveSalePrice };
+      const units = await Promise.all(product.units.map(async (unit) => ({
+        ...unit,
+        effectiveSalePrice: await resolveProductUnitPrice(this.prisma, {
+          companyId: scope.companyId, branchId: scope.branchId, product, quantity: 1, segmentCode: 'RETAIL',
+          unitCode: unit.unitCode, unitFactor: Number(unit.quantityFactor), variantId: unit.variantId,
+          variantSalePrice: unit.variant?.salePrice ? new Prisma.Decimal(unit.variant.salePrice).mul(Number(unit.quantityFactor)) : undefined,
+        }),
+      })));
+      const pricedProduct = { ...product, units, effectiveSalePrice };
       if (user) return pricedProduct;
       const { companyId: _companyId, ...publicProduct } = pricedProduct;
       return publicProduct;

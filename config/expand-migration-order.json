@@ -13,6 +13,7 @@
     "T360-20260923-f10-operator-ai",
     "T360-20260923-f11-transaction-uom",
     "T360-20260924-r1-session-branch-context",
-    "T360-20260924-r4-supplier-lifecycle"
+    "T360-20260924-r4-supplier-lifecycle",
+    "T360-20260925-p2a-transaction-uom-lineage"
   ]
 }

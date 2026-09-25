@@ -389,3 +389,20 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 - Category operator surface now exposes explicit `Tambah kategori utama` and row-level `Tambah subkategori`, hierarchy ordering/depth, product counts, edit, parent move, order and lifecycle controls.
 - P1 remains OPEN for Human IA acceptance. Do not start P2 until the 62-route source is locally green, committed/pushed/clean, Browser/R7 exact-source evidence is green, and the user visually accepts the IA.
 - Recovery R0 sourceSnapshot is historical evidence and now acts as a regression floor (counts may grow during Product Completion); exact-equality count checks are forbidden because they turn legitimate feature/UI growth into false recovery regressions.
+
+
+## P1 exact-source runtime green / P2A Multi-UOM source implementation — 2026-09-25
+- Exact-source commit `abac92662cab4cc7352de4f9f9d2e2419aad9c29` passed Browser UAT, Built Browser UAT, R7, R8, worker/API/runtime sweeps, Stage-18, Stage-19, automated Stage-20 and aggregate gates. P1 routing is therefore `RUNTIME_VERIFIED`; Human IA/Stage-20 remains PENDING and separate.
+- User explicitly instructed continuation after green evidence. P2A is the active implementation wave; do not start P2B Payroll until P2A is committed/pushed/clean and exact-source runtime evidence is stable.
+- P2A root contract: ProductUnit is authoritative only when creating a new transaction. Persisted transaction UOM snapshots are historical authority afterward; fulfillment/return/refund must never read current ProductUnit to reinterpret an old line.
+- POS and online orders now share `apps/api/src/common/transaction-uom.ts`. OrderItem stores `variantId`, `productUnitId`, `unitCode`, `unitQuantity`, `quantityFactor`, `sourceBarcode`; `quantity` remains integer base units.
+- OrderReturnItem, SaleReturnItem and PurchaseReturnItem carry equivalent snapshots. Customer order-return quantity is transaction-UOM quantity and is converted from persisted OrderItem factor; sale/purchase return inventory quantities remain base-unit compatible while preserving source snapshots.
+- Storefront exposes server-authoritative ProductUnit prices, explicit UOM selection, UOM-aware cart identity/stock clamp, and historical-UOM return quantity. Shipment packages expose both transaction and base quantities; accounting uses selling-UOM quantity/price while inventory/COGS uses base quantity/base cost.
+- Expand-only migration: `database/migrations/T360-20260925-p2a-transaction-uom-lineage/` across SQLite/PostgreSQL; schema parity kept in all three Prisma schemas.
+- Focused P2A/F11/return/core/UI source regression: 45/45 PASS before final governance updates. Exact-source PostgreSQL mixed-UOM runtime journey is still required before A-03 can become `RUNTIME_VERIFIED`.
+
+## P2A Prisma dual-profile schema gate root fix — 2026-09-25
+- Ubuntu P2A gate proved SQLite schema valid, then `prisma:validate:postgres` failed before schema validation because the workspace script always loaded the active root `.env`, which correctly remained SQLite for local development.
+- Root correction: schema-only `validate`/`generate` commands now use `scripts/run-prisma-schema-command.mjs`; they respect an inherited provider-matching `DATABASE_URL`, otherwise use a non-connecting provider-specific placeholder and never rewrite `.env`.
+- Database-touching PostgreSQL commands (`push`, `migrate`, `seed`, `studio`) remain on the protected active environment and require a real PostgreSQL URL; no credential or safety gate is weakened.
+- This correction is part of P2A verification infrastructure. P2A remains `IMPLEMENTED_RUNTIME_PENDING` until Ubuntu Prisma validate/generate + workspace lint + 952+ regression pass, then atomic commit/push and exact-source PostgreSQL mixed-UOM runtime evidence pass.

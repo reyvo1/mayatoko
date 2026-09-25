@@ -4,7 +4,10 @@ import { IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNotEmpty, IsOptional, IsStr
 
 class OrderItemDto {
   @ApiProperty() @IsString() productId!: string;
-  @ApiProperty({ example: 1 }) @IsInt() @Min(1) quantity!: number;
+  @ApiProperty({ example: 1, description: 'Jumlah dalam unit transaksi yang dipilih. Tanpa productUnitId/barcodeCode berarti base unit produk.' }) @IsInt() @Min(1) quantity!: number;
+  @ApiPropertyOptional({ description: 'ProductUnit authoritative untuk UOM/kemasan storefront.' }) @IsOptional() @IsString() productUnitId?: string;
+  @ApiPropertyOptional({ description: 'Variant produk bila unit/kemasan terikat variant.' }) @IsOptional() @IsString() variantId?: string;
+  @ApiPropertyOptional({ description: 'Barcode hanya shortcut ke ProductUnit/variant yang sama; snapshot transaksi tetap disimpan.' }) @IsOptional() @IsString() barcodeCode?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() taxCodeId?: string;
 }
 

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "TOKO360 Canonical Product Completeness Matrix",
-  "updatedAt": "2026-09-25T19:10:00+08:00",
+  "updatedAt": "2026-09-25T20:30:00+08:00",
   "authoritative": true,
   "productReady": false,
   "humanStage20": "PENDING",
@@ -628,8 +628,11 @@
       "title": "Admin contextual IA not semantically routed",
       "severity": "CRITICAL",
       "targetPhase": "P1",
-      "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "62/62 contextual destinations now have explicit source mapping after splitting Customer from Category/Subcategory; formerly mixed workspaces render by active contextual route. Browser/runtime evidence for the canonical navigation root is PASS; human IA acceptance remains pending."
+      "status": "RUNTIME_VERIFIED",
+      "notes": "P1 62/62 contextual routing and Master Data category/customer isolation passed exact-source Browser UAT, Built Browser UAT, R7/R8, Stage-18/19/20 automated and aggregate gates on commit abac92662cab4cc7352de4f9f9d2e2419aad9c29. Human IA/Stage-20 acceptance remains separate and pending.",
+      "evidence": [
+        "Exact-source GitHub commit abac92662cab4cc7352de4f9f9d2e2419aad9c29: Browser UAT PASS, Built Browser UAT PASS, R7 PASS, R8 PASS, Stage-18 PASS, Stage-19 11/11 PASS, automated Stage-20 PASS, aggregate PASS; source logs logs_97860254545.zip, logs_97860254568.zip, logs_97860254901.zip."
+      ]
     },
     {
       "id": "audit:A-02",
@@ -648,8 +651,11 @@
       "title": "Multi-UOM lineage incomplete for online orders/returns",
       "severity": "CRITICAL",
       "targetPhase": "P2",
-      "status": "PARTIAL",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
+      "notes": "P2A source now persists immutable UOM lineage on OrderItem and all return families, centralizes ProductUnit conversion authority for POS/storefront orders, keeps fulfillment inventory in base units, copies historical snapshots into returns/refunds, and exposes storefront UOM selection. Exact-source mixed-UOM order -> fulfill -> return/refund PostgreSQL runtime evidence is still required.",
+      "evidence": [
+        "Source implementation: apps/api/src/common/transaction-uom.ts; OrderItem/OrderReturnItem/SaleReturnItem/PurchaseReturnItem schema snapshots; T360-20260925-p2a-transaction-uom-lineage expand migration; storefront UOM selection/return flow; product-completion-p2a-multi-uom-lineage.test.mjs."
+      ]
     },
     {
       "id": "audit:A-04",
@@ -782,6 +788,6 @@
     "P6",
     "P7"
   ],
-  "currentPhase": "P1",
+  "currentPhase": "P2",
   "currentPhaseStatus": "IMPLEMENTED_RUNTIME_PENDING"
 }

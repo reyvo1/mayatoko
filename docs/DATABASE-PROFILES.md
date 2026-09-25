@@ -94,6 +94,21 @@ npm run db:postgres:studio
 
 Pada production gunakan migration terversi, bukan `db push` sebagai proses deployment permanen.
 
+## Validasi dan Generate Schema Tanpa Mengganti Profile Aktif
+
+`prisma validate` dan `prisma generate` tidak membuka koneksi database. Karena itu perintah schema-only berikut aman dijalankan saat `.env` lokal masih memakai SQLite:
+
+```bash
+npm run prisma:validate:sqlite -w @toko360/api
+npm run prisma:validate:postgres -w @toko360/api
+npm run prisma:generate:sqlite -w @toko360/api
+npm run prisma:generate:postgres -w @toko360/api
+```
+
+Runner `scripts/run-prisma-schema-command.mjs` memakai `DATABASE_URL` yang sudah diberikan caller hanya bila providernya cocok. Jika tidak cocok, runner memakai URL placeholder non-koneksi sesuai provider dan **tidak menulis atau mengganti `.env`**. Ini membuat quality gate SQLite/PostgreSQL deterministik pada workstation lokal dan CI.
+
+Operasi yang benar-benar menyentuh database (`db push`, `migrate`, `seed`, `studio`) **tidak** memakai placeholder. Untuk operasi tersebut pilih/inject profile dan credential yang benar lebih dahulu; staging/production tetap wajib memakai secret/environment terproteksi.
+
 ## Menjaga Kesamaan Schema
 
 `npm run validate:repo` memastikan:

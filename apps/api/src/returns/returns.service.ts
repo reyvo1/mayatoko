@@ -14,6 +14,30 @@ import { StorefrontCustomerService } from '../storefront-customer/storefront-cus
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 type TenantScope = { companyId: string; branchId: string };
+type HistoricalReturnState = { quantity: number; net: Prisma.Decimal; tax: Prisma.Decimal; gross: Prisma.Decimal };
+
+function zeroHistoricalReturnState(): HistoricalReturnState {
+  return { quantity: 0, net: new Prisma.Decimal(0), tax: new Prisma.Decimal(0), gross: new Prisma.Decimal(0) };
+}
+
+function allocateHistoricalRemainder(
+  original: Prisma.Decimal,
+  alreadyAllocated: Prisma.Decimal,
+  requestedQuantity: number,
+  originalQuantity: number,
+  alreadyReturnedQuantity: number,
+): Prisma.Decimal {
+  const remainingQuantity = originalQuantity - alreadyReturnedQuantity;
+  if (remainingQuantity < requestedQuantity || requestedQuantity < 1 || originalQuantity < 1) {
+    throw new BadRequestException('Kuantitas retur historis tidak konsisten dengan transaksi asal.');
+  }
+  if (requestedQuantity === remainingQuantity) {
+    const remainder = original.sub(alreadyAllocated).toDecimalPlaces(2);
+    if (remainder.isNegative()) throw new BadRequestException('Nilai retur historis melebihi transaksi asal.');
+    return remainder;
+  }
+  return original.mul(requestedQuantity).div(originalQuantity).toDecimalPlaces(2);
+}
 
 @Injectable()
 export class ReturnsService {
@@ -200,13 +224,22 @@ export class ReturnsService {
       include: { items: true },
     });
     const alreadyReturned = new Map<string, number>();
+    const saleAllocation = new Map<string, HistoricalReturnState>();
     for (const previous of previousReturns) {
       for (const item of previous.items) {
         const metadata = item.metadata && typeof item.metadata === 'object' && !Array.isArray(item.metadata)
           ? item.metadata as Record<string, unknown>
           : undefined;
         const saleItemId = typeof metadata?.saleItemId === 'string' ? metadata.saleItemId : undefined;
-        if (saleItemId) alreadyReturned.set(saleItemId, (alreadyReturned.get(saleItemId) ?? 0) + item.quantity);
+        if (saleItemId) {
+          alreadyReturned.set(saleItemId, (alreadyReturned.get(saleItemId) ?? 0) + item.quantity);
+          const state = saleAllocation.get(saleItemId) ?? zeroHistoricalReturnState();
+          state.quantity += item.quantity;
+          state.net = state.net.add(item.netAmount);
+          state.tax = state.tax.add(item.taxAmount);
+          state.gross = state.gross.add(item.grossAmount);
+          saleAllocation.set(saleItemId, state);
+        }
       }
     }
     const requestedNow = new Map<string, number>();
@@ -226,19 +259,35 @@ export class ReturnsService {
       if (!original || input.quantity > original.quantity) {
         throw new BadRequestException(`Jumlah retur item ${input.saleItemId} tidak valid.`);
       }
-      const ratio = new Prisma.Decimal(input.quantity).div(original.quantity);
+      const factor = Math.max(1, Number(original.quantityFactor ?? 1));
+      const returnedUnitQuantity = input.quantity % factor === 0 ? input.quantity / factor : null;
+      const allocation = saleAllocation.get(original.id) ?? zeroHistoricalReturnState();
+      const netAmount = allocateHistoricalRemainder(original.netSubtotal, allocation.net, input.quantity, original.quantity, allocation.quantity);
+      const taxAmount = allocateHistoricalRemainder(original.taxAmount, allocation.tax, input.quantity, original.quantity, allocation.quantity);
+      const grossAmount = allocateHistoricalRemainder(original.grossSubtotal, allocation.gross, input.quantity, original.quantity, allocation.quantity);
+      allocation.quantity += input.quantity;
+      allocation.net = allocation.net.add(netAmount);
+      allocation.tax = allocation.tax.add(taxAmount);
+      allocation.gross = allocation.gross.add(grossAmount);
+      saleAllocation.set(original.id, allocation);
       return {
         productId: original.productId,
+        variantId: original.variantId ?? null,
+        productUnitId: original.productUnitId ?? null,
+        unitCode: original.unitCode ?? null,
+        unitQuantity: returnedUnitQuantity,
+        quantityFactor: factor,
+        sourceBarcode: original.sourceBarcode ?? null,
         quantity: input.quantity,
         condition: input.condition ?? 'GOOD',
         restock: input.restock ?? true,
         unitAmount: original.unitPrice,
         unitCost: original.unitCost,
-        netAmount: original.netSubtotal.mul(ratio).toDecimalPlaces(2),
-        taxAmount: original.taxAmount.mul(ratio).toDecimalPlaces(2),
-        grossAmount: original.grossSubtotal.mul(ratio).toDecimalPlaces(2),
+        netAmount,
+        taxAmount,
+        grossAmount,
         taxCodeId: original.taxCodeId,
-        metadata: { saleItemId: original.id },
+        metadata: { saleItemId: original.id, sourceBaseQuantity: original.quantity, sourceUnitQuantity: original.unitQuantity ?? null },
       };
     });
     await this.assertReturnTaxCodes(this.prisma, user, scope, rows.map((row) => row.taxCodeId));
@@ -467,13 +516,22 @@ export class ReturnsService {
           include: { items: true },
         });
         const alreadyReturned = new Map<string, number>();
+        const purchaseAllocation = new Map<string, HistoricalReturnState>();
         for (const previous of previousReturns) {
           for (const item of previous.items) {
             const metadata = item.metadata && typeof item.metadata === 'object' && !Array.isArray(item.metadata)
               ? item.metadata as Record<string, unknown>
               : undefined;
             const goodsReceiptItemId = typeof metadata?.goodsReceiptItemId === 'string' ? metadata.goodsReceiptItemId : undefined;
-            if (goodsReceiptItemId) alreadyReturned.set(goodsReceiptItemId, (alreadyReturned.get(goodsReceiptItemId) ?? 0) + item.quantity);
+            if (goodsReceiptItemId) {
+              alreadyReturned.set(goodsReceiptItemId, (alreadyReturned.get(goodsReceiptItemId) ?? 0) + item.quantity);
+              const state = purchaseAllocation.get(goodsReceiptItemId) ?? zeroHistoricalReturnState();
+              state.quantity += item.quantity;
+              state.net = state.net.add(item.netAmount);
+              state.tax = state.tax.add(item.taxAmount);
+              state.gross = state.gross.add(item.grossAmount);
+              purchaseAllocation.set(goodsReceiptItemId, state);
+            }
           }
         }
         const requestedNow = new Map<string, number>();
@@ -491,17 +549,33 @@ export class ReturnsService {
           if (!original || input.quantity > original.acceptedQty) {
             throw new BadRequestException(`Jumlah retur penerimaan ${input.goodsReceiptItemId} tidak valid.`);
           }
-          const ratio = new Prisma.Decimal(input.quantity).div(original.acceptedQty || 1);
+          const factor = Math.max(1, Number(original.quantityFactor ?? 1));
+          const returnedUnitQuantity = input.quantity % factor === 0 ? input.quantity / factor : null;
+          const allocation = purchaseAllocation.get(original.id) ?? zeroHistoricalReturnState();
+          const netAmount = allocateHistoricalRemainder(original.subtotal, allocation.net, input.quantity, original.acceptedQty, allocation.quantity);
+          const taxAmount = allocateHistoricalRemainder(original.taxAmount, allocation.tax, input.quantity, original.acceptedQty, allocation.quantity);
+          const grossAmount = allocateHistoricalRemainder(original.grossSubtotal, allocation.gross, input.quantity, original.acceptedQty, allocation.quantity);
+          allocation.quantity += input.quantity;
+          allocation.net = allocation.net.add(netAmount);
+          allocation.tax = allocation.tax.add(taxAmount);
+          allocation.gross = allocation.gross.add(grossAmount);
+          purchaseAllocation.set(original.id, allocation);
           return {
             productId: original.productId,
+            variantId: original.variantId ?? null,
+            productUnitId: original.productUnitId ?? null,
+            unitCode: original.unitCode ?? null,
+            unitQuantity: returnedUnitQuantity,
+            quantityFactor: factor,
+            sourceBarcode: null,
             quantity: input.quantity,
             unitCost: original.unitCost,
-            netAmount: original.subtotal.mul(ratio).toDecimalPlaces(2),
-            taxAmount: original.taxAmount.mul(ratio).toDecimalPlaces(2),
-            grossAmount: original.grossSubtotal.mul(ratio).toDecimalPlaces(2),
+            netAmount,
+            taxAmount,
+            grossAmount,
             taxCodeId: original.taxCodeId,
             reason: input.reason,
-            metadata: { goodsReceiptItemId: original.id },
+            metadata: { goodsReceiptItemId: original.id, sourceBaseQuantity: original.acceptedQty, sourceUnitQuantity: original.unitQuantity ?? null },
           };
         });
         await this.assertReturnTaxCodes(tx, user, scope, rows.map((row) => row.taxCodeId));
@@ -835,34 +909,64 @@ export class ReturnsService {
         include: { items: true },
       });
       const alreadyReturned = new Map<string, number>();
+      const orderAllocation = new Map<string, HistoricalReturnState>();
       for (const previous of previousReturns) {
-        for (const item of previous.items) alreadyReturned.set(item.orderItemId, (alreadyReturned.get(item.orderItemId) ?? 0) + item.quantity);
+        for (const item of previous.items) {
+          alreadyReturned.set(item.orderItemId, (alreadyReturned.get(item.orderItemId) ?? 0) + item.quantity);
+          const state = orderAllocation.get(item.orderItemId) ?? zeroHistoricalReturnState();
+          state.quantity += item.quantity;
+          state.net = state.net.add(item.netAmount);
+          state.tax = state.tax.add(item.taxAmount);
+          state.gross = state.gross.add(item.grossAmount);
+          orderAllocation.set(item.orderItemId, state);
+        }
       }
       const requestedNow = new Map<string, number>();
       for (const input of dto.items) requestedNow.set(input.orderItemId, (requestedNow.get(input.orderItemId) ?? 0) + input.quantity);
       const rows = [] as Array<{
-        orderItemId: string; productId: string; quantity: number; condition: string; restock: boolean;
+        orderItemId: string; productId: string; variantId: string | null; productUnitId: string | null; unitCode: string | null;
+        unitQuantity: number; quantityFactor: number; sourceBarcode: string | null; quantity: number; condition: string; restock: boolean;
         unitAmount: Prisma.Decimal; unitCost: Prisma.Decimal; netAmount: Prisma.Decimal; taxAmount: Prisma.Decimal;
         grossAmount: Prisma.Decimal; taxCodeId: string | null;
       }>;
-      for (const [orderItemId, requestedQty] of requestedNow) {
+      for (const [orderItemId, requestedUnitQty] of requestedNow) {
         const original = order.items.find((item) => item.id === orderItemId);
-        const used = alreadyReturned.get(orderItemId) ?? 0;
-        if (!original || requestedQty <= 0 || used + requestedQty > original.quantity) {
-          throw new BadRequestException(`Jumlah retur item ${orderItemId} melebihi sisa yang dapat diretur.`);
+        if (!original || requestedUnitQty <= 0) {
+          throw new BadRequestException(`Jumlah retur item ${orderItemId} tidak valid.`);
         }
-        const ratio = new Prisma.Decimal(requestedQty).div(original.quantity);
+        const factor = Math.max(1, Number(original.quantityFactor ?? 1));
+        const sourceUnitQuantity = original.unitQuantity ?? Math.floor(original.quantity / factor);
+        const requestedBaseQty = requestedUnitQty * factor;
+        const usedBaseQty = alreadyReturned.get(orderItemId) ?? 0;
+        if (!Number.isSafeInteger(requestedBaseQty) || requestedBaseQty < 1 || requestedUnitQty > sourceUnitQuantity || usedBaseQty + requestedBaseQty > original.quantity) {
+          throw new BadRequestException(`Jumlah retur item ${orderItemId} melebihi sisa yang dapat diretur dalam ${original.unitCode ?? 'base unit'}.`);
+        }
+        const allocation = orderAllocation.get(original.id) ?? zeroHistoricalReturnState();
+        const netAmount = allocateHistoricalRemainder(original.netSubtotal, allocation.net, requestedBaseQty, original.quantity, allocation.quantity);
+        const taxAmount = allocateHistoricalRemainder(original.taxAmount, allocation.tax, requestedBaseQty, original.quantity, allocation.quantity);
+        const grossAmount = allocateHistoricalRemainder(original.grossSubtotal, allocation.gross, requestedBaseQty, original.quantity, allocation.quantity);
+        allocation.quantity += requestedBaseQty;
+        allocation.net = allocation.net.add(netAmount);
+        allocation.tax = allocation.tax.add(taxAmount);
+        allocation.gross = allocation.gross.add(grossAmount);
+        orderAllocation.set(original.id, allocation);
         rows.push({
           orderItemId: original.id,
           productId: original.productId,
-          quantity: requestedQty,
+          variantId: original.variantId ?? null,
+          productUnitId: original.productUnitId ?? null,
+          unitCode: original.unitCode ?? null,
+          unitQuantity: requestedUnitQty,
+          quantityFactor: factor,
+          sourceBarcode: original.sourceBarcode ?? null,
+          quantity: requestedBaseQty,
           condition: 'PENDING_INSPECTION',
           restock: false,
           unitAmount: original.unitPrice,
           unitCost: original.unitCost,
-          netAmount: original.netSubtotal.mul(ratio).toDecimalPlaces(2),
-          taxAmount: original.taxAmount.mul(ratio).toDecimalPlaces(2),
-          grossAmount: original.grossSubtotal.mul(ratio).toDecimalPlaces(2),
+          netAmount,
+          taxAmount,
+          grossAmount,
           taxCodeId: original.taxCodeId,
         });
       }

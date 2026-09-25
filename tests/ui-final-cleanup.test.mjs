@@ -59,7 +59,7 @@ test('authenticated frontends revoke server sessions on logout and do not prefil
 
 test('storefront removes fake merchandising claims and clamps cart quantity to server catalog stock', () => {
   assert.doesNotMatch(storefront, /FLASH SALE|DISKON HINGGA|★★★★★|MOCK_QRIS/);
-  assert.match(storefront, /Math\.min\(quantity, stockOf\(item\.product\)\)/);
+  assert.match(storefront, /Math\.min\(quantity, maxUnitQuantity\(item\.product, item\.quantityFactor\)\)/);
   assert.match(storefront, /platform\/manifest\?branchCode=\$\{encodeURIComponent\(branchCode\)\}/);
   assert.match(storefront, /Pilih cabang storefront|platform\/storefront-branches/);
   assert.match(storefront, /paymentBusy/);

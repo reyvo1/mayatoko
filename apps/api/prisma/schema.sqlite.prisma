@@ -960,6 +960,12 @@ model OrderItem {
   id        String  @id @default(uuid())
   orderId   String
   productId String
+  variantId String?
+  productUnitId String?
+  unitCode String?
+  unitQuantity Int?
+  quantityFactor Int @default(1)
+  sourceBarcode String?
   quantity  Int
   unitPrice Decimal
   unitCost  Decimal
@@ -1664,6 +1670,12 @@ model OrderReturnItem {
   orderReturnId String
   orderItemId   String
   productId     String
+  variantId     String?
+  productUnitId String?
+  unitCode      String?
+  unitQuantity  Int?
+  quantityFactor Int      @default(1)
+  sourceBarcode String?
   quantity      Int
   condition     String   @default("GOOD")
   restock       Boolean  @default(true)
@@ -1707,6 +1719,12 @@ model SaleReturnItem {
   id        String     @id @default(uuid())
   returnId  String
   productId String
+  variantId String?
+  productUnitId String?
+  unitCode String?
+  unitQuantity Int?
+  quantityFactor Int @default(1)
+  sourceBarcode String?
   quantity  Int
   condition String     @default("GOOD")
   restock   Boolean    @default(true)
@@ -1750,6 +1768,12 @@ model PurchaseReturnItem {
   id             String         @id @default(uuid())
   returnId       String
   productId      String
+  variantId      String?
+  productUnitId  String?
+  unitCode       String?
+  unitQuantity   Int?
+  quantityFactor Int            @default(1)
+  sourceBarcode  String?
   quantity       Int
   unitCost       Decimal
   netAmount      Decimal        @default(0)

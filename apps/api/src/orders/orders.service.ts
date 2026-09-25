@@ -10,6 +10,7 @@ import { serializableTx } from '../common/serializable-tx';
 import { beginIdempotent, completeIdempotent } from '../common/idempotency';
 import { resolveLoyaltyTier } from '../common/loyalty-tier';
 import { decodeCursor, parsePageLimit, toCursorPage } from '../common/pagination';
+import { resolveSellingUnitLine } from '../common/transaction-uom';
 import { PrismaService } from '../prisma/prisma.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { StorefrontCustomerService } from '../storefront-customer/storefront-customer.service';
@@ -250,9 +251,21 @@ export class OrdersService {
       let netTotal = new Prisma.Decimal(0);
       let taxTotal = new Prisma.Decimal(0);
       let total = new Prisma.Decimal(0);
-      const raw: Array<{ input: (typeof dto.items)[number]; product: (typeof products)[number]; base: Prisma.Decimal }> = [];
+      const transactionAt = new Date();
+      const raw = [] as Array<{
+        input: (typeof dto.items)[number];
+        product: (typeof products)[number];
+        line: Prisma.Decimal;
+        conversion: Awaited<ReturnType<typeof resolveSellingUnitLine>>;
+      }>;
       const prepared = [] as Array<{
         productId: string;
+        variantId: string | null;
+        productUnitId: string | null;
+        unitCode: string;
+        unitQuantity: number;
+        quantityFactor: number;
+        sourceBarcode: string | null;
         quantity: number;
         unitPrice: Prisma.Decimal;
         unitCost: Prisma.Decimal;
@@ -265,15 +278,25 @@ export class OrdersService {
 
       for (const input of dto.items) {
         const product = products.find((value) => value.id === input.productId)!;
+        const conversion = await resolveSellingUnitLine(
+          tx,
+          { companyId: branch.companyId, branchId: branch.id },
+          product,
+          input,
+          customerIdentity?.customer.customerType ?? 'RETAIL',
+          transactionAt,
+        );
         const inventory = await tx.inventory.findUnique({
           where: { warehouseId_productId: { warehouseId: warehouse.id, productId: product.id } },
         });
-        if ((!inventory || inventory.available < input.quantity) && !product.allowNegativeStock) {
-          throw new BadRequestException(`Stok ${product.name} tidak mencukupi.`);
+        if ((!inventory || inventory.available < conversion.baseQuantity) && !product.allowNegativeStock) {
+          throw new BadRequestException(
+            `Stok ${product.name} tidak mencukupi untuk ${conversion.unitQuantity} ${conversion.unitCode} (${conversion.baseQuantity} ${product.unit}).`,
+          );
         }
-        const base = new Prisma.Decimal(product.salePrice).mul(input.quantity);
-        rawSubtotal = rawSubtotal.add(base);
-        raw.push({ input, product, base });
+        const line = conversion.sellingUnitPrice.mul(conversion.unitQuantity);
+        rawSubtotal = rawSubtotal.add(line);
+        raw.push({ input, product, line, conversion });
       }
 
       const promotion = await this.promotions.resolveSalePromotion(
@@ -281,9 +304,16 @@ export class OrdersService {
         { companyId: branch.companyId, branchId: branch.id },
         rawSubtotal,
         dto.promoCode,
-        new Date(),
+        transactionAt,
         customerIdentity?.customerId,
-        { channel: 'STOREFRONT', lines: raw.map((item) => ({ productId: item.product.id, quantity: item.input.quantity, unitPrice: item.product.salePrice })) },
+        {
+          channel: 'STOREFRONT',
+          lines: raw.map((item) => ({
+            productId: item.product.id,
+            quantity: item.conversion.unitQuantity,
+            unitPrice: item.conversion.sellingUnitPrice,
+          })),
+        },
       );
       const promoDiscount = promotion.discount;
       let allocatedDiscount = new Prisma.Decimal(0);
@@ -292,15 +322,15 @@ export class OrdersService {
           ? new Prisma.Decimal(0)
           : index === raw.length - 1
             ? promoDiscount.sub(allocatedDiscount)
-            : promoDiscount.mul(item.base).div(rawSubtotal).toDecimalPlaces(2);
+            : promoDiscount.mul(item.line).div(rawSubtotal).toDecimalPlaces(2);
         allocatedDiscount = allocatedDiscount.add(share);
-        const discountedBase = item.base.sub(share);
+        const discountedBase = item.line.sub(share);
         const calc = await this.accounting.calculateTax(
           tx,
           item.input.taxCodeId ?? item.product.salesTaxCodeId ?? undefined,
           discountedBase,
           branch.companyId,
-          new Date(),
+          transactionAt,
           ['SALE', 'OTHER'],
         );
         netTotal = netTotal.add(calc.net);
@@ -308,8 +338,14 @@ export class OrdersService {
         total = total.add(calc.gross);
         prepared.push({
           productId: item.product.id,
-          quantity: item.input.quantity,
-          unitPrice: item.product.salePrice,
+          variantId: item.conversion.variantId,
+          productUnitId: item.conversion.productUnitId,
+          unitCode: item.conversion.unitCode,
+          unitQuantity: item.conversion.unitQuantity,
+          quantityFactor: item.conversion.quantityFactor,
+          sourceBarcode: item.conversion.sourceBarcode,
+          quantity: item.conversion.baseQuantity,
+          unitPrice: item.conversion.sellingUnitPrice,
           unitCost: item.product.costPrice,
           subtotal: calc.gross,
           netSubtotal: calc.net,
@@ -418,8 +454,18 @@ export class OrdersService {
         service: order.shippingMethodCode,
         shippingCost: order.shippingCost,
         packages: {
+          uomSnapshotVersion: 1,
           itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
-          items: order.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          transactionItemCount: order.items.reduce((sum, item) => sum + (item.unitQuantity ?? item.quantity), 0),
+          items: order.items.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            productUnitId: item.productUnitId,
+            unitCode: item.unitCode ?? item.product.unit,
+            unitQuantity: item.unitQuantity ?? item.quantity,
+            quantityFactor: item.quantityFactor,
+            baseQuantity: item.quantity,
+          })),
         },
       } });
     }
@@ -830,7 +876,7 @@ export class OrdersService {
         amounts: { gross: order.total, customerAdvance: order.total, receivable: order.total, revenue: new Prisma.Decimal(order.subtotal).add(order.shippingCost), outputTax: order.tax, cogs: costTotal, inventory: costTotal },
         accountCodes,
         lines: order.items.map((item) => ({
-          itemType: 'Product', itemId: item.productId, description: item.product.name, quantity: item.quantity, unitAmount: item.unitPrice,
+          itemType: 'Product', itemId: item.productId, description: `${item.product.name} · ${item.unitCode ?? item.product.unit}`, quantity: item.unitQuantity ?? item.quantity, unitAmount: item.unitPrice,
           netAmount: item.netSubtotal, taxAmount: item.taxAmount, grossAmount: item.grossSubtotal, taxCodeId: item.taxCodeId ?? undefined,
         })),
         taxLines,

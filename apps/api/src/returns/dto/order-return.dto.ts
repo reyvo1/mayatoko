@@ -4,7 +4,7 @@ import { IsArray, IsIn, IsInt, IsOptional, IsString, MaxLength, Min, ValidateNes
 
 export class CreateCustomerOrderReturnItemDto {
   @ApiProperty() @IsString() orderItemId!: string;
-  @ApiProperty({ minimum: 1 }) @Type(() => Number) @IsInt() @Min(1) quantity!: number;
+  @ApiProperty({ minimum: 1, description: 'Jumlah dalam UOM transaksi historis OrderItem. Server mengonversi ke base quantity memakai snapshot quantityFactor pada OrderItem, bukan ProductUnit saat ini.' }) @Type(() => Number) @IsInt() @Min(1) quantity!: number;
 }
 
 export class CreateCustomerOrderReturnDto {

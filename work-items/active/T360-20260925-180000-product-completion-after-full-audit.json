@@ -31,7 +31,10 @@
     "Atomic-wave commit/push/clean/sync rules remain mandatory.",
     "Tax-affecting fixes must preserve effective-dated/versioned tax semantics and historical period correctness; no retroactive mutation of used tax versions.",
     "P1 source isolation must preserve the canonical contextual route map (62/62 after splitting Customer from Category/Subcategory); P1 cannot close until browser route-heading evidence, screenshots, and human IA acceptance pass.",
-    "Browser UAT critical Admin journeys must resolve through config/admin-contextual-workflow-map.json and stable Admin workspace/view semantics; legacy hard-coded workspace ownership is forbidden."
+    "Browser UAT critical Admin journeys must resolve through config/admin-contextual-workflow-map.json and stable Admin workspace/view semantics; legacy hard-coded workspace ownership is forbidden.",
+    "P2A transaction UOM authority is ProductUnit at order/sale creation; persisted transaction snapshots are immutable historical authority for fulfillment, return and refund, so current ProductUnit changes must never reinterpret old transactions.",
+    "OrderItem.quantity and return-item quantity remain canonical integer base-unit quantities for inventory/batch/serial movements; unitQuantity and quantityFactor preserve operator/customer transaction UOM.",
+    "Prisma schema-only validate/generate commands must be provider-safe without rewriting the active .env; database-touching commands must still require a real provider-matching protected DATABASE_URL."
   ],
   "acceptanceCriteria": [
     "P0-P7 are executed in order without skipping dependency gates.",
@@ -60,7 +63,8 @@
     "Runtime inventory invariant: stock quantity/available/reserved and append-only movement remain consistent across transaction/reversal flows",
     "Runtime accounting invariant: journal entries remain balanced debit=credit and reversal/posting traces remain canonical",
     "Runtime sync invariant: idempotency, retry, offline replay, and conflict handling remain fail-closed where affected",
-    "Browser contextual-route contract audit must pass before exact-source Browser UAT and must reject stale capability ownership."
+    "Browser contextual-route contract audit must pass before exact-source Browser UAT and must reject stale capability ownership.",
+    "P2A exact-source PostgreSQL runtime: create mixed-UOM storefront order, fulfill it, mutate/deactivate current ProductUnit, then return/refund and prove persisted UOM snapshot, inventory base quantity, tax and accounting reversal remain consistent."
   ],
   "migrationPlan": "Use expand-only migrations for new persistence required by functional-completeness fixes. Rehearse PostgreSQL migrations before exact-runtime closure. Never rewrite applied migration history.",
   "rollbackPlan": "Rollback one atomic wave at a time to the preceding clean exact-source checkpoint. Schema-changing waves require a documented compatibility/roll-forward strategy; do not use destructive migration rollback against shared data.",
@@ -75,5 +79,5 @@
     "docs/PRODUCT-COMPLETENESS-STATUS.md"
   ],
   "createdAt": "2026-09-25T18:00:00+08:00",
-  "updatedAt": "2026-09-25T20:30:00+08:00"
+  "updatedAt": "2026-09-25T21:45:00+08:00"
 }

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const sales = read('apps/api/src/sales/sales.service.ts');
+const transactionUom = read('apps/api/src/common/transaction-uom.ts');
 const dto = read('apps/api/src/sales/dto/create-sale.dto.ts');
 const masterDto = read('apps/api/src/master-data/dto/master-data.dto.ts');
 const master = read('apps/api/src/master-data/master-data.service.ts');
@@ -33,9 +34,10 @@ test('barcode conversion is integer-base-stock safe and primary barcode remains 
 
 test('sale DTO sends barcode identity and server resolves conversion authoritatively', () => {
   assert.match(dto, /barcodeCode\?: string/);
-  assert.match(sales, /productBarcode\.findUnique\(\{[\s\S]*where: \{ code: sourceBarcode \}/);
-  assert.match(sales, /barcode\.productId !== product\.id/);
-  assert.match(sales, /baseQuantity = unitQuantity \* quantityFactor/);
+  assert.match(sales, /resolveSellingUnitLine/);
+  assert.match(transactionUom, /productBarcode\.findUnique\(\{[\s\S]*where: \{ code: sourceBarcode \}/);
+  assert.match(transactionUom, /barcode\.productId !== product\.id/);
+  assert.match(transactionUom, /baseQuantity = unitQuantity \* quantityFactor/);
   assert.match(sales, /quantity: item\.conversion\.baseQuantity/);
   assert.match(sales, /sourceBarcode: item\.conversion\.sourceBarcode/);
 });
@@ -44,7 +46,7 @@ test('unit-specific pricing falls back to factor-scaled base price instead of un
   assert.match(pricing, /unitFactor\?: number/);
   assert.match(pricing, /!rows\[0\]\.unitCode && unit/);
   assert.match(pricing, /return selected\.mul\(factor\)/);
-  assert.match(sales, /packageFallback = new Prisma\.Decimal\(variantSalePrice \?\? product\.salePrice\)\.mul\(quantityFactor\)/);
+  assert.match(transactionUom, /packageFallback = new Prisma\.Decimal\(variantSalePrice \?\? product\.salePrice\)\.mul\(quantityFactor\)/);
   assert.match(sales, /sellingUnitPrice\.mul\(conversion\.unitQuantity\)/);
 });
 
