@@ -29,7 +29,8 @@
     "Human Stage-20 cannot be replaced by automated browser tests.",
     "Ubuntu Bash is the canonical operator/developer command surface.",
     "Atomic-wave commit/push/clean/sync rules remain mandatory.",
-    "Tax-affecting fixes must preserve effective-dated/versioned tax semantics and historical period correctness; no retroactive mutation of used tax versions."
+    "Tax-affecting fixes must preserve effective-dated/versioned tax semantics and historical period correctness; no retroactive mutation of used tax versions.",
+    "P1 source isolation must preserve 61/61 contextual route mapping; P1 cannot close until browser route-heading evidence, screenshots, and human IA acceptance pass."
   ],
   "acceptanceCriteria": [
     "P0-P7 are executed in order without skipping dependency gates.",
@@ -47,6 +48,7 @@
     "npm run lint -w @toko360/admin",
     "npm run workflow:validate",
     "npm run validate:repo",
+    "npm run audit:admin:contextual",
     "npm run audit:recovery",
     "npm run audit:full:repo",
     "npm run ci:ui:audit",
@@ -70,5 +72,5 @@
     "docs/PRODUCT-COMPLETENESS-STATUS.md"
   ],
   "createdAt": "2026-09-25T18:00:00+08:00",
-  "updatedAt": "2026-09-25T18:30:00+08:00"
+  "updatedAt": "2026-09-25T19:10:00+08:00"
 }

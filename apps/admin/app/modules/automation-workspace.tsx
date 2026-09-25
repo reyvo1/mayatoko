@@ -20,7 +20,9 @@ async function api<T>(token: string, path: string, init?: RequestInit): Promise<
   return payload as T;
 }
 
-export default function AutomationWorkspace({ token }: { token: string }) {
+type AutomationMode = 'automation' | 'schedules';
+
+export default function AutomationWorkspace({ token, mode = 'automation' }: { token: string; mode?: AutomationMode }) {
   const [rules, setRules] = useState<BusinessRule[]>([]);
   const [jobs, setJobs] = useState<AutomationJob[]>([]);
   const [schedules, setSchedules] = useState<ReportSchedule[]>([]);
@@ -95,13 +97,13 @@ export default function AutomationWorkspace({ token }: { token: string }) {
 
   return <div className="stack">
     <section className="stats">
-      <article className="statCard"><small>Business rules</small><strong>{rules.length}</strong><span className="delta">{rules.filter((rule) => rule.isActive).length} aktif</span></article>
-      <article className="statCard"><small>Automation jobs</small><strong>{jobs.length}</strong><span className={failedJobs ? 'delta warnText' : 'delta'}>{failedJobs} gagal</span></article>
-      <article className="statCard"><small>Scheduled reports</small><strong>{schedules.length}</strong><span className="delta">{schedules.filter((schedule) => schedule.isActive).length} aktif</span></article>
+      {mode === 'automation' && <article className="statCard"><small>Business rules</small><strong>{rules.length}</strong><span className="delta">{rules.filter((rule) => rule.isActive).length} aktif</span></article>}
+      {mode === 'automation' && <article className="statCard"><small>Automation jobs</small><strong>{jobs.length}</strong><span className={failedJobs ? 'delta warnText' : 'delta'}>{failedJobs} gagal</span></article>}
+      {mode === 'schedules' && <article className="statCard"><small>Scheduled reports</small><strong>{schedules.length}</strong><span className="delta">{schedules.filter((schedule) => schedule.isActive).length} aktif</span></article>}
     </section>
 
     <section className="grid2">
-      <Panel eyebrow="RULE ENGINE" title={editingRuleId ? 'Edit business rule' : 'Business rule baru'} badge="tenant scoped">
+      {mode === 'automation' && <Panel eyebrow="RULE ENGINE" title={editingRuleId ? 'Edit business rule' : 'Business rule baru'} badge="tenant scoped">
         <form className="formStack" onSubmit={saveRule}>
           <label>Kode<input required disabled={Boolean(editingRuleId)} value={ruleForm.code} onChange={(e) => setRuleForm({ ...ruleForm, code: e.target.value })} /></label>
           <label>Nama<input required value={ruleForm.name} onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })} /></label>
@@ -110,8 +112,8 @@ export default function AutomationWorkspace({ token }: { token: string }) {
           <label>Actions JSON<textarea value={ruleForm.actions} onChange={(e) => setRuleForm({ ...ruleForm, actions: e.target.value })} /></label>
           <div className="rowActions"><button>{editingRuleId ? 'Simpan perubahan' : 'Buat rule'}</button>{editingRuleId && <button type="button" className="secondary" onClick={() => { setEditingRuleId(null); setRuleForm({ code: '', name: '', trigger: 'inventory.balance.changed', priority: 100, conditions: '{}', actions: DEFAULT_ACTIONS }); }}>Batal</button>}</div>
         </form>
-      </Panel>
-      <Panel eyebrow="SCHEDULED REPORT" title="Jadwal laporan" badge="worker">
+      </Panel>}
+      {mode === 'schedules' && <Panel eyebrow="SCHEDULED REPORT" title="Jadwal laporan" badge="worker">
         <form className="formStack" onSubmit={createSchedule}>
           <label>Nama schedule<input required value={scheduleForm.name} onChange={(e) => setScheduleForm({ ...scheduleForm, name: e.target.value })} /></label>
           <div className="inline"><label>Report<select value={scheduleForm.reportType} onChange={(e) => setScheduleForm({ ...scheduleForm, reportType: e.target.value })}>{REPORT_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label><label>Format<select value={scheduleForm.format} onChange={(e) => setScheduleForm({ ...scheduleForm, format: e.target.value })}><option>CSV</option><option>XLSX</option><option>PDF</option></select></label></div>
@@ -120,21 +122,21 @@ export default function AutomationWorkspace({ token }: { token: string }) {
           {scheduleForm.frequency === 'MONTHLY' && <label>Tanggal (1–28)<input type="number" min="1" max="28" value={scheduleForm.dayOfMonth} onChange={(e) => setScheduleForm({ ...scheduleForm, dayOfMonth: Number(e.target.value) })} /></label>}
           <button>Buat schedule</button>
         </form>
-      </Panel>
+      </Panel>}
     </section>
 
-    <Panel eyebrow="RULE LIFECYCLE" title="Business rules" badge={`${rules.length} rules`}>
+    {mode === 'automation' && <Panel eyebrow="RULE LIFECYCLE" title="Business rules" badge={`${rules.length} rules`}>
       <Table head={['Rule','Trigger','Priority','Status','Aksi']} rows={rules.map((rule) => [<span><strong>{rule.code}</strong><small>{rule.name}</small></span>,rule.trigger,String(rule.priority),<StatusChip status={rule.isActive ? 'ACTIVE' : 'INACTIVE'} />,<div className="rowActions"><button type="button" className="secondary" onClick={() => editRule(rule)}>Edit</button><button type="button" className="secondary" onClick={() => void toggleRule(rule)}>{rule.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button></div>])} empty="Belum ada business rule." />
-    </Panel>
+    </Panel>}
 
-    <Panel eyebrow="EXECUTION HISTORY" title="Automation jobs" badge={`${failedJobs} failed`}>
+    {mode === 'automation' && <Panel eyebrow="EXECUTION HISTORY" title="Automation jobs" badge={`${failedJobs} failed`}>
       <div className="toolbar"><label>Status<select value={jobStatus} onChange={(e) => setJobStatus(e.target.value)}><option value="">Semua</option>{['PENDING','PROCESSING','SUCCEEDED','RETRYING','FAILED','CANCELLED'].map((status) => <option key={status}>{status}</option>)}</select></label><button type="button" className="secondary" onClick={() => void load()}>Muat ulang</button></div>
       <Table head={['Waktu','Rule / action','Source','Attempt','Status','Aksi']} rows={jobs.map((job) => [tanggal(job.createdAt),<span><strong>{job.ruleCode ?? '-'}</strong><small>{job.actionType}</small></span>,`${job.sourceType}:${job.sourceId.slice(0, 8)}`,`${job.attempts}/${job.maxAttempts}`,<span><StatusChip status={job.status}/>{job.lastError && <small className="danger">{job.lastError}</small>}</span>,<div className="rowActions">{['PENDING','RETRYING'].includes(job.status) && <button type="button" className="secondary" onClick={() => void jobAction(job,'cancel')}>Batalkan</button>}{['FAILED','CANCELLED'].includes(job.status) && <button type="button" onClick={() => void jobAction(job,'replay')}>Replay</button>}</div>])} empty="Belum ada automation execution." />
-    </Panel>
+    </Panel>}
 
-    <Panel eyebrow="REPORT SCHEDULER" title="Scheduled reports" badge={`${schedules.filter((schedule) => schedule.isActive).length} aktif`}>
+    {mode === 'schedules' && <Panel eyebrow="REPORT SCHEDULER" title="Scheduled reports" badge={`${schedules.filter((schedule) => schedule.isActive).length} aktif`}>
       <Table head={['Schedule','Frekuensi','Next run','Last run','Status','Aksi']} rows={schedules.map((schedule) => [<span><strong>{schedule.name}</strong><small>{schedule.reportType} · {schedule.format}</small></span>,`${schedule.frequency} ${schedule.localTime} ${schedule.timezone}`,tanggal(schedule.nextRunAt),schedule.lastRunAt ? tanggal(schedule.lastRunAt) : '-',<span><StatusChip status={schedule.isActive ? 'ACTIVE' : 'INACTIVE'} />{schedule.lastError && <small className="danger">{schedule.lastError}</small>}</span>,<div className="rowActions"><button type="button" className="secondary" onClick={() => void scheduleAction(schedule,'toggle')}>{schedule.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button><button type="button" onClick={() => void scheduleAction(schedule,'run')}>Jalankan sekarang</button></div>])} empty="Belum ada scheduled report." />
-    </Panel>
+    </Panel>}
 
     {message && <div className="notice">{message}</div>}
   </div>;

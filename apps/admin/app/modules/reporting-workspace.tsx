@@ -29,7 +29,9 @@ function pct(value: number | null) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
-export default function ReportingWorkspace({ token }: { token: string }) {
+type ReportingMode = 'financial' | 'operations' | 'scheduled';
+
+export default function ReportingWorkspace({ token, mode = 'financial' }: { token: string; mode?: ReportingMode }) {
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = `${today.slice(0, 7)}-01`;
   const [from, setFrom] = useState(monthStart);
@@ -127,6 +129,7 @@ export default function ReportingWorkspace({ token }: { token: string }) {
   }
 
   return <>
+    {mode === 'financial' && <>
     <Panel eyebrow="FINANCIAL REPORTING" title="Laporan Keuangan & Perbandingan" badge={loading ? 'Memuat…' : integrity?.status ?? 'READY'}>
       <form onSubmit={(event) => { event.preventDefault(); void loadReports(); }} style={{ display: 'grid', gridTemplateColumns: '180px 180px auto', gap: 10, alignItems: 'end', marginBottom: 16 }}>
         <label>Dari<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
@@ -156,7 +159,9 @@ export default function ReportingWorkspace({ token }: { token: string }) {
       </Panel>
     </section>
 
-    <section className="grid2">
+    </>}
+
+    {mode === 'operations' && <section className="grid2">
       <Panel eyebrow="INVENTORY" title="Valuasi Persediaan" badge={`${valuation?.summary.skuCount ?? 0} SKU`}>
         <Table head={['Produk','Gudang','Qty','Available','Nilai']} rows={(valuation?.items ?? []).slice(0, 30).map((row) => [`${row.product.sku} · ${row.product.name}`, row.warehouse.name, String(row.quantity), String(row.available), rupiah(Number(row.inventoryValue))])} empty="Belum ada stok." />
         <p className="sectionHelp">Total live inventory: <strong>{rupiah(valuation?.summary.inventoryValue ?? 0)}</strong></p>
@@ -164,17 +169,18 @@ export default function ReportingWorkspace({ token }: { token: string }) {
       <Panel eyebrow="MARGIN" title="Margin Penjualan" badge={rupiah(margin?.grossMargin ?? 0)}>
         <Table head={['Transaksi','Channel','Revenue ex-tax','Cost','Margin']} rows={(margin?.rows ?? []).slice(0, 30).map((row) => [row.number, row.channel, rupiah(row.revenueExTax), rupiah(row.cost), `${rupiah(row.margin)} · ${row.marginPercent.toFixed(1)}%`])} empty="Belum ada penjualan pada periode." />
       </Panel>
-    </section>
+    </section>}
 
-    <section className="grid2">
+    {mode === 'operations' && <section className="grid2">
       <Panel eyebrow="DIMENSION" title="Perbandingan Cabang" badge={dimensions?.branchScope ?? 'CURRENT_BRANCH'}>
         <Table head={['Cabang','Pendapatan','Beban','Laba']} rows={(dimensions?.branches ?? []).map((row) => [`${row.code} · ${row.name}`, rupiah(row.revenue), rupiah(row.expenses), rupiah(row.netProfit)])} empty="Belum ada journal dimension." />
       </Panel>
       <Panel eyebrow="COST CENTER" title="Accounting Event Dimension" badge={`${dimensions?.costCenters.length ?? 0} bucket`}>
         <Table head={['Cost Center','Net Amount']} rows={(dimensions?.costCenters ?? []).map((row) => [row.label, rupiah(row.amount)])} empty="Belum ada dimensions.costCenterId pada accounting event line." />
       </Panel>
-    </section>
+    </section>}
 
+    {mode === 'financial' && <>
     <Panel eyebrow="REPORT DRILL-DOWN" title="Akun → Jurnal → Accounting Event → Source" badge={(drillDown?.account.code ?? accountCode) || undefined}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'end', marginBottom: 12, flexWrap: 'wrap' }}>
         <label style={{ minWidth: 280 }}>Akun<select value={accountCode} onChange={(event) => setAccountCode(event.target.value)}><option value="">Pilih akun</option>{accountOptions.map((row) => <option key={row.code} value={row.code}>{row.code} · {row.name}</option>)}</select></label>
@@ -194,15 +200,18 @@ export default function ReportingWorkspace({ token }: { token: string }) {
     <Panel eyebrow="TAX REPORT" title="Tax Summary" badge={rupiah(taxSummary?.netIndirectTaxPayable ?? 0)}>
       <Table head={['Kode','Direction','Taxable Base','Tax']} rows={(taxSummary?.rows ?? []).map((row) => [`${row.code} · ${row.name}`, row.direction, rupiah(row.taxableBase), rupiah(row.taxAmount)])} empty="Belum ada tax transaction POSTED." />
     </Panel>
+    </>}
 
-    <Panel eyebrow="ASYNC REPORT JOB" title="PDF / XLSX / CSV" badge={`${jobs.length} job`}>
+
+
+    {mode === 'scheduled' && <Panel eyebrow="ASYNC REPORT JOB" title="PDF / XLSX / CSV" badge={`${jobs.length} job`}>
       <form onSubmit={createExport} style={{ display: 'grid', gridTemplateColumns: 'minmax(240px,1fr) 140px auto', gap: 10, alignItems: 'end', marginBottom: 16 }}>
         <label>Jenis laporan<select value={reportType} onChange={(event) => setReportType(event.target.value)}>{REPORT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
         <label>Format<select value={format} onChange={(event) => setFormat(event.target.value)}><option>CSV</option><option>XLSX</option><option>PDF</option></select></label>
         <button>Buat export</button>
       </form>
       <Table head={['Dibuat','Laporan','Format','Progress','Status','Aksi']} rows={jobs.map((row) => [tanggal(row.createdAt), row.reportType, row.format, `${row.progress ?? 0}%`, <StatusChip status={row.status} />, row.status === 'DONE' ? <button type="button" className="secondary" onClick={() => void download(row)}>Download</button> : row.status === 'FAILED' ? <small>{row.errorMessage ?? 'Worker gagal.'}</small> : <span>Worker queue</span>])} empty="Belum ada report job." />
-    </Panel>
+    </Panel>}
 
     {message && <div className="notice" style={{ marginTop: 12 }}>{message}</div>}
   </>;

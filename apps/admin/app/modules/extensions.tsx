@@ -38,7 +38,7 @@ async function writeJson<T>(url: string, token: string, method: 'POST' | 'PATCH'
 
 function rows<T>(value: CursorResponse<T>): T[] { return Array.isArray(value) ? value : value.items ?? []; }
 
-export default function ExtensionsView({ token, mode = 'extensions' }: { token: string; mode?: 'extensions' | 'commerce' | 'loyalty' | 'devices' | 'notifications' | 'integrations' }) {
+export default function ExtensionsView({ token, mode = 'extensions', commerceSection = 'orders' }: { token: string; mode?: 'extensions' | 'commerce' | 'loyalty' | 'devices' | 'notifications' | 'integrations' | 'providers' | 'connections'; commerceSection?: 'orders' | 'fulfillment' | 'channels' }) {
   const [programs, setPrograms] = useState<LoyaltyProgram[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -300,7 +300,7 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
   const showLoyalty = mode === 'extensions' || mode === 'loyalty';
   const showDevices = mode === 'extensions' || mode === 'devices';
   const showNotifications = mode === 'extensions' || mode === 'notifications';
-  const showIntegrations = mode === 'extensions' || mode === 'integrations' || mode === 'notifications';
+  const showProviders = mode === 'extensions' || mode === 'integrations' || mode === 'providers' || mode === 'connections';
 
   return (
     <>
@@ -327,8 +327,8 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
           ])} empty="Belum ada device." />
           {credential && <div className="notice success"><strong>SECRET SEKALI TAMPIL</strong><br/>Key ID: <code>{credential.keyId}</code><br/>Secret: <code>{credential.secret}</code><br/><small>Simpan pada secure store node toko. Setelah panel ini ditutup, server tidak akan menampilkan secret lagi.</small></div>}
         </Panel>}
-        {showIntegrations && <section className="grid2">
-          <Panel eyebrow="PROVIDER" title="WhatsApp / Telegram" badge={`${providers.length} connection`}>
+        {(showProviders || showNotifications) && <section className="grid2">
+          {showProviders && <Panel eyebrow="PROVIDER" title="WhatsApp / Telegram" badge={`${providers.length} connection`}>
             <div className="formStack">
               <label>Channel<select value={providerForm.channel} onChange={(e) => setProviderForm({ ...providerForm, channel: e.target.value, name: e.target.value === 'TELEGRAM' ? 'Telegram Utama' : 'WhatsApp Utama' })}>{['TELEGRAM','WHATSAPP'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
               <label>Nama<input value={providerForm.name} onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })} /></label>
@@ -337,8 +337,8 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
               <button type="button" disabled={busy} onClick={() => void saveNotificationProvider()}>Simpan provider</button>
             </div>
             <Table head={['Provider', 'Channel', 'Status', 'Health', 'Aksi']} rows={providers.map((p) => [<strong>{p.name}</strong>, String((p.config as { channel?: string } | null)?.channel ?? p.provider), <StatusChip status={p.status} />, p.lastError ? <small title={p.lastError}>DEGRADED</small> : p.lastHealthCheckAt ? <small>{tanggal(p.lastHealthCheckAt)}</small> : '-', <button type="button" className="secondary" disabled={busy} onClick={() => void setProviderStatus(p, p.status === 'CONNECTED' ? 'DISABLED' : 'CONNECTED')}>{p.status === 'CONNECTED' ? 'Nonaktifkan' : 'Aktifkan'}</button>])} empty="Belum ada provider notifikasi." />
-          </Panel>
-          <Panel eyebrow="NOTIFICATION TEMPLATE" title="Template provider-neutral" badge={`${templates.length} template`}>
+          </Panel>}
+          {showNotifications && <Panel eyebrow="NOTIFICATION TEMPLATE" title="Template provider-neutral" badge={`${templates.length} template`}>
             <div className="formStack">
               <label>Kode<input value={templateForm.code} onChange={(e) => setTemplateForm({ ...templateForm, code: e.target.value })} placeholder="ORDER_STATUS" /></label>
               <label>Channel<select value={templateForm.channel} onChange={(e) => setTemplateForm({ ...templateForm, channel: e.target.value })}>{['EMAIL','WHATSAPP','SMS','PUSH','IN_APP','TELEGRAM'].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
@@ -348,7 +348,7 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
               <button type="button" disabled={busy} onClick={() => void saveTemplate()}>Simpan template</button>
             </div>
             <Table head={['Kode', 'Channel', 'Status', 'Aksi']} rows={templates.slice(0, 30).map((t) => [<strong>{t.code}</strong>, t.channel, <StatusChip status={t.isActive === false ? 'NONAKTIF' : 'AKTIF'} />, <button type="button" className="secondary" onClick={() => editTemplate(t)}>Edit</button>])} empty="Belum ada template." />
-          </Panel>
+          </Panel>}
         </section>}
         {showNotifications && <Panel eyebrow="OWNER REPORTING" title="Owner Daily Digest" badge={digestConfig.enabled ? 'AKTIF' : 'NONAKTIF'}>
           <div className="formStack">
@@ -375,7 +375,7 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
       </>}
 
       {mode === 'commerce' && <>
-        <section className="grid2">
+        {commerceSection === 'channels' && <section className="grid2">
           <Panel eyebrow="PROMOTION ENGINE" title="Promo / Voucher" badge={`${promos.length} rule`}>
             <div className="formStack">
               <label>Nama<input value={promoForm.name} onChange={(e)=>setPromoForm({...promoForm,name:e.target.value})}/></label>
@@ -400,8 +400,8 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
             <Table head={['Kode','Tipe','Channel','Quota','Status','Aksi']} rows={promos.slice(0,30).map((p)=>[<strong>{p.code}</strong>,p.type,p.channel,`${p.perCustomerLimit??'-'} / ${p.usageLimit??'-'}`,<StatusChip status={p.isActive?'ACTIVE':'INACTIVE'}/>,<button type="button" className="secondary" disabled={busy} onClick={()=>void updatePromoStatus(p,!p.isActive)}>{p.isActive?'Nonaktifkan':'Aktifkan'}</button>])} empty="Belum ada promo." />
             <p className="sectionHelp">BOGO menggunakan unit eligible termurah sebagai free item. Quantity break memakai persen; bundle memakai nominal per grup. Quota dicatat saat Sale/Order benar-benar dibuat.</p>
           </Panel>
-        </section>
-        <section className="grid2">
+        </section>}
+        {commerceSection === 'fulfillment' && <section className="grid2">
           <Panel eyebrow="PENGIRIMAN" title="Shipments" badge={`${shipments.length} shipment`}>
             <Table head={['Nomor', 'Dibuat', 'Status']} rows={shipments.map((s) => [<strong>{s.number}</strong>, tanggal(s.createdAt), <StatusChip status={s.status ?? 'PENDING'} />])} empty="Belum ada shipment." />
           </Panel>
@@ -412,9 +412,9 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
             </div>
             <p className="sectionHelp">Nomor resi hanya dikirim ke server saat aksi Ship. Own-fleet memakai workflow armada dan gate pass tersendiri.</p>
           </Panel>
-        </section>
+        </section>}
 
-        <Panel eyebrow="COMMERCE" title="Fulfillment Storefront" badge={`${orders.length} order`}>
+        {commerceSection === 'orders' && <Panel eyebrow="COMMERCE" title="Fulfillment Storefront" badge={`${orders.length} order`}>
           <Table
             head={['Order', 'Pelanggan', 'Fulfillment', 'Metode', 'Status', 'Aksi']}
             rows={orders.map((o) => {
@@ -431,7 +431,7 @@ export default function ExtensionsView({ token, mode = 'extensions' }: { token: 
             empty="Belum ada order storefront."
           />
           <p className="sectionHelp">Packing hanya lolos setelah inspeksi outbound memenuhi syarat server. Pembayaran elektronik harus memiliki referensi provider yang sudah diverifikasi.</p>
-        </Panel>
+        </Panel>}
       </>}
 
       {message && <div className="notice">{message}</div>}

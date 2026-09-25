@@ -30,7 +30,9 @@ type ReorderVisibility = { warehouseId:string; warehouse:{id:string;code:string;
 type CursorResponse<T> = T[] | { items?: T[] };
 function rowsOf<T>(value: CursorResponse<T>): T[] { return Array.isArray(value) ? value : value.items ?? []; }
 
-export default function OperationsView({ token }: { token: string }) {
+type InventoryControlMode = 'overview' | 'traceability' | 'transfers' | 'stocktake' | 'returns';
+
+export default function OperationsView({ token, mode = 'overview' }: { token: string; mode?: InventoryControlMode }) {
   const [saleReturns, setSaleReturns] = useState<SaleReturn[]>([]);
   const [orderReturns, setOrderReturns] = useState<OrderReturn[]>([]);
   const [purchaseReturns, setPurchaseReturns] = useState<PurchaseReturn[]>([]);
@@ -355,7 +357,7 @@ export default function OperationsView({ token }: { token: string }) {
 
   return (
     <>
-      <section className="grid2">
+      {mode === 'traceability' && <section className="grid2">
         <Panel eyebrow="TRACEABILITY" title="Batch / Expiry" badge={`${batches.length} batch`}>
           <form className="formStack" onSubmit={createBatch}>
             <label>Gudang<select required value={batchForm.warehouseId} onChange={(e)=>setBatchForm({...batchForm,warehouseId:e.target.value})}>{warehouses.map((w)=><option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
@@ -378,17 +380,17 @@ export default function OperationsView({ token }: { token: string }) {
           <Table head={['Serial','Produk','Gudang','Status']} rows={serials.slice(0,40).map((x)=>[<strong>{x.serialNumber}</strong>,productById.get(x.productId)?.sku??x.productId,warehouseById.get(x.warehouseId)?.code??'-',<StatusChip status={x.status}/>])} empty="Belum ada serial." />
           <p className="sectionHelp">Server menolak serial untuk produk non-serial dan menolak jumlah serial fisik melebihi stok inventory yang sudah diposting.</p>
         </Panel>
-      </section>
+      </section>}
 
       <section className="grid2">
-        <Panel eyebrow="RETUR" title="Retur Penjualan" badge={loading ? 'memuat' : `${saleReturns.length} retur`}>
+        {mode === 'returns' && <Panel eyebrow="RETUR" title="Retur Penjualan" badge={loading ? 'memuat' : `${saleReturns.length} retur`}>
           <Table loading={loading} head={['Nomor', 'Refund', 'Nilai', 'Status', 'Tindakan']} rows={saleReturns.map((r) => [
             <strong>{r.number}</strong>, r.refundMethod ?? '-', rupiah(r.refundAmount ?? 0), <StatusChip status={r.status ?? '-'} />,
             ['REQUESTED','APPROVED'].includes(r.status) ? <button type="button" className="secondary" disabled={Boolean(busyKey)} onClick={() => void confirmSaleReturn(r)}>{busyKey === `return:${r.id}` ? 'Memproses…' : 'Selesaikan refund'}</button> : <span>-</span>,
           ])} empty="Belum ada retur penjualan." />
-        </Panel>
+        </Panel>}
 
-        <Panel eyebrow="ONLINE RETURN" title="Retur Pesanan Storefront" badge={loading ? 'memuat' : `${orderReturns.length} retur`}>
+        {mode === 'returns' && <Panel eyebrow="ONLINE RETURN" title="Retur Pesanan Storefront" badge={loading ? 'memuat' : `${orderReturns.length} retur`}>
           <Table loading={loading} head={['Nomor / Order', 'Customer', 'Nilai', 'Status', 'Tindakan']} rows={orderReturns.map((r) => {
             const actions: React.ReactNode[] = [];
             if (r.status === 'REQUESTED') actions.push(<button key="inspect" type="button" className="secondary" disabled={Boolean(busyKey)} onClick={() => void startOrderReturnInspection(r)}>Mulai inspeksi</button>);
@@ -398,9 +400,9 @@ export default function OperationsView({ token }: { token: string }) {
           })} empty="Belum ada retur order storefront." />
           {rejectOrderReturnId && <form className="formStack" onSubmit={rejectOrderReturn}><label>Alasan penolakan<input required maxLength={1000} value={rejectOrderReturnReason} onChange={(e) => setRejectOrderReturnReason(e.target.value)} /></label><div className="rowActions"><button disabled={Boolean(busyKey)}>Konfirmasi tolak</button><button type="button" className="secondary" onClick={() => { setRejectOrderReturnId(''); setRejectOrderReturnReason(''); }}>Batal</button></div></form>}
           <p className="sectionHelp">Customer mengajukan retur dari akun Storefront. Staff memulai inspeksi inbound, Kontrol Operasional memverifikasi barang, lalu Finance/Warehouse memposting refund dan reversal.</p>
-        </Panel>
+        </Panel>}
 
-        <Panel eyebrow="TRANSFER BARU" title="Pindah Stok Antar-Gudang" badge="workflow approval">
+        {mode === 'transfers' && <Panel eyebrow="TRANSFER BARU" title="Pindah Stok Antar-Gudang" badge="workflow approval">
           <form className="formStack" onSubmit={createTransfer}>
             <label>Gudang asal<select required value={transferForm.sourceWarehouseId} onChange={(e) => setTransferForm({ ...transferForm, sourceWarehouseId: e.target.value })}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
             <label>Gudang tujuan<select required value={transferForm.destinationWarehouseId} onChange={(e) => setTransferForm({ ...transferForm, destinationWarehouseId: e.target.value })}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
@@ -411,10 +413,10 @@ export default function OperationsView({ token }: { token: string }) {
             <label>Catatan<input value={transferForm.notes} onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })} /></label>
             <button disabled={Boolean(busyKey)}>{busyKey === 'transfer:create' ? 'Membuat…' : 'Buat transfer'}</button>
           </form>
-        </Panel>
+        </Panel>}
       </section>
 
-      <section className="grid2">
+      {mode === 'returns' && <section className="grid2">
         <Panel eyebrow="RETUR SUPPLIER" title="Buat Retur Pembelian" badge="inspection required">
           <form className="formStack" onSubmit={createPurchaseReturn}>
             <label>Penerimaan barang<select required value={purchaseReturnForm.goodsReceiptId} onChange={(e) => { const receipt = goodsReceipts.find((row) => row.id === e.target.value); setPurchaseReturnForm({ ...purchaseReturnForm, goodsReceiptId: e.target.value, goodsReceiptItemId: receipt?.items[0]?.id ?? '' }); }}>
@@ -437,9 +439,9 @@ export default function OperationsView({ token }: { token: string }) {
           ])} empty="Belum ada retur pembelian." />
           <p className="sectionHelp">Retur baru membuat pemeriksaan outbound. Selesaikan pemeriksaan di Kontrol Operasional dahulu. Server menolak posting bila inspeksi belum lulus atau stok tidak cukup.</p>
         </Panel>
-      </section>
+      </section>}
 
-      <Panel eyebrow="GUDANG" title="Transfer Stok Antar-Gudang" badge={loading ? 'memuat' : `${transfers.length} transfer`}>
+      {mode === 'transfers' && <Panel eyebrow="GUDANG" title="Transfer Stok Antar-Gudang" badge={loading ? 'memuat' : `${transfers.length} transfer`}>
         <Table loading={loading} head={['Nomor', 'Rute', 'Item', 'Tanggal', 'Status', 'Tindakan']} rows={transfers.map((t) => {
           const source = warehouseById.get(t.sourceWarehouseId); const destination = warehouseById.get(t.destinationWarehouseId);
           const itemText = t.items.map((item) => `${productById.get(item.productId)?.sku ?? item.productId}: ${item.receivedQty}/${item.shippedQty || item.quantity}`).join(', ');
@@ -450,20 +452,20 @@ export default function OperationsView({ token }: { token: string }) {
           return [<strong>{t.number}</strong>, `${source?.code ?? '?'} → ${destination?.code ?? '?'}`, <small>{itemText || '-'}</small>, tanggal(t.createdAt), <StatusChip status={t.status} />, <div className="rowActions">{actions.length ? actions : '-'}</div>];
         })} empty="Belum ada transfer." />
         <p className="sectionHelp">Ship mengurangi stok gudang asal dan memindahkannya ke in-transit. Receive menambah stok tujuan. Semua movement dan accounting event diposting server.</p>
-      </Panel>
+      </Panel>}
 
       <section className="grid2">
-        <Panel eyebrow="IN-TRANSIT" title="Stok Dalam Perjalanan" badge={`${transitBalances.reduce((sum,row)=>sum+row.quantity,0)} unit`}>
+        {mode === 'transfers' && <Panel eyebrow="IN-TRANSIT" title="Stok Dalam Perjalanan" badge={`${transitBalances.reduce((sum,row)=>sum+row.quantity,0)} unit`}>
           <Table head={['Transfer','Rute','Produk','Batch / Serial','Qty']} rows={transitBalances.map((row)=>[<strong>{row.number}</strong>,`${warehouseById.get(row.sourceWarehouseId)?.code??'?'} → ${warehouseById.get(row.destinationWarehouseId)?.code??'?'}`,productById.get(row.productId)?.sku??row.productId,row.batchNumber?`${row.batchNumber}${row.serialCount?` · ${row.serialCount} serial`:''}`:(row.serialCount?`${row.serialCount} serial`:'-'),row.quantity])} empty="Tidak ada stok IN_TRANSIT." />
           <p className="sectionHelp">IN_TRANSIT dihitung dari ledger StockTransfer (shippedQty − receivedQty), bukan disimpan sebagai stok gudang agar quantity tidak terhitung ganda.</p>
-        </Panel>
-        <Panel eyebrow="REORDER" title="Minimum Stok & Reorder Visibility" badge={`${reorderVisibility.filter((row)=>row.shortage>0).length} shortage`}>
+        </Panel>}
+        {mode === 'overview' && <Panel eyebrow="REORDER" title="Minimum Stok & Reorder Visibility" badge={`${reorderVisibility.filter((row)=>row.shortage>0).length} shortage`}>
           <Table head={['Gudang','Produk','Available','Min','Inbound','Projected','Shortage']} rows={reorderVisibility.map((row)=>[row.warehouse.code,`${row.product.sku} · ${row.product.name}`,row.available,row.minStock,row.inboundInTransit,row.projectedAvailable,row.shortage])} empty="Tidak ada produk minimum-stock yang perlu ditinjau." />
           <p className="sectionHelp">Projected = available + inbound IN_TRANSIT. Shortage menghitung kebutuhan terhadap minimum stok tanpa menganggap stok outbound masih tersedia.</p>
-        </Panel>
+        </Panel>}
       </section>
 
-      <section className="grid2">
+      {mode === 'overview' && <section className="grid2">
         <Panel eyebrow="LOCATION INVENTORY" title="Saldo Stok per Lokasi" badge={`${locationBalances.length} saldo`}>
           <div className="formStack">
             <label>Gudang<select value={locationWarehouseId} onChange={(e) => { setLocationWarehouseId(e.target.value); setRelocationForm((value) => ({ ...value, sourceLocationId:'', destinationLocationId:'' })); }}>{warehouses.map((w)=><option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
@@ -481,9 +483,9 @@ export default function OperationsView({ token }: { token: string }) {
           </form>
           <p className="sectionHelp">Relokasi hanya memindahkan saldo antar bin/lokasi. Quantity warehouse aggregate, accounting, dan nilai persediaan tidak berubah.</p>
         </Panel>
-      </section>
+      </section>}
 
-      <section className="grid2">
+      {mode === 'overview' && <section className="grid2">
         <Panel eyebrow="CONDITION CONTROL" title="Kondisi Stok per Lokasi" badge="sellable-aware">
           <div className="formStack">
             <label>Produk<select value={conditionProductId} onChange={(e)=>{setConditionProductId(e.target.value);setConditionForm((value)=>({...value,locationId:''}));}}><option value="">Pilih produk</option>{products.map((p)=><option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select></label>
@@ -502,9 +504,9 @@ export default function OperationsView({ token }: { token: string }) {
           </form>
           <p className="sectionHelp">Server menolak pemindahan stok AVAILABLE yang sedang reserved. Setiap perubahan kondisi menghasilkan audit log, outbox event, dan condition movement immutable.</p>
         </Panel>
-      </section>
+      </section>}
 
-      <section className="grid2">
+      {mode === 'stocktake' && <section className="grid2">
         <Panel eyebrow="STOCK OPNAME" title="Mulai Penghitungan Fisik" badge="branch scoped">
           <form className="formStack" onSubmit={createOpname}>
             <label>Gudang<select required value={opnameWarehouseId} onChange={(e) => { setOpnameWarehouseId(e.target.value); setOpnameLocationId(''); }}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
@@ -523,9 +525,9 @@ export default function OperationsView({ token }: { token: string }) {
             return [<strong>{o.number}</strong>, warehouseById.get(o.warehouseId)?.code ?? '-', tanggal(o.createdAt), <StatusChip status={o.status} />, <div className="rowActions">{actions.length ? actions : '-'}</div>];
           })} empty="Belum ada stock opname." />
         </Panel>
-      </section>
+      </section>}
 
-      {selectedOpname && selectedOpname.status === 'COUNTING' && <Panel eyebrow="PHYSICAL COUNT" title={`Hitung ${selectedOpname.number}`} badge={`${selectedOpname.items.length} item`}>
+      {mode === 'stocktake' && selectedOpname && selectedOpname.status === 'COUNTING' && <Panel eyebrow="PHYSICAL COUNT" title={`Hitung ${selectedOpname.number}`} badge={`${selectedOpname.items.length} item`}>
         {selectedOpname.items.length === 0 ? <p className="sectionHelp">Gudang belum memiliki inventory yang dapat dihitung.</p> : <div className="formStack">
           {selectedOpname.items.map((item) => <label key={item.id}>{productById.get(item.productId)?.name ?? item.productId}{item.batchNumber?` · batch ${item.batchNumber}`:''} · sistem {item.systemQty}
             <input type="number" min="0" step="1" value={counts[item.id] ?? ''} onChange={(e) => setCounts((value) => ({ ...value, [item.id]: e.target.value }))} />

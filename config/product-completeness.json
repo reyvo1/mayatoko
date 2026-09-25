@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "TOKO360 Canonical Product Completeness Matrix",
-  "updatedAt": "2026-09-25T18:30:00+08:00",
+  "updatedAt": "2026-09-25T19:10:00+08:00",
   "authoritative": true,
   "productReady": false,
   "humanStage20": "PENDING",
@@ -103,7 +103,7 @@
       "id": "feature:sales_return",
       "kind": "FEATURE",
       "key": "sales_return",
-      "title": "POS request → inspection → refund/restock/accounting/loyalty correction",
+      "title": "POS request \u2192 inspection \u2192 refund/restock/accounting/loyalty correction",
       "default": "on",
       "sourceMaturity": "implemented-core-workflow",
       "status": "IMPLEMENTED_RUNTIME_PENDING",
@@ -628,8 +628,8 @@
       "title": "Admin contextual IA not semantically routed",
       "severity": "CRITICAL",
       "targetPhase": "P1",
-      "status": "PARTIAL",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
+      "notes": "61/61 contextual destinations now have explicit source mapping and formerly mixed workspaces render by active contextual route; browser/screenshot/human IA evidence still pending."
     },
     {
       "id": "audit:A-02",
@@ -769,7 +769,7 @@
       "severity": "MEDIUM",
       "targetPhase": "P0",
       "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "notes": "P0/P1 add canonical completeness and 61-view contextual audits; runtime/browser/human workflow evidence remains required before closure."
     }
   ],
   "phaseOrder": [
@@ -782,6 +782,6 @@
     "P6",
     "P7"
   ],
-  "currentPhase": "P0",
+  "currentPhase": "P1",
   "currentPhaseStatus": "IMPLEMENTED_RUNTIME_PENDING"
 }

@@ -37,7 +37,9 @@ async function request<T>(token: string, path: string, init?: RequestInit): Prom
 function rows<T>(value: CursorResponse<T>): T[] { return Array.isArray(value) ? value : value.items ?? []; }
 function rupiah(value: number | string | null | undefined) { return `Rp ${Number(value ?? 0).toLocaleString('id-ID')}`; }
 
-export default function R3OperationsView({ token }: { token: string }) {
+type R3OperationsMode = 'reporting' | 'devices' | 'connections';
+
+export default function R3OperationsView({ token, mode = 'connections' }: { token: string; mode?: R3OperationsMode }) {
   const [payments, setPayments] = useState<PaymentProviderEvent[]>([]);
   const [outlets, setOutlets] = useState<OutletOverview | null>(null);
   const [cashiers, setCashiers] = useState<CashierTargets | null>(null);
@@ -150,7 +152,7 @@ export default function R3OperationsView({ token }: { token: string }) {
   if (loading) return <TableSkeleton rows={8} />;
 
   return <div>
-    <section className="grid2">
+    {mode === 'connections' && <section className="grid2">
       <Panel eyebrow="R3 · PAYMENT" title="Payment Provider Diagnostics" badge={`${payments.length} event`}>
         <Table head={['Provider / Event','Referensi','Status','Nominal','Error']} rows={payments.map((row) => [
           <span key={row.id}><strong>{row.provider}</strong><small>{row.eventType} · {row.eventId}</small></span>,
@@ -161,22 +163,24 @@ export default function R3OperationsView({ token }: { token: string }) {
         ])} empty="Belum ada payment provider event." />
       </Panel>
 
-      <Panel eyebrow="R3 · REPORTING" title="Multi-outlet Performance" badge={`${outlets?.totals.outletCount ?? 0} outlet`}>
-        {outlets && <><div className="metricGrid"><div><small>Omzet</small><strong>{rupiah(outlets.totals.revenue)}</strong></div><div><small>Laba kotor</small><strong>{rupiah(outlets.totals.grossProfit)}</strong></div><div><small>Transaksi</small><strong>{outlets.totals.transactions}</strong></div></div>
-        <Table head={['Rank','Outlet','Omzet','Share','Low stock','Pending']} rows={outlets.ranked.map((row) => [String(row.rank), <span key={row.branchId}><strong>{row.name}</strong><small>{row.code}</small></span>, rupiah(row.today.revenue), `${row.sharePct}%`, String(row.lowStock), String(row.pendingOrders)])} empty="Belum ada outlet." /></>}
-      </Panel>
-    </section>
+    </section>}
 
-    <Panel eyebrow="R3 · REPORTING" title="Cashier Targets" badge={`${cashiers?.rows.length ?? 0} kasir`}>
+
+    {mode === 'reporting' && <Panel eyebrow="R3 · REPORTING" title="Multi-outlet Performance" badge={`${outlets?.totals.outletCount ?? 0} outlet`}>
+      {outlets && <><div className="metricGrid"><div><small>Omzet</small><strong>{rupiah(outlets.totals.revenue)}</strong></div><div><small>Laba kotor</small><strong>{rupiah(outlets.totals.grossProfit)}</strong></div><div><small>Transaksi</small><strong>{outlets.totals.transactions}</strong></div></div>
+      <Table head={['Rank','Outlet','Omzet','Share','Low stock','Pending']} rows={outlets.ranked.map((row) => [String(row.rank), <span key={row.branchId}><strong>{row.name}</strong><small>{row.code}</small></span>, rupiah(row.today.revenue), `${row.sharePct}%`, String(row.lowStock), String(row.pendingOrders)])} empty="Belum ada outlet." /></>}
+    </Panel>}
+
+    {mode === 'reporting' && <Panel eyebrow="R3 · REPORTING" title="Cashier Targets" badge={`${cashiers?.rows.length ?? 0} kasir`}>
       <Table head={['Kasir','Target','Tercapai','Transaksi','Progress','Input target']} rows={(cashiers?.rows ?? []).map((row) => [
         <strong key={row.userId}>{row.name}</strong>, rupiah(row.target), rupiah(row.achieved), String(row.transactions),
         row.progressPct === null ? '-' : <span className={row.onTrack ? 'okText' : ''}>{row.progressPct}%</span>,
         <input key={`${row.userId}-target`} type="number" min="0" value={targetDrafts[row.userId] ?? '0'} onChange={(event) => setTargetDrafts({ ...targetDrafts, [row.userId]: event.target.value })} />,
       ])} empty="Belum ada kasir aktif." />
       <div className="rowActions"><button type="button" disabled={busy} onClick={() => void saveTargets()}>Simpan target kasir</button></div>
-    </Panel>
+    </Panel>}
 
-    <section className="grid2">
+    {mode === 'devices' && <section className="grid2">
       <Panel eyebrow="R3 · EDGE" title="Device Sync Diagnostics" badge={sync?.device.code ?? 'pilih device'}>
         <label>Device<select value={selectedDeviceId} onChange={(event) => setSelectedDeviceId(event.target.value)}><option value="">Pilih device</option>{devices.map((row) => <option key={row.id} value={row.id}>{row.code} · {row.name}</option>)}</select></label>
         {sync && <Table head={['Receipt','Checkpoint','Event','Status','Aksi']} rows={sync.receipts.map((row) => [
@@ -194,9 +198,9 @@ export default function R3OperationsView({ token }: { token: string }) {
           ['FAILED','CONFLICT','DEAD_LETTER'].includes(row.status) ? <button type="button" className="secondary" disabled={busy} onClick={() => void requeue(row)}>Requeue</button> : '-',
         ])} empty="Belum ada offline transaction." />
       </Panel>
-    </section>
+    </section>}
 
-    <section className="grid2">
+    {mode === 'connections' && <section className="grid2">
       <Panel eyebrow="R3 · MARKETPLACE" title="Marketplace Orders" badge={`${marketplaceOrders.length} order`}>
         <Table head={['Marketplace','External order','Status','Shop','Last sync']} rows={marketplaceOrders.map((row) => [
           <strong key={row.id}>{row.marketplace}</strong>, row.externalOrderId, <StatusChip key={`${row.id}-status`} status={row.status} />, row.shopId ?? '-', tanggal(row.lastSyncedAt),
@@ -213,7 +217,7 @@ export default function R3OperationsView({ token }: { token: string }) {
           <button disabled={busy}>Import / update</button>
         </form>
       </Panel>
-    </section>
+    </section>}
 
     {message && <div className="notice">{message}</div>}
   </div>;

@@ -19,7 +19,9 @@ async function api<T>(token: string, path: string, init?: RequestInit): Promise<
   return payload as T;
 }
 
-export default function AiWorkspace({ token }: { token: string }) {
+type IntelligenceMode = 'ai' | 'forecast';
+
+export default function AiWorkspace({ token, mode = 'ai' }: { token: string; mode?: IntelligenceMode }) {
   const [forecasts, setForecasts] = useState<ForecastRun[]>([]);
   const [insights, setInsights] = useState<OperatorInsight[]>([]);
   const [history, setHistory] = useState<AssistantInteraction[]>([]);
@@ -86,43 +88,43 @@ export default function AiWorkspace({ token }: { token: string }) {
 
   return <div className="stack">
     <section className="stats">
-      <article className="statCard"><small>Forecast run</small><strong>{forecasts.length}</strong><span className="delta">{latestForecast?.model ?? 'belum ada model'}</span></article>
-      <article className="statCard"><small>Insight terbuka</small><strong>{openInsights.length}</strong><span className={highInsights ? 'delta warnText' : 'delta'}>{highInsights} high/critical</span></article>
-      <article className="statCard"><small>Assistant deterministik</small><strong>{history.length}</strong><span className="delta">rule-based · tanpa LLM/provider AI</span></article>
+      {mode === 'forecast' && <article className="statCard"><small>Forecast run</small><strong>{forecasts.length}</strong><span className="delta">{latestForecast?.model ?? 'belum ada model'}</span></article>}
+      {mode === 'ai' && <article className="statCard"><small>Insight terbuka</small><strong>{openInsights.length}</strong><span className={highInsights ? 'delta warnText' : 'delta'}>{highInsights} high/critical</span></article>}
+      {mode === 'ai' && <article className="statCard"><small>Assistant deterministik</small><strong>{history.length}</strong><span className="delta">rule-based · tanpa LLM/provider AI</span></article>}
     </section>
 
     <section className="grid2">
-      <Panel eyebrow="FORECASTING" title="Explainable stock forecast" badge="moving average">
+      {mode === 'forecast' && <Panel eyebrow="FORECASTING" title="Explainable stock forecast" badge="moving average">
         <form className="formStack" onSubmit={runForecast}>
           <label>Gudang<select required value={forecastForm.warehouseId} onChange={(e) => setForecastForm({ ...forecastForm, warehouseId: e.target.value })}><option value="">Pilih gudang</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.code} · {warehouse.name}</option>)}</select></label>
           <div className="inline"><label>Lookback hari<input type="number" min="7" value={forecastForm.lookbackDays} onChange={(e) => setForecastForm({ ...forecastForm, lookbackDays: Number(e.target.value) })} /></label><label>Horizon hari<input type="number" min="1" value={forecastForm.horizonDays} onChange={(e) => setForecastForm({ ...forecastForm, horizonDays: Number(e.target.value) })} /></label><label>Lead time<input type="number" min="0" value={forecastForm.leadTimeDays} onChange={(e) => setForecastForm({ ...forecastForm, leadTimeDays: Number(e.target.value) })} /></label></div>
           <button disabled={busy}>Jalankan forecast</button>
           <small>Formula, input, confidence, dan source disimpan pada setiap reorder suggestion. Assistant tidak membuat PO otomatis.</small>
         </form>
-      </Panel>
+      </Panel>}
 
-      <Panel eyebrow="DETERMINISTIC ASSISTANT" title="Tanya berdasarkan rule & sumber" badge="tanpa LLM">
+      {mode === 'ai' && <Panel eyebrow="DETERMINISTIC ASSISTANT" title="Tanya berdasarkan rule & sumber" badge="tanpa LLM">
         <form className="formStack" onSubmit={askAssistant}>
           <label>Intent<select value={intent} onChange={(e) => setIntent(e.target.value)}>{['AUTO','STOCK','FINANCE','AUTOMATION','REPORTING'].map((value) => <option key={value}>{value}</option>)}</select></label>
           <label>Pertanyaan<textarea required maxLength={500} value={question} onChange={(e) => setQuestion(e.target.value)} /></label>
           <button disabled={busy}>Analisis sumber</button>
         </form>
         {answer && <div className="notice"><strong>{answer.intent} · deterministic · confidence {Math.round(answer.confidence * 100)}%</strong><p>{answer.answer}</p><small>{answer.guardrail}</small><div className="rowActions">{answer.sources.map((source, index) => <span key={index} className="pill">{String(source.type ?? 'source')} {source.id ? `· ${String(source.id).slice(0,8)}` : ''}</span>)}</div></div>}
-      </Panel>
+      </Panel>}
     </section>
 
-    <Panel eyebrow="ANOMALY & RECOMMENDATION" title="Operator insights" badge={`${openInsights.length} open`}>
+    {mode === 'ai' && <Panel eyebrow="ANOMALY & RECOMMENDATION" title="Operator insights" badge={`${openInsights.length} open`}>
       <div className="toolbar"><button type="button" onClick={() => void refreshInsights()} disabled={busy}>Refresh insight</button><small>Hanya data yang diizinkan oleh permission pengguna yang dipakai.</small></div>
       <Table head={['Kategori','Severity','Insight','Sumber','Status','Aksi']} rows={insights.map((item) => [item.category,<StatusChip status={item.severity}/>,<span><strong>{item.title}</strong><small>{item.summary}</small></span>,Array.isArray(item.sourceLinks) ? item.sourceLinks.map((source, index) => <small key={index}>{String(source.type ?? 'source')} {source.id ? `· ${String(source.id).slice(0,8)}` : ''}</small>) : '-',<StatusChip status={item.status}/>,item.status === 'OPEN' ? <div className="rowActions"><button type="button" className="secondary" disabled={busy} onClick={() => void insightAction(item,'ACKNOWLEDGED')}>Acknowledge</button><button type="button" className="secondary" disabled={busy} onClick={() => void insightAction(item,'DISMISSED')}>Dismiss</button></div> : '-'])} empty="Belum ada insight. Jalankan refresh setelah forecast atau saat ada operational exception." />
-    </Panel>
+    </Panel>}
 
-    <Panel eyebrow="FORECAST EXPLAINABILITY" title="Reorder suggestions" badge={latestForecast ? tanggal(latestForecast.createdAt) : 'belum ada'}>
+    {mode === 'forecast' && <Panel eyebrow="FORECAST EXPLAINABILITY" title="Reorder suggestions" badge={latestForecast ? tanggal(latestForecast.createdAt) : 'belum ada'}>
       <Table head={['Product','Available','Reserved','Avg/day','Safety','Suggestion','Status']} rows={(latestForecast?.suggestions ?? []).map((item) => [item.productId.slice(0,8),String(item.currentStock),String(item.reservedStock),String(item.averageDailySales),String(item.safetyStock),<strong key={item.id}>{item.suggestedQty}</strong>,<StatusChip status={item.status}/>])} empty="Belum ada reorder suggestion." />
-    </Panel>
+    </Panel>}
 
-    <Panel eyebrow="RULE-BASED ASSISTANT AUDIT" title="Interaction history" badge={`${history.length} query`}>
+    {mode === 'ai' && <Panel eyebrow="RULE-BASED ASSISTANT AUDIT" title="Interaction history" badge={`${history.length} query`}>
       <Table head={['Waktu','Intent','Pertanyaan','Jawaban','Confidence']} rows={history.slice(0,30).map((item) => [tanggal(item.createdAt),item.intent,item.question,item.response?.answer ?? '-',`${Math.round(Number(item.confidence) * 100)}%`])} empty="Belum ada interaction history." />
-    </Panel>
+    </Panel>}
 
     {message && <div className="notice">{message}</div>}
   </div>;

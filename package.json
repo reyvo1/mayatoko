@@ -102,7 +102,7 @@
     "ci:preflight:local": "npm run workflow:validate && npm run validate:repo && npm run test:dependency-free",
     "ci:security:proposal": "node scripts/ci-propose-security-dependency-refresh.mjs",
     "uat:pre-github:local": "node scripts/run-local-candidate-gate.mjs",
-    "audit:full:repo": "node scripts/audit-full-repository.mjs && npm run audit:product:completeness",
+    "audit:full:repo": "node scripts/audit-full-repository.mjs && npm run audit:product:completeness && npm run audit:admin:contextual",
     "ci:api:sweep": "node scripts/ci-runtime-api-sweep.mjs",
     "ci:ui:audit": "node scripts/ci-ui-source-audit.mjs",
     "ci:provider:probe": "node scripts/ci-notification-provider-probe.mjs",
@@ -117,7 +117,8 @@
     "ci:r7:probe": "node scripts/ci-r7-ui-probe.mjs",
     "ci:r8:probe": "node scripts/ci-r8-release-evidence-probe.mjs",
     "ci:r8:reporting-security-probe": "node scripts/ci-r8-reporting-security-probe.mjs",
-    "audit:product:completeness": "node scripts/audit-product-completeness.mjs"
+    "audit:product:completeness": "node scripts/audit-product-completeness.mjs",
+    "audit:admin:contextual": "node scripts/audit-admin-contextual-workflows.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

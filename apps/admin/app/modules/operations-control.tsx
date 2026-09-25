@@ -4,6 +4,8 @@ import { authFetch } from '../auth-fetch';
 import { useEffect, useState } from 'react';
 import { Panel, Table, StatusChip, tanggal } from '../ui';
 
+type OperationsControlMode = 'inspections' | 'evidence' | 'gate-pass';
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 type InspectionResult = { templateItemId?: string | null; code: string; label: string; result: string; productId?: string | null; expectedQty?: number | null; scannedQty?: number | null; acceptedQty?: number | null; rejectedQty?: number | null; damagedQty?: number | null; missingQty?: number | null; extraQty?: number | null; notes?: string | null };
@@ -11,7 +13,7 @@ type InspectionEvidence = { id: string; evidenceType: string; storageKey: string
 type Inspection = { id: string; number: string; type: string; sourceType: string; sourceId: string; status: string; createdAt: string; results: InspectionResult[]; evidence: InspectionEvidence[] };
 type GatePass = { id: string; number: string; direction?: string; status?: string; createdAt: string };
 
-export default function OperationsControlView({ token }: { token: string }) {
+export default function OperationsControlView({ token, mode = 'inspections' }: { token: string; mode?: OperationsControlMode }) {
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [gatePasses, setGatePasses] = useState<GatePass[]>([]);
   const [message, setMessage] = useState('');
@@ -140,7 +142,7 @@ export default function OperationsControlView({ token }: { token: string }) {
   return (
     <>
       <section className="grid2">
-        <Panel eyebrow="KUALITAS" title="Inspeksi Barang" badge={`${inspections.length} record`}>
+        {mode === 'inspections' && <Panel eyebrow="KUALITAS" title="Inspeksi Barang" badge={`${inspections.length} record`}>
           <Table
             head={['Nomor', 'Jenis', 'Evidence', 'Dibuat', 'Status', 'Tindakan']}
             rows={inspections.map((i) => [
@@ -157,8 +159,8 @@ export default function OperationsControlView({ token }: { token: string }) {
             ])}
             empty="Belum ada inspeksi. Inspeksi dibuat otomatis untuk penerimaan dan fulfillment."
           />
-        </Panel>
-        <Panel eyebrow="EVIDENCE" title="Foto & Barcode Operasional" badge="server verified">
+        </Panel>}
+        {mode === 'evidence' && <Panel eyebrow="EVIDENCE" title="Foto & Barcode Operasional" badge="server verified">
           <label>Inspeksi aktif
             <select value={evidenceInspectionId} onChange={(e) => setEvidenceInspectionId(e.target.value)}>
               <option value="">Pilih inspeksi penerimaan / shipment</option>
@@ -199,8 +201,8 @@ export default function OperationsControlView({ token }: { token: string }) {
           </label>
           <button type="button" className="secondary" onClick={() => void uploadPhoto()}>Unggah foto</button>
           <small style={{ display: 'block', color: 'var(--muted)', marginTop: 10 }}>Finalisasi inspeksi hanya dapat dilakukan bila policy evidence sudah terpenuhi.</small>
-        </Panel>
-        <Panel eyebrow="GATE CONTROL" title="Gate Pass Masuk / Keluar" badge={`${gatePasses.length} pass`}>
+        </Panel>}
+        {mode === 'gate-pass' && <Panel eyebrow="GATE CONTROL" title="Gate Pass Masuk / Keluar" badge={`${gatePasses.length} pass`}>
           <Table
             head={['Nomor', 'Arah', 'Dibuat', 'Status']}
             rows={gatePasses.map((g) => [
@@ -211,7 +213,7 @@ export default function OperationsControlView({ token }: { token: string }) {
             ])}
             empty="Belum ada gate pass."
           />
-        </Panel>
+        </Panel>}
       </section>
       {message && <div className="notice">{message}</div>}
     </>

@@ -358,3 +358,10 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 - Tracked staging credential and committed generated runtime-evidence artifacts are removed from active source; examples/.gitkeep remain.
 - P0 remains `IMPLEMENTED_RUNTIME_PENDING` until this atomic wave is validated, committed, pushed, clean, and synced.
 - Next phase is P1 only after P0 atomic closure.
+
+## P1 contextual workflow isolation — 2026-09-25
+- P0 committed/pushed/clean baseline: `33661c0162f1d087008e7657eeb3a2c2155ab40c`.
+- P1 source wave isolates Procurement, Commerce, Inventory Control, Operations Control, Assets & Fleet, Integrations, Reports, and Intelligence by `activeDomainView`.
+- Canonical contextual map: `config/admin-contextual-workflow-map.json` = 61/61 destinations.
+- New fail-closed gate: `npm run audit:admin:contextual`.
+- P1 remains `IMPLEMENTED_RUNTIME_PENDING`; do not start P2 until Ubuntu lint/build + browser contextual sweep + screenshot evidence + human IA acceptance pass.

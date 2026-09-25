@@ -110,3 +110,9 @@ Active workflow: `docs/TOKO360-MASTER-PRODUCT-COMPLETION-WORKFLOW.md`.
 Immediate order: P0 truth/security/hygiene -> P1 Admin contextual workflow isolation -> P2 Multi-UOM + payroll completeness -> P3 hidden capability productization -> P4 canonical/legacy cleanup -> P5 page-level visual rebuild -> P6 Ubuntu/operator hygiene -> P7 exact-runtime + Human Stage-20 acceptance.
 
 Historical `docs/TOKO360-MASTER-RECOVERY-WORKFLOW.md` remains preserved as recovery history and runtime evidence sequencing, but does not override the new product-completion verdict or permit source-marker/browser-no-overflow evidence to substitute for real operator/human acceptance.
+
+## P1 Admin contextual workflow isolation — 2026-09-25
+- P0 atomic source is complete; active product-completion phase moved to P1.
+- 61/61 Admin contextual destinations now have explicit canonical renderer mappings in `config/admin-contextual-workflow-map.json`.
+- Six previously non-isolated workspaces and two partial workspaces now route active contextual destinations into dedicated component modes.
+- P1 status is `IMPLEMENTED_RUNTIME_PENDING`; browser route-heading evidence, screenshots, and human IA acceptance are still required before P2.
