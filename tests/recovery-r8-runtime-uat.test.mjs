@@ -52,3 +52,12 @@ test('R8 final evidence consumes reporting security runtime probe',()=>{
  assert.match(probe,/github-r8-reporting-security-probe-latest/);
  assert.match(probe,/r8ReportingSecurity:true/);
 });
+
+
+test('R8 final probe reads safe mutation checks from inner browser evidence while retaining built wrapper identity',()=>{
+  assert.match(probe,/browserBuilt:read\('handoff\/quality\/built-browser-uat-latest\.json'\)/);
+  assert.match(probe,/browserRuntime:read\('handoff\/quality\/browser-uat-latest\.json'\)/);
+  assert.match(probe,/evidence\.browserRuntime\?\.checks/);
+  assert.match(probe,/browser wrapper\/inner source mismatch/);
+  assert.match(probe,/browser wrapper\/inner artifact mismatch/);
+});

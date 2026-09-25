@@ -19,7 +19,8 @@ const evidence={
  r6:read('handoff/quality/github-r6-scale-ai-probe-latest.json'),
  r7:read('handoff/quality/github-r7-ui-probe-latest.json'),
  r8Reporting:read('handoff/quality/github-r8-reporting-security-probe-latest.json'),
- browser:read('handoff/quality/built-browser-uat-latest.json'),
+ browserBuilt:read('handoff/quality/built-browser-uat-latest.json'),
+ browserRuntime:read('handoff/quality/browser-uat-latest.json'),
  api:read('handoff/quality/github-api-runtime-sweep-latest.json'),
  provider:read('handoff/quality/github-notification-provider-probe-latest.json'),
  worker:read('handoff/quality/github-worker-runtime-probe-latest.json'),
@@ -31,16 +32,18 @@ const sourceOf=(v)=>v?.sourceIdentity?.value||v?.sourceIdentityAfter?.value||v?.
 for(const [id,v] of Object.entries(evidence)){
  const s=sourceOf(v); if(s&&s!==source.value) throw new Error(`R8 ${id} stale source: ${s}`);
 }
-for(const id of ['r1','r2','r3','r4','r5','r6','r7','r8Reporting','browser','api','provider','worker','dr']) if(evidence[id]?.status!=='PASS') throw new Error(`R8 evidence ${id} belum PASS.`);
+for(const id of ['r1','r2','r3','r4','r5','r6','r7','r8Reporting','browserBuilt','browserRuntime','api','provider','worker','dr']) if(evidence[id]?.status!=='PASS') throw new Error(`R8 evidence ${id} belum PASS.`);
 if(!Object.values(evidence.r8Reporting?.checks||{}).every(Boolean)) throw new Error('R8 reporting/security runtime checks belum lengkap.');
-const safeMutation=evidence.browser?.checks?.find?.((item)=>item?.id==='R8_SAFE_MUTATION_JOURNEYS');
+if(evidence.browserBuilt?.browserEvidence?.sourceFingerprint!==source.value||evidence.browserRuntime?.sourceIdentity?.value!==source.value) throw new Error('R8 browser wrapper/inner source mismatch.');
+if(evidence.browserBuilt?.buildArtifactId!==artifact.id||evidence.browserRuntime?.runtimeBuildArtifactId!==artifact.id||evidence.browserBuilt?.browserEvidence?.buildArtifactId!==artifact.id) throw new Error('R8 browser wrapper/inner artifact mismatch.');
+const safeMutation=evidence.browserRuntime?.checks?.find?.((item)=>item?.id==='R8_SAFE_MUTATION_JOURNEYS');
 if(!safeMutation||safeMutation.status!=='PASS'||safeMutation.productionTouched!==false||!Array.isArray(safeMutation.journeys)||safeMutation.journeys.length<2) throw new Error('R8 safe browser mutation evidence belum PASS lintas domain.');
 if(evidence.payroll?.status!=='PASS'||evidence.payroll?.gate?.passed!==true) throw new Error('R8 payroll recovery evidence belum PASS.');
 if(evidence.stage20?.gate?.automatedPassed!==true||evidence.stage20?.gate?.uatPassed!==false||evidence.stage20?.gate?.passed!==false) throw new Error('R8 Stage-20 harus automated PASS tetapi human UAT tetap pending.');
-for(const id of ['browser','worker']) if(evidence[id]?.buildArtifactId&&evidence[id].buildArtifactId!==artifact.id) throw new Error(`R8 ${id} artifact mismatch.`);
+for(const id of ['browserBuilt','worker']) if(evidence[id]?.buildArtifactId&&evidence[id].buildArtifactId!==artifact.id) throw new Error(`R8 ${id} artifact mismatch.`);
 
 const scenarios=[
- ['UAT-01-AUTH-ACCESS',['r1']],['UAT-02-PUBLIC-CATALOG',['browser','api']],['UAT-03-SALES-ORDER-PAYMENT',['r4']],
+ ['UAT-01-AUTH-ACCESS',['r1']],['UAT-02-PUBLIC-CATALOG',['browserBuilt','browserRuntime','api']],['UAT-03-SALES-ORDER-PAYMENT',['r4']],
  ['UAT-04-PURCHASE-RECEIPT',['r4']],['UAT-05-INVENTORY-OPERATIONS',['r4']],['UAT-06-ACCOUNTING-FINANCE-REPORTS',['r4','worker','r8Reporting']],
  ['UAT-07-HR-ATTENDANCE-PAYROLL',['r2','payroll']],['UAT-08-OFFLINE-SYNC',['r3']],['UAT-09-AUDIT-DENIAL',['r1','r8Reporting']],
  ['UAT-10-RESTORE-ROLLBACK',['dr']],['UAT-11-DELIVERY-LIFECYCLE',['r5']],['UAT-12-PAYROLL-ADJUSTMENT-RECOVERY',['r2','payroll']],
