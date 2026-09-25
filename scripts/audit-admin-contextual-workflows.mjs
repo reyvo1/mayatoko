@@ -5,6 +5,8 @@ const root = process.cwd();
 const domainFile = path.join(root, 'apps/admin/app/domain-workspaces.ts');
 const mapFile = path.join(root, 'config/admin-contextual-workflow-map.json');
 const pageFile = path.join(root, 'apps/admin/app/page.tsx');
+const shellFile = path.join(root, 'apps/admin/app/app-shell.tsx');
+const browserFile = path.join(root, 'scripts/browser-uat.mjs');
 
 function fail(message) {
   console.error(`Admin contextual workflow audit FAIL: ${message}`);
@@ -13,6 +15,8 @@ function fail(message) {
 
 const domainSource = fs.readFileSync(domainFile, 'utf8');
 const pageSource = fs.readFileSync(pageFile, 'utf8');
+const shellSource = fs.readFileSync(shellFile, 'utf8');
+const browserSource = fs.readFileSync(browserFile, 'utf8');
 const mapping = JSON.parse(fs.readFileSync(mapFile, 'utf8'));
 
 const workspaceStarts = [...domainSource.matchAll(/\{ workspaceKey: '([^']+)', views:\s*\[/g)];
@@ -38,6 +42,22 @@ for (const row of mapping.rows) {
 }
 for (const key of expected) if (!mapped.has(key)) fail(`missing contextual mapping ${key}`);
 for (const key of mapped.keys()) if (!expected.includes(key)) fail(`stale contextual mapping ${key}`);
+
+const requiredShellContracts = [
+  'const effectiveDomainView = activeDomainView ?? domainViews[0] ?? null;',
+  'data-admin-workspace={activeWorkspace.key}',
+  'data-admin-view={effectiveDomainView?.key ?? ""}',
+  "aria-current={effectiveDomainView?.key === view.key ? 'page' : undefined}",
+];
+for (const contract of requiredShellContracts) if (!shellSource.includes(contract)) fail(`Admin shell contextual semantic contract missing: ${contract}`);
+
+const criticalRuntimeRoutes = ['/integrations/notifications','/operations-control/delivery','/people/payroll','/people/employees'];
+for (const route of criticalRuntimeRoutes) {
+  const key = route.slice(1);
+  if (!mapped.has(key)) fail(`critical Browser UAT route is not canonical: ${route}`);
+  if (!browserSource.includes(`navigateAdminContext(cdp, '${route}'`)) fail(`Browser UAT does not use canonical contextual navigation for ${route}`);
+}
+if (browserSource.includes('data-admin-route="/assets-fleet"') && browserSource.includes('Outbound / Delivery Lifecycle')) fail('Browser UAT still binds Delivery Lifecycle to stale /assets-fleet workspace');
 
 const requiredPageContracts = [
   "commerceSection=\"orders\"",

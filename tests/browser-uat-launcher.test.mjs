@@ -15,26 +15,24 @@ test('browser UAT launcher is fail-closed and uses real Chromium CDP', () => {
   assert.match(script, /process\.exitCode = 1/);
 });
 
-test('browser UAT verifies authenticated delivery lifecycle in Admin', () => {
-  assert.match(script, /data-admin-route=\"\/assets-fleet\"/);
-  assert.doesNotMatch(script, /Aset & Fleet/);
+test('browser UAT verifies authenticated delivery lifecycle through canonical contextual ownership', () => {
+  assert.match(script, /navigateAdminContext\(cdp, '\/operations-control\/delivery'/);
+  assert.doesNotMatch(script, /data-admin-route=\"\/assets-fleet\"[\s\S]{0,500}Outbound \/ Delivery Lifecycle/);
   assert.match(script, /Outbound \/ Delivery Lifecycle/);
   assert.match(script, /TRIP WORKBENCH/);
   assert.match(script, /Delivery lifecycle gagal dimuat/);
 });
 
 test('browser UAT verifies payroll lifecycle read model in Admin', () => {
-  assert.match(script, /data-admin-route=\"\/people\"/);
-  assert.match(script, /data-admin-route=\"\/people\/payroll\"/);
-  assert.match(script, /Payroll submenu tersedia/);
+  assert.match(script, /navigateAdminContext\(cdp, '\/people\/payroll'/);
   assert.match(script, /PAYROLL LIFECYCLE/);
   assert.match(script, /Riwayat Payroll Runs/);
   assert.match(script, /ADMIN_PAYROLL_LIFECYCLE/);
   assert.match(script, /Gagal memuat HR\/Payroll/);
 });
+
 test('browser UAT verifies employee master through canonical people domain route', () => {
-  assert.match(script, /data-admin-route=\"\/people\/employees\"/);
-  assert.match(script, /Menu \/people\/employees/);
+  assert.match(script, /navigateAdminContext\(cdp, '\/people\/employees'/);
   assert.doesNotMatch(script, /textContent\?\.trim\(\)===['\"]Employees['\"]/);
   assert.match(script, /EMPLOYEE MASTER/);
   assert.match(script, /Tambah karyawan/);

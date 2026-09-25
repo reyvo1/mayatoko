@@ -28,6 +28,7 @@ export default function AdminAppShell({ manifest, identity, navigation, activeWo
   const [query, setQuery] = useState('');
   const navItems = useMemo(() => navigation.flatMap((group) => group.items), [navigation]);
   const domainViews = useMemo(() => resolveDomainViews(activeWorkspace, manifest, identity), [activeWorkspace, manifest, identity]);
+  const effectiveDomainView = activeDomainView ?? domainViews[0] ?? null;
   const filteredNavigation = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('id-ID');
     if (!needle) return navigation;
@@ -88,12 +89,12 @@ export default function AdminAppShell({ manifest, identity, navigation, activeWo
           </div>
         </header>
 
-        <main id="admin-main" className="content" tabIndex={-1}>
+        <main id="admin-main" className="content" tabIndex={-1} data-admin-workspace={activeWorkspace.key} data-admin-view={effectiveDomainView?.key ?? ""}>
           <section className="pageHeader">
             <div className="pageHeaderCopy">
               <div className="pageHeaderKicker"><span className="eyebrow">{activeWorkspace.eyebrow}</span><span>{manifest?.branch?.name ?? 'Branch context'}</span></div>
-              <h1>{activeDomainView?.title ?? activeWorkspace.title}</h1>
-              <p className="pageDesc">{activeDomainView?.description ?? activeWorkspace.description}</p>
+              <h1>{effectiveDomainView?.title ?? activeWorkspace.title}</h1>
+              <p className="pageDesc">{effectiveDomainView?.description ?? activeWorkspace.description}</p>
             </div>
             {headerAction && <div className="pageHeaderActions">{headerAction}</div>}
           </section>
@@ -101,7 +102,7 @@ export default function AdminAppShell({ manifest, identity, navigation, activeWo
           {domainViews.length > 0 && (
             <nav className="domainTabs" aria-label={`${activeWorkspace.label} sub menu`}>
               {domainViews.map((view) => (
-                <button key={view.key} type="button" className={activeDomainView?.key === view.key || (!activeDomainView && domainViews[0]?.key === view.key) ? 'active' : ''} data-admin-route={domainRoute(activeWorkspace, view)} aria-current={activeDomainView?.key === view.key ? 'page' : undefined} onClick={() => onNavigate(domainRoute(activeWorkspace, view))}>
+                <button key={view.key} type="button" className={effectiveDomainView?.key === view.key ? 'active' : ''} data-admin-route={domainRoute(activeWorkspace, view)} aria-current={effectiveDomainView?.key === view.key ? 'page' : undefined} onClick={() => onNavigate(domainRoute(activeWorkspace, view))}>
                   <view.Icon size={16}/><span>{view.label}</span>
                 </button>
               ))}

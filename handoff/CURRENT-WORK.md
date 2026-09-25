@@ -371,3 +371,13 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 - Root cause: after P1 contextual isolation, `/integrations` correctly defaults to provider view while Owner Daily Digest lives under `/integrations/notifications`; the historical Browser UAT still expected the digest on the workspace root.
 - Browser UAT now navigates explicitly to `/integrations/notifications`, requires that contextual route to be active, then performs the existing digest mutation/restore proof.
 - Do not revert contextual isolation to satisfy legacy browser expectations. P1 remains `IMPLEMENTED_RUNTIME_PENDING` until the corrected exact-source GitHub browser/R7 evidence is green and human IA acceptance is recorded.
+
+## P1 canonical Browser routing root fix — 2026-09-25
+- Regression evidence from `logs_97844103257.zip` and `logs_97844103301.zip` proved the problem was broader than the Owner Daily Digest selector: Browser UAT still encoded pre-P1 UI ownership assumptions after the 61-route contextual isolation.
+- Root fix: `config/admin-contextual-workflow-map.json` is now consumed by Browser UAT as the canonical contextual-route authority; critical journeys use one `navigateAdminContext()` path instead of depending on whichever workspace/tab happened to be active previously.
+- Admin shell exposes stable semantic `data-admin-workspace` and `data-admin-view` state, including a single effective default contextual view with matching `aria-current` semantics.
+- Delivery Lifecycle ownership is corrected from the stale `/assets-fleet` assumption to canonical `/operations-control/delivery`; notifications, payroll, and employee-master journeys use the same canonical navigator.
+- `audit:admin:contextual` now rejects critical Browser UAT route drift and stale Delivery ownership before expensive Browser/GitHub execution.
+- Added `tests/browser-uat-admin-context-routing.test.mjs`; historical Browser/R1 source tests were migrated from brittle DOM-route literals to the canonical navigation contract.
+- Validation after the root fix: workflow validate PASS; repository validate PASS; product-completeness PASS; Admin contextual 61/61 PASS; recovery 48/48 PASS; full-repository/UI audit PASS; dependency-free regression 942/942 PASS.
+- P1 remains `IMPLEMENTED_RUNTIME_PENDING`; exact-source GitHub Browser/R7 evidence and human IA acceptance are still required before P1 runtime/human closure.

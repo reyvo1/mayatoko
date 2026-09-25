@@ -106,10 +106,10 @@ test('R1 GitHub evidence harness follows current Admin navigation and normalizes
   const browser=read('scripts/browser-uat.mjs');
   const sweep=read('scripts/ci-runtime-api-sweep.mjs');
   assert.match(browser,/aside\[aria-label=.*Navigasi Admin.*\] \.navItem/);
-  assert.match(browser,/data-admin-route=\"\/assets-fleet\"/);
-  assert.match(browser,/data-admin-route=\"\/people\"/);
-  assert.match(browser,/data-admin-route=\"\/people\/payroll\"/);
-  assert.match(browser,/data-admin-route=\"\/people\/employees\"/);
+  assert.match(browser,/navigateAdminContext\(cdp, '\/operations-control\/delivery'/);
+  assert.match(browser,/navigateAdminContext\(cdp, '\/people\/payroll'/);
+  assert.match(browser,/navigateAdminContext\(cdp, '\/people\/employees'/);
+  assert.match(browser,/navigateAdminContext\(cdp, '\/integrations\/notifications'/);
   assert.doesNotMatch(browser,/textContent\?\.trim\(\)===['\"]Employees['\"]/);
   assert.doesNotMatch(browser,/Aset & Fleet/);
   assert.match(sweep,/function runtimePath\(route\)/);

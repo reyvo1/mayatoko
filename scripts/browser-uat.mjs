@@ -46,6 +46,18 @@ const surfaces = [
   ['employeePortal', employeeUrl],
 ];
 
+const adminContextualWorkflowMap = JSON.parse(fs.readFileSync(path.join(root, 'config', 'admin-contextual-workflow-map.json'), 'utf8'));
+const adminContextualRoutes = new Map();
+for (const row of adminContextualWorkflowMap.rows ?? []) {
+  const route = `/${row.workspace}/${row.view}`;
+  if (adminContextualRoutes.has(route)) throw new Error(`Duplicate canonical Admin contextual route: ${route}`);
+  adminContextualRoutes.set(route, row);
+}
+
+function canonicalAdminContext(route) {
+  return adminContextualRoutes.get(route) ?? null;
+}
+
 function browserExecutable() {
   const candidates = [process.env.T360_CHROMIUM, '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable'].filter(Boolean);
   return candidates.find((candidate) => fs.existsSync(candidate));
@@ -151,6 +163,18 @@ async function waitExpression(cdp, expression, label, timeoutMs = 30000) {
 async function navigateAndAssert(cdp, url, expression, label, timeoutMs = 45000) {
   await cdp.call('Page.navigate', { url });
   await waitExpression(cdp, `document.readyState === 'complete' && (${expression})`, label, timeoutMs);
+}
+
+async function navigateAdminContext(cdp, route, label, timeoutMs = 45000) {
+  const context = canonicalAdminContext(route);
+  if (!context) throw new Error(`${label}: route contextual tidak terdaftar di config/admin-contextual-workflow-map.json: ${route}`);
+  const url = `${adminUrl.replace(/\/+$/, '')}${route}`;
+  await cdp.call('Page.navigate', { url });
+  const routeJson = JSON.stringify(route);
+  const workspaceJson = JSON.stringify(context.workspace);
+  const viewJson = JSON.stringify(context.view);
+  const activeTabSelectorJson = JSON.stringify(`.domainTabs [data-admin-route="${route}"][aria-current="page"]`);
+  await waitExpression(cdp, `document.readyState === 'complete' && location.pathname === ${routeJson} && document.querySelector('#admin-main')?.getAttribute('data-admin-workspace') === ${workspaceJson} && document.querySelector('#admin-main')?.getAttribute('data-admin-view') === ${viewJson} && Boolean(document.querySelector(${activeTabSelectorJson}))`, label, timeoutMs);
 }
 
 async function evaluateValue(cdp, expression) {
@@ -350,9 +374,7 @@ async function main() {
     }
     evidence.checks.push({ id: 'ADMIN_ALL_NAVIGATION_RUNTIME', status: 'PASS', workspaces: adminWorkspaces, domainViews: adminDomainViews, screenshot: await captureSuccessScreenshot(cdp, 'admin-navigation-success') });
 
-    const clickNotificationsForR8 = `(() => { const el=document.querySelector('.domainTabs [data-admin-route="/integrations/notifications"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickNotificationsForR8, 'R8 Integrasi & Notifikasi / Notifikasi contextual view');
-    await waitExpression(cdp, `Boolean(document.querySelector('.domainTabs [data-admin-route="/integrations/notifications"][aria-current="page"]'))`, 'R8 contextual route /integrations/notifications active');
+    await navigateAdminContext(cdp, '/integrations/notifications', 'R8 contextual route /integrations/notifications active');
     await waitExpression(cdp, `document.body && document.body.innerText.includes('Owner Daily Digest') && [...document.querySelectorAll('button')].some(x=>x.textContent?.trim()==='Simpan daily digest')`, 'R8 owner daily digest operator surface', 45000);
     const digestBefore = await evaluateValue(cdp, `(() => { const panel=[...document.querySelectorAll('.panel')].find(x=>x.textContent?.includes('Owner Daily Digest')); if(!panel)return null; const enabled=panel.querySelector('input[type="checkbox"]'); const hour=[...panel.querySelectorAll('input[type="number"]')][0]; return { enabled:!!enabled?.checked, hour:Number(hour?.value ?? 21) }; })()`);
     if (!digestBefore || !Number.isInteger(digestBefore.hour)) throw new Error('R8 daily digest state tidak dapat dibaca dari UI.');
@@ -365,28 +387,22 @@ async function main() {
     await waitExpression(cdp, `document.body && document.body.innerText.includes('Konfigurasi owner daily digest tersimpan.')`, 'R8 daily digest restore persisted', 45000);
     evidence.checks.push({ id: 'R8_DAILY_DIGEST_CONFIG_MUTATION', status: 'PASS', before: digestBefore, mutatedHour: digestMutatedHour, restoredHour: digestBefore.hour, assertions: ['mutate through Admin UI', 'restore original hour through Admin UI'] });
 
-    const clickFleet = `(() => { const el=document.querySelector('.navItem[data-admin-route="/assets-fleet"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickFleet, 'Menu /assets-fleet');
-    await waitExpression(cdp, `Boolean(document.querySelector('.navItem[data-admin-route="/assets-fleet"][aria-current="page"]')) && document.body && document.body.innerText.includes('Outbound / Delivery Lifecycle') && document.body.innerText.includes('TRIP WORKBENCH')`, 'Delivery Lifecycle Admin', 45000);
+    await navigateAdminContext(cdp, '/operations-control/delivery', 'Delivery Lifecycle contextual route');
+    await waitExpression(cdp, `document.body && document.body.innerText.includes('Outbound / Delivery Lifecycle') && document.body.innerText.includes('TRIP WORKBENCH')`, 'Delivery Lifecycle Admin', 45000);
     const pageText = await cdp.call('Runtime.evaluate', { expression: `document.body.innerText`, returnByValue: true });
     const bodyText = String(pageText?.result?.value || '');
     if (bodyText.includes('Delivery lifecycle gagal dimuat')) throw new Error('Delivery Lifecycle dirender tetapi read model gagal dimuat dari API.');
     evidence.checks.push({ id: 'ADMIN_DELIVERY_LIFECYCLE', status: 'PASS', assertions: ['Outbound / Delivery Lifecycle', 'TRIP WORKBENCH', 'read model tanpa error'] });
 
-    const clickPeople = `(() => { const el=document.querySelector('.navItem[data-admin-route="/people"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickPeople, 'Menu /people');
-    await waitExpression(cdp, `Boolean(document.querySelector('.navItem[data-admin-route="/people"][aria-current="page"]')) && Boolean(document.querySelector('.domainTabs [data-admin-route="/people/payroll"]'))`, 'Payroll submenu tersedia', 45000);
-    const clickPayroll = `(() => { const el=document.querySelector('.domainTabs [data-admin-route="/people/payroll"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickPayroll, 'Menu /people/payroll');
-    await waitExpression(cdp, `Boolean(document.querySelector('.domainTabs [data-admin-route="/people/payroll"][aria-current="page"]')) && document.body && document.body.innerText.includes('PAYROLL LIFECYCLE') && document.body.innerText.includes('Riwayat Payroll Runs') && document.body.innerText.includes('PPh / BPJS / Potongan')`, 'Payroll Lifecycle Admin', 45000);
+    await navigateAdminContext(cdp, '/people/payroll', 'Payroll Lifecycle contextual route');
+    await waitExpression(cdp, `document.body && document.body.innerText.includes('PAYROLL LIFECYCLE') && document.body.innerText.includes('Riwayat Payroll Runs') && document.body.innerText.includes('PPh / BPJS / Potongan')`, 'Payroll Lifecycle Admin', 45000);
     const payrollPageText = await cdp.call('Runtime.evaluate', { expression: `document.body.innerText`, returnByValue: true });
     const payrollBodyText = String(payrollPageText?.result?.value || '');
     if (payrollBodyText.includes('Gagal memuat HR/Payroll') || payrollBodyText.includes('Gagal memuat detail payroll')) throw new Error('Payroll Lifecycle dirender tetapi read model gagal dimuat dari API.');
     evidence.checks.push({ id: 'ADMIN_PAYROLL_LIFECYCLE', status: 'PASS', assertions: ['PAYROLL LIFECYCLE', 'Riwayat Payroll Runs', 'PPh / BPJS / Potongan', 'read model tanpa error'] });
 
-    const clickEmployees = `(() => { const el=document.querySelector('.domainTabs [data-admin-route="/people/employees"]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`;
-    await waitExpression(cdp, clickEmployees, 'Menu /people/employees');
-    await waitExpression(cdp, `Boolean(document.querySelector('.domainTabs [data-admin-route="/people/employees"][aria-current="page"]')) && document.body && document.body.innerText.includes('EMPLOYEE MASTER') && document.body.innerText.includes('Tambah karyawan') && document.body.innerText.includes('Daftar Karyawan')`, 'Employee Master Admin', 45000);
+    await navigateAdminContext(cdp, '/people/employees', 'Employee Master contextual route');
+    await waitExpression(cdp, `document.body && document.body.innerText.includes('EMPLOYEE MASTER') && document.body.innerText.includes('Tambah karyawan') && document.body.innerText.includes('Daftar Karyawan')`, 'Employee Master Admin', 45000);
     evidence.checks.push({ id: 'ADMIN_EMPLOYEE_MASTER', status: 'PASS', assertions: ['EMPLOYEE MASTER', 'Tambah karyawan', 'Daftar Karyawan'] });
 
     if (String(process.env.T360_UAT_HR_MUTATIONS || '').toLowerCase() === 'true') {
