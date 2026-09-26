@@ -36,3 +36,12 @@ test('UI-P3 uses responsive flat workspace surfaces without decorative gradient 
   assert.doesNotMatch(css, /linear-gradient|radial-gradient/);
   assert.doesNotMatch(css, /overflow-x:auto|overflow-x: auto/);
 });
+
+test('UI-P3 POS mobile topbar cannot reintroduce intrinsic horizontal overflow', () => {
+  assert.match(shell, /posTopbar sticky[^\r\n]*flex min-w-0 flex-col[^\r\n]*sm:flex-row/);
+  assert.match(shell, /posTopbarActions flex w-full min-w-0 flex-wrap[^\r\n]*sm:shrink-0 sm:flex-nowrap/);
+  assert.match(css, /\.posTopbarActions label \{ @apply[^}]*min-w-0[^}]*flex-\[1_1_12rem\]/);
+  assert.match(css, /\.posTopbarActions label select \{ @apply[^}]*min-w-0[^}]*flex-1/);
+  assert.match(css, /@media\(max-width:767px\)[\s\S]*?\.posTopbarActions label \{ width:100%; \}/);
+  assert.doesNotMatch(shell, /posTopbarActions flex shrink-0 items-center/);
+});

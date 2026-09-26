@@ -36,6 +36,9 @@ if (!adminUi.includes('rounded-[24px]') || !adminUi.includes('shadow-[')) fail('
 if (!adminAnalytics.includes('grid-cols-1') || !adminAnalytics.includes('chart')) fail('Admin analytics belum direbuild sebagai dashboard visual yang jelas.');
 if (!products.admin.css.includes('.accountCreateGrid')) fail('Admin responsive finance compatibility hilang.');
 if (!products.pos.css.includes('.cart{@apply') || !products.pos.css.includes('xl:sticky')) fail('POS cart hierarchy/touch contract hilang.');
+if (!/posTopbar sticky[^\n]*flex min-w-0 flex-col[^\n]*sm:flex-row/.test(products.pos.shell)) fail('POS mobile topbar harus stack sebelum sm untuk mencegah intrinsic-width overflow.');
+if (!/posTopbarActions flex w-full min-w-0 flex-wrap[^\n]*sm:shrink-0 sm:flex-nowrap/.test(products.pos.shell)) fail('POS action row harus shrink/wrap pada mobile.');
+if (!/\.posTopbarActions label \{ @apply[^}]*min-w-0[^}]*flex-\[1_1_12rem\]/.test(products.pos.css) || !/\.posTopbarActions label select \{ @apply[^}]*min-w-0[^}]*flex-1/.test(products.pos.css)) fail('POS warehouse control belum shrink-safe pada mobile.');
 if (!products.storefront.css.includes('.productCard') || !products.storefront.css.includes('.productDetail')) fail('Storefront product-first visual primitives hilang.');
 if (/@apply[^;]*\bgroup\b/.test(products.storefront.css) || /@apply[^;]*group-hover:/.test(products.storefront.css)) fail('Storefront memakai Tailwind group marker di @apply; gunakan selector parent hover atau class group langsung di markup.');
 if (!/\.productCard:hover \.productImage\s*\{[^}]*@apply bg-\[#e8ede5\]/s.test(products.storefront.css)) fail('Storefront product hover relationship hilang setelah group marker dihapus.');

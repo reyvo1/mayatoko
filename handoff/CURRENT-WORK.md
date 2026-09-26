@@ -543,3 +543,11 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 - Root fix removes `group`/`group-hover` from `@apply` and preserves the exact hover behavior with `.productCard:hover .productImage { @apply bg-[#e8ede5]; }`.
 - Permanent P5 V3 audit and regression now reject `@apply group` / `@apply ... group-hover:*`.
 - Business/API/domain authority remains frozen; P6 remains blocked until V3.1 local+GitHub automation and explicit human visual acceptance are green.
+
+## P5 FULL V3.2 POS mobile overflow root fix — 2026-09-26
+- Exact-source V3.1 commit `17539ad56114432ee940ab640612f7983294515f`, fingerprint `2a546c4ead9510eb936220b2698f580569ef86d4fe32e950cbbe140503be6e26`, passed build/source regression and P5 V3 Tailwind source audit in both heavy workflows.
+- First real runtime blocker: Built Browser UAT reports POS overflow at `390x844` (`scrollWidth=410` in full-system simulation and `421` in manual UAT); R7/P5/R8-release/aggregate failures are downstream only.
+- Root cause: POS topbar remained a single horizontal flex row while `.posTopbarActions` was `shrink-0`; the warehouse label/select + actions retained intrinsic width and expanded document geometry beyond the 390px viewport.
+- V3.2 stacks the topbar below `sm`, makes the action row `w-full min-w-0 flex-wrap`, makes the warehouse label/select and buttons shrink-safe, and keeps the existing tablet/desktop one-row layout from `sm` upward.
+- Permanent UI-P3 and P5 V3 source audits now reject the old mobile intrinsic-width pattern. No Browser geometry threshold, R7/P5 assertion, business/API/domain rule, or security gate is weakened.
+- P6 remains BLOCKED pending V3.2 local gate -> atomic commit/push -> exact-source GitHub Browser/P5/R7/R8/aggregate -> explicit Human Visual Acceptance.

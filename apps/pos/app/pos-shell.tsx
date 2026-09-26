@@ -18,12 +18,12 @@ export function PosShell({ workspace, onWorkspaceChange, apiOnline, queueCount, 
     <main className="pos posModern min-h-screen bg-[#eef4f6] text-slate-950" data-visual-product="pos" data-visual-version="p5-v2" data-visual-generation="p5-v3" data-visual-view={workspace.toLowerCase()}>
       <a className="skipLink" href="#pos-workspace">Lewati ke workspace POS</a>
 
-      <header className="posTopbar sticky top-0 z-30 flex min-h-[70px] items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-4 shadow-[0_8px_28px_rgba(15,23,42,.06)] backdrop-blur-xl sm:px-6">
-        <div className="posBrand flex min-w-0 items-center gap-3">
+      <header className="posTopbar sticky top-0 z-30 flex min-w-0 flex-col items-stretch gap-2 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-[0_8px_28px_rgba(15,23,42,.06)] backdrop-blur-xl sm:min-h-[70px] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-0">
+        <div className="posBrand flex w-full min-w-0 items-center gap-3 sm:w-auto">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#0f766e] text-[10px] font-black tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(15,118,110,.22)]">T3</span>
-          <div className="min-w-0"><span className="block text-[9px] font-bold uppercase tracking-[0.16em] text-teal-700">TOKO360 POS</span><h1 className="truncate text-sm font-semibold tracking-[-0.02em] text-slate-900">Kasir · Terminal penjualan</h1><small className={`connection mt-0.5 flex items-center gap-1.5 text-[10px] font-medium ${apiOnline ? 'online text-emerald-700' : 'offline text-amber-700'}`} role="status" aria-live="polite">{apiOnline ? <Wifi size={12} /> : <WifiOff size={12} />}{apiOnline ? 'Server online' : 'Mode offline'}{queueCount ? ` · ${queueCount} antrean` : ''}</small></div>
+          <div className="min-w-0"><span className="block text-[9px] font-bold uppercase tracking-[0.16em] text-teal-700">TOKO360 POS</span><h1 className="truncate text-sm font-semibold tracking-[-0.02em] text-slate-900">Kasir · Terminal penjualan</h1><small className={`connection mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-medium ${apiOnline ? 'online text-emerald-700' : 'offline text-amber-700'}`} role="status" aria-live="polite">{apiOnline ? <Wifi size={12} /> : <WifiOff size={12} />}{apiOnline ? 'Server online' : 'Mode offline'}{queueCount ? ` · ${queueCount} antrean` : ''}</small></div>
         </div>
-        <div className="posTopbarActions flex shrink-0 items-center gap-2">{warehouseControl}</div>
+        <div className="posTopbarActions flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:flex-nowrap">{warehouseControl}</div>
       </header>
 
       <div className="mx-auto w-full max-w-[1720px] px-3 py-3 sm:px-5 sm:py-4 lg:px-6">
