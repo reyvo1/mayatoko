@@ -5,8 +5,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { Permissions } from '../auth/permissions.decorator';
 import {
-  CreateBatchDto, CreateFiscalPeriodDto, CreateLoyaltyProgramDto, CreatePurchaseReturnDto, CreateReconciliationDto,
-  CreateSaleReturnDto, CreateSerialDto, CreateShipmentDto, ImportBankStatementDto, ImportMarketplaceOrderDto,
+  CreateBatchDto, CreateFiscalPeriodDto, CreateLoyaltyProgramDto, CreateReconciliationDto,
+  CreateSerialDto, CreateShipmentDto, ImportBankStatementDto, ImportMarketplaceOrderDto,
   LoyaltyTransactionDto, MatchBankReconciliationDto, QueueNotificationDto, RegisterDeviceDto, RunForecastDto, UpsertNotificationTemplateDto,
   AcknowledgeSyncReceiptDto, OperatorAssistantQueryDto, RotateDeviceCredentialDto, SetDeviceStatusDto, SubmitOfflineTransactionsDto, UnmatchBankReconciliationDto,
   UpdateOperatorInsightStatusDto, MaterializeDailySummariesDto, RunDataArchiveDto, UpsertDataRetentionPolicyDto, UpsertExternalMappingDto,
@@ -41,36 +41,6 @@ import { ExtensionsService } from './extensions.service';
   @Permissions('inventory.serial')
   createSerial(@Body() dto: CreateSerialDto, @CurrentUser() user: AuthUser) {
     return this.service.createSerial(dto, user);
-  }
-
-  @Get('sale-returns')
-  saleReturns(@CurrentUser() user: AuthUser) { return this.service.saleReturns(user); }
-
-  @Post('sale-returns')
-  @Permissions('sale.return')
-  createSaleReturn(@Body() dto: CreateSaleReturnDto, @CurrentUser() user: AuthUser) {
-    return this.service.createSaleReturn(dto, user);
-  }
-
-  @Roles('SUPER_ADMIN','OWNER','ADMIN','CASHIER') @Patch('sale-returns/:id/complete')
-  @Permissions('sale.return')
-  completeSaleReturn(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.service.completeSaleReturn(id, user);
-  }
-
-  @Get('purchase-returns')
-  purchaseReturns(@CurrentUser() user: AuthUser) { return this.service.purchaseReturns(user); }
-
-  @Post('purchase-returns')
-  @Permissions('purchase.return')
-  createPurchaseReturn(@Body() dto: CreatePurchaseReturnDto, @CurrentUser() user: AuthUser) {
-    return this.service.createPurchaseReturn(dto, user);
-  }
-
-  @Roles('SUPER_ADMIN','OWNER','ADMIN','PURCHASING','WAREHOUSE') @Patch('purchase-returns/:id/complete')
-  @Permissions('purchase.return')
-  completePurchaseReturn(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.service.completePurchaseReturn(id, user);
   }
 
   @Get('loyalty/programs')

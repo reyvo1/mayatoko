@@ -11,9 +11,29 @@ Rules:
 
 ## Current phase
 
-**P3 — Hidden Capability Productization and Maturity Truth**
+**P4 — Legacy Surface Cleanup and Canonical Domain Ownership**
 Status: **IMPLEMENTED_RUNTIME_PENDING**
-Delivery boundary: **P3 FULL one atomic wave**
+Delivery boundary: **P4 FULL one atomic wave**
+
+## P3 closure
+
+P3 FULL is `RUNTIME_VERIFIED` on:
+- commit `c61273e99104c0dbdc61ee4790379d4ed2edd8a3`;
+- source fingerprint `cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5`;
+- P3 hidden-capability runtime probe PASS in both heavy GitHub workflows;
+- Stage-19 and automated Stage-20 PASS;
+- R8 exact-source evidence PASS;
+- full-system aggregate PASS and Automated UAT PASS.
+
+A-05, A-06, A-08 and A-11 are `RUNTIME_VERIFIED`. Human Stage-20 remains separately PENDING.
+
+## P4 FULL truth
+
+- A-10 Legacy return aliases: `IMPLEMENTED_RUNTIME_PENDING`; `/sale-returns*` and `/purchase-returns*` are removed after repository consumer verification, while `/returns/*` remains authoritative.
+- Canonical ownership: `IMPLEMENTED_RUNTIME_PENDING`; `config/canonical-domain-ownership.json` records the single canonical owner and source-of-truth/ledger contract for inventory, returns, accounting, payments, notifications, payroll, assets, marketplace, and summaries.
+- `audit:canonical:ownership` fails closed if active source reintroduces legacy return aliases or any required ownership record/source/model disappears.
+
+P4 closes to `RUNTIME_VERIFIED` only when `ci:p4:probe` passes on exact source in both heavy GitHub workflows and aggregate evidence remains green with `productionTouched=false`.
 
 ## P2 closure
 

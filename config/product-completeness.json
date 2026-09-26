@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "TOKO360 Canonical Product Completeness Matrix",
-  "updatedAt": "2026-09-26T02:18:00+08:00",
+  "updatedAt": "2026-09-26T03:20:00+08:00",
   "authoritative": true,
   "productReady": false,
   "humanStage20": "PENDING",
@@ -103,7 +103,7 @@
       "id": "feature:sales_return",
       "kind": "FEATURE",
       "key": "sales_return",
-      "title": "POS request → inspection → refund/restock/accounting/loyalty correction",
+      "title": "POS request \u2192 inspection \u2192 refund/restock/accounting/loyalty correction",
       "default": "on",
       "sourceMaturity": "implemented-core-workflow",
       "status": "IMPLEMENTED_RUNTIME_PENDING",
@@ -687,12 +687,14 @@
       "title": "Retention/archive backend has no operator UI",
       "severity": "HIGH",
       "targetPhase": "P3",
-      "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "Retention/archive now has a dedicated Admin Data Governance surface for policy lifecycle, explicit archive execution, run history, status/error, checksum, artifact URI/provider and typed safety confirmation. P3 exact-runtime gate is mandatory before RUNTIME_VERIFIED.",
+      "status": "RUNTIME_VERIFIED",
+      "notes": "Retention/archive now has a dedicated Admin Data Governance surface for policy lifecycle, explicit archive execution, run history, status/error, checksum, artifact URI/provider and typed safety confirmation. P3 exact-runtime gate passed on commit c61273e99104c0dbdc61ee4790379d4ed2edd8a3, source fingerprint cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5; capability is RUNTIME_VERIFIED.",
       "evidence": [
         "tests/product-completion-p3-hidden-capability-productization.test.mjs",
         "scripts/ci-p3-productization-probe.mjs",
-        "handoff/quality/github-p3-productization-probe-latest.json"
+        "handoff/quality/github-p3-productization-probe-latest.json",
+        "logs_97975412612.zip",
+        "logs_97975412340.zip"
       ]
     },
     {
@@ -702,12 +704,14 @@
       "title": "API key rotation and session management lack Admin UI",
       "severity": "HIGH",
       "targetPhase": "P3",
-      "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "Admin now exposes API-key rotation/one-time secret lifecycle and active-session inventory with individual revoke plus logout-all confirmation and audited server actions. P3 exact-runtime gate is mandatory before RUNTIME_VERIFIED.",
+      "status": "RUNTIME_VERIFIED",
+      "notes": "Admin now exposes API-key rotation/one-time secret lifecycle and active-session inventory with individual revoke plus logout-all confirmation and audited server actions. P3 exact-runtime gate passed on commit c61273e99104c0dbdc61ee4790379d4ed2edd8a3, source fingerprint cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5; capability is RUNTIME_VERIFIED.",
       "evidence": [
         "tests/product-completion-p3-hidden-capability-productization.test.mjs",
         "scripts/ci-p3-productization-probe.mjs",
-        "handoff/quality/github-p3-productization-probe-latest.json"
+        "handoff/quality/github-p3-productization-probe-latest.json",
+        "logs_97975412612.zip",
+        "logs_97975412340.zip"
       ]
     },
     {
@@ -727,12 +731,14 @@
       "title": "Feature catalog contains many foundation/baseline/adapter-ready capabilities",
       "severity": "HIGH",
       "targetPhase": "P3",
-      "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "Runtime feature catalog now carries explicit maturityClass/operatorVisibility/ownership/helpText and preserves maturity truth across scoped feature overrides; Admin surfaces that truth instead of equating enabled with complete. P3 exact-runtime gate is mandatory before RUNTIME_VERIFIED.",
+      "status": "RUNTIME_VERIFIED",
+      "notes": "Runtime feature catalog now carries explicit maturityClass/operatorVisibility/ownership/helpText and preserves maturity truth across scoped feature overrides; Admin surfaces that truth instead of equating enabled with complete. P3 exact-runtime gate passed on commit c61273e99104c0dbdc61ee4790379d4ed2edd8a3, source fingerprint cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5; capability is RUNTIME_VERIFIED.",
       "evidence": [
         "tests/product-completion-p3-hidden-capability-productization.test.mjs",
         "scripts/ci-p3-productization-probe.mjs",
-        "handoff/quality/github-p3-productization-probe-latest.json"
+        "handoff/quality/github-p3-productization-probe-latest.json",
+        "logs_97975412612.zip",
+        "logs_97975412340.zip"
       ]
     },
     {
@@ -752,8 +758,15 @@
       "title": "Legacy return API aliases remain beside canonical returns API",
       "severity": "MEDIUM",
       "targetPhase": "P4",
-      "status": "PARTIAL",
-      "notes": "Status is canonical after the 957-file audit; closure requires the phase exit criteria, not marker presence."
+      "status": "IMPLEMENTED_RUNTIME_PENDING",
+      "notes": "P4 removes legacy /sale-returns* and /purchase-returns* routes after repository consumer verification, preserves /returns/* as canonical authority, and introduces a nine-domain canonical ownership manifest/audit. Exact-source P4 runtime evidence is mandatory before RUNTIME_VERIFIED.",
+      "evidence": [
+        "config/canonical-domain-ownership.json",
+        "docs/P4-CANONICAL-DOMAIN-OWNERSHIP.md",
+        "tests/product-completion-p4-canonical-ownership.test.mjs",
+        "scripts/ci-p4-canonical-ownership-probe.mjs",
+        "handoff/quality/github-p4-canonical-ownership-probe-latest.json"
+      ]
     },
     {
       "id": "audit:A-11",
@@ -762,12 +775,14 @@
       "title": "Daily summary materialization is backend-only",
       "severity": "MEDIUM",
       "targetPhase": "P3",
-      "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "Daily summary ownership is explicitly ADMIN_EXPLICIT: Data Governance materializes and inspects DailySalesSummary/DailyFinanceSummary; worker automatic ownership is not claimed. P3 exact-runtime gate is mandatory before RUNTIME_VERIFIED.",
+      "status": "RUNTIME_VERIFIED",
+      "notes": "Daily summary ownership is explicitly ADMIN_EXPLICIT: Data Governance materializes and inspects DailySalesSummary/DailyFinanceSummary; worker automatic ownership is not claimed. P3 exact-runtime gate passed on commit c61273e99104c0dbdc61ee4790379d4ed2edd8a3, source fingerprint cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5; capability is RUNTIME_VERIFIED.",
       "evidence": [
         "tests/product-completion-p3-hidden-capability-productization.test.mjs",
         "scripts/ci-p3-productization-probe.mjs",
-        "handoff/quality/github-p3-productization-probe-latest.json"
+        "handoff/quality/github-p3-productization-probe-latest.json",
+        "logs_97975412612.zip",
+        "logs_97975412340.zip"
       ]
     },
     {
@@ -821,6 +836,26 @@
     "P6",
     "P7"
   ],
-  "currentPhase": "P3",
-  "currentPhaseStatus": "IMPLEMENTED_RUNTIME_PENDING"
+  "currentPhase": "P4",
+  "currentPhaseStatus": "IMPLEMENTED_RUNTIME_PENDING",
+  "businessRules": [
+    "P3 FULL is runtime-verified on exact-source commit c61273e99104c0dbdc61ee4790379d4ed2edd8a3 / fingerprint cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5; P3 source is frozen absent regression evidence.",
+    "P4 is one atomic delivery wave for A-10 and canonical ownership cleanup; legacy return aliases may be removed only after active-consumer verification and canonical /returns/* runtime proof.",
+    "Canonical domain ownership for inventory, returns, accounting, payments, notifications, payroll, assets, marketplace and summaries is defined by config/canonical-domain-ownership.json and must pass audit:canonical:ownership.",
+    "P4 exact-runtime closure requires ci:p4:probe PASS in both heavy GitHub workflows and aggregate evidence on the same source fingerprint with productionTouched=false."
+  ],
+  "acceptanceCriteria": [
+    "P4 removes the legacy /sale-returns* and /purchase-returns* mutation surfaces only after proving no active repository consumer remains and canonical /returns/* runtime routes stay live.",
+    "P4 documents one canonical owner and source-of-truth/ledger contract for inventory, returns, accounting, payments, notifications, payroll, assets, marketplace, and summaries."
+  ],
+  "testPlan": [
+    "npm run audit:canonical:ownership",
+    "node --test tests/product-completion-p4-canonical-ownership.test.mjs",
+    "Exact-source PostgreSQL P4 runtime: npm run ci:p4:probe; evidence handoff/quality/github-p4-canonical-ownership-probe-latest.json must PASS with productionTouched=false.",
+    "Both full-system-simulation and toko360-full-uat must report P4 canonical ownership probe success before P4 can become RUNTIME_VERIFIED."
+  ],
+  "verificationGates": [
+    "P4 exact-source runtime gate proves canonical /returns/* stays live, legacy /sale-returns* and /purchase-returns* are router-missing/absent from Swagger, and nine-domain ownership manifest is complete.",
+    "P4 aggregate gate requires handoff/quality/github-p4-canonical-ownership-probe-latest.json PASS on current source and productionTouched=false."
+  ]
 }

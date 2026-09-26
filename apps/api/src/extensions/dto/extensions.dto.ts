@@ -15,29 +15,6 @@ export class CreateSerialDto {
   @ApiProperty() @IsString() productId!: string;
   @ApiProperty() @IsString() serialNumber!: string;
 }
-export class ReturnItemDto {
-  @ApiProperty() @IsString() productId!: string;
-  @ApiProperty() @IsInt() @Min(1) quantity!: number;
-  @ApiProperty() @IsNumber() @Min(0) unitAmount!: number;
-  @ApiPropertyOptional() @IsOptional() @IsString() condition?: string;
-  @ApiPropertyOptional() @IsOptional() restock?: boolean;
-  @ApiPropertyOptional() @IsOptional() @IsString() reason?: string;
-}
-export class CreateSaleReturnDto {
-  @ApiProperty() @IsString() saleId!: string;
-  @ApiProperty() @IsString() warehouseId!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() reason?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() refundMethod?: string;
-  @ApiProperty({ type: [ReturnItemDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => ReturnItemDto) items!: ReturnItemDto[];
-}
-export class CreatePurchaseReturnDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() purchaseOrderId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() goodsReceiptId?: string;
-  @ApiProperty() @IsString() supplierId!: string;
-  @ApiProperty() @IsString() warehouseId!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() reason?: string;
-  @ApiProperty({ type: [ReturnItemDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => ReturnItemDto) items!: ReturnItemDto[];
-}
 export class CreateLoyaltyProgramDto {
   @ApiPropertyOptional({ description: 'Legacy compatibility only; tenant tetap berasal dari token.' }) @IsOptional() @IsString() companyId?: string;
   @ApiProperty() @IsString() name!: string;

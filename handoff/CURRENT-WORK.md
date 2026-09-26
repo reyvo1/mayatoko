@@ -1,3 +1,21 @@
+# CURRENT AUTHORITATIVE WORK — 2026-09-26 P4 FULL
+
+Active work item: `T360-20260925-180000-product-completion-after-full-audit.json`.
+
+- Current phase: **P4 — Legacy Surface Cleanup and Canonical Domain Ownership**.
+- Delivery boundary: **one P4 FULL atomic wave**; no alias-only or per-domain operator boundaries.
+- P3 FULL is **RUNTIME_VERIFIED** on commit `c61273e99104c0dbdc61ee4790379d4ed2edd8a3`, source fingerprint `cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5`.
+- Supplied green GitHub evidence: `logs_97975412612.zip`, `logs_97975412413.zip`, `logs_97975412340.zip`; P3 productization, Stage-19, automated Stage-20, R8, full-system aggregate and Automated UAT all PASS on the exact source.
+- Human Stage-20 remains **PENDING** and is not promoted by P3/P4 automation.
+- P0-P3 business source is frozen unless new regression evidence appears.
+- P4 removes legacy `/sale-returns*` and `/purchase-returns*` only because active repository consumer verification found no consumer; `/returns/*` remains authoritative.
+- `config/canonical-domain-ownership.json` is the P4 machine-readable owner/ledger map for inventory, returns, accounting, payments, notifications, payroll, assets, marketplace and summaries.
+- P4 exact-runtime closure requires `handoff/quality/github-p4-canonical-ownership-probe-latest.json` PASS with `productionTouched=false` in both heavy GitHub workflows and aggregate reporting on the same source fingerprint.
+- P5 must not start until P4 exact-source runtime gate and aggregate are green.
+- Post-completion roadmap is now canonical: `docs/TOKO360-POST-COMPLETION-HYBRID-BRANCH-WORKFLOW.md` / POST-1. It starts only after P7 + Human Stage-20 + current PRODUCT_READY; it must not interrupt P4-P7.
+
+---
+
 # CURRENT AUTHORITATIVE WORK — 2026-09-26 P3 FULL
 
 Active work item: `T360-20260925-180000-product-completion-after-full-audit.json`.

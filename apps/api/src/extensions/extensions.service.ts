@@ -8,15 +8,9 @@ import type { EdgeDeviceIdentity } from './edge-device-auth.service';
 import { AuthUser } from '../auth/auth.types';
 import { nextDocumentNumber } from '../common/numbering';
 import { PrismaService } from '../prisma/prisma.service';
-import { ReturnsService } from '../returns/returns.service';
 import {
-  ConfirmReturnDto,
-  CreatePurchaseReturnDto as TenantCreatePurchaseReturnDto,
-  CreateSaleReturnDto as TenantCreateSaleReturnDto,
-} from '../returns/dto/returns.dto';
-import {
-  CreateBatchDto, CreateFiscalPeriodDto, CreateLoyaltyProgramDto, CreatePurchaseReturnDto, CreateReconciliationDto,
-  CreateSaleReturnDto, CreateSerialDto, CreateShipmentDto, ImportBankStatementDto, ImportMarketplaceOrderDto,
+  CreateBatchDto, CreateFiscalPeriodDto, CreateLoyaltyProgramDto, CreateReconciliationDto,
+  CreateSerialDto, CreateShipmentDto, ImportBankStatementDto, ImportMarketplaceOrderDto,
   LoyaltyTransactionDto, MatchBankReconciliationDto, QueueNotificationDto, RegisterDeviceDto, RunForecastDto, UpsertNotificationTemplateDto,
   AcknowledgeSyncReceiptDto, OperatorAssistantQueryDto, RotateDeviceCredentialDto, SubmitOfflineTransactionsDto, UnmatchBankReconciliationDto,
   MaterializeDailySummariesDto, RunDataArchiveDto, UpsertDataRetentionPolicyDto, UpsertExternalMappingDto,
@@ -55,7 +49,6 @@ type TenantScope = { companyId: string; branchId: string };
 export class ExtensionsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly returns: ReturnsService,
     private readonly secrets: SecretProtectorService,
   ) {}
 
@@ -478,75 +471,6 @@ export class ExtensionsService {
       });
       return serial;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-  }
-
-  saleReturns(user: AuthUser) { return this.returns.listSaleReturns(user); }
-
-  async createSaleReturn(dto: CreateSaleReturnDto, user: AuthUser) {
-    const scope = this.requireTenantScope(user);
-    const sale = await this.prisma.sale.findFirst({
-      where: { id: dto.saleId, branchId: scope.branchId, branch: { companyId: scope.companyId } },
-      include: { items: true },
-    });
-    if (!sale) return this.denyTenantAccess(this.prisma, user, scope, 'Sale', dto.saleId);
-    await this.assertWarehouse(this.prisma, user, scope, dto.warehouseId);
-    if (sale.warehouseId !== dto.warehouseId) throw new BadRequestException('Gudang retur harus sesuai dengan gudang penjualan.');
-    const mapped: TenantCreateSaleReturnDto = {
-      saleId: dto.saleId,
-      warehouseId: dto.warehouseId,
-      reason: dto.reason,
-      refundMethod: dto.refundMethod,
-      items: dto.items.map((item) => {
-        const candidates = sale.items.filter((row) => row.productId === item.productId);
-        if (candidates.length !== 1) {
-          throw new BadRequestException(`Produk ${item.productId} harus dipilih melalui endpoint returns canonical berdasarkan saleItemId.`);
-        }
-        return { saleItemId: candidates[0].id, quantity: item.quantity, condition: item.condition, restock: item.restock };
-      }),
-    };
-    return this.returns.createSaleReturn(mapped, user);
-  }
-
-  completeSaleReturn(id: string, user: AuthUser) {
-    return this.returns.confirmSaleReturn(id, new ConfirmReturnDto(), user);
-  }
-
-  purchaseReturns(user: AuthUser) { return this.returns.listPurchaseReturns(user); }
-
-  async createPurchaseReturn(dto: CreatePurchaseReturnDto, user: AuthUser) {
-    const scope = this.requireTenantScope(user);
-    if (!dto.goodsReceiptId) {
-      throw new BadRequestException('goodsReceiptId wajib untuk endpoint retur pembelian lama. Gunakan endpoint returns canonical.');
-    }
-    const receipt = await this.prisma.goodsReceipt.findUnique({
-      where: { id: dto.goodsReceiptId },
-      include: { items: true, warehouse: { include: { branch: true } } },
-    });
-    if (!receipt
-      || receipt.warehouse.branchId !== scope.branchId
-      || receipt.warehouse.branch.companyId !== scope.companyId) {
-      return this.denyTenantAccess(this.prisma, user, scope, 'GoodsReceipt', dto.goodsReceiptId);
-    }
-    if (receipt.supplierId !== dto.supplierId || receipt.warehouseId !== dto.warehouseId
-      || (dto.purchaseOrderId && receipt.purchaseOrderId !== dto.purchaseOrderId)) {
-      throw new BadRequestException('Referensi retur pembelian tidak sesuai dengan goods receipt tenant.');
-    }
-    const mapped: TenantCreatePurchaseReturnDto = {
-      goodsReceiptId: receipt.id,
-      reason: dto.reason,
-      items: dto.items.map((item) => {
-        const candidates = receipt.items.filter((row) => row.productId === item.productId);
-        if (candidates.length !== 1) {
-          throw new BadRequestException(`Produk ${item.productId} harus dipilih melalui endpoint returns canonical berdasarkan goodsReceiptItemId.`);
-        }
-        return { goodsReceiptItemId: candidates[0].id, quantity: item.quantity, reason: item.reason };
-      }),
-    };
-    return this.returns.createPurchaseReturn(mapped, user);
-  }
-
-  completePurchaseReturn(id: string, user: AuthUser) {
-    return this.returns.confirmPurchaseReturn(id, new ConfirmReturnDto(), user);
   }
 
   async loyaltyPrograms(user: AuthUser, requestedCompanyId?: string) {

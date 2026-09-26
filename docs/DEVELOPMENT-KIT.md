@@ -193,7 +193,7 @@ API menggunakan `/api/v1`, Swagger di `/docs`. Modul lanjutan meliputi:
 - `/platform/manifest`, flags, settings, custom fields, UI schemas, integrations, webhooks, rules, approvals.
 - `/stock-transfers`, `/stock-opnames`.
 - `/inventory-batches`, `/inventory-serials`.
-- `/sale-returns`, `/purchase-returns`.
+- Canonical returns: `/returns/sales*`, `/returns/purchases*`, `/returns/orders*`; legacy `/sale-returns*` and `/purchase-returns*` are removed after P4 compatibility verification.
 - `/loyalty/*`.
 - `/finance/fiscal-periods`, bank statements, reconciliations.
 - `/devices/:id/offline-transactions`.

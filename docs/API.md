@@ -31,9 +31,15 @@ Base URL: `/api/v1`. Dokumentasi interaktif: `/docs`.
 - `/stock-opnames`: create, count, submit, complete.
 - `/inventory-batches`, `/inventory-serials`.
 
+## Returns
+
+- Canonical sale returns: `/returns/sales*`.
+- Canonical purchase returns: `/returns/purchases*`.
+- Canonical storefront/order returns: `/returns/orders*` and `/storefront/account/returns*`.
+- Legacy `/sale-returns*` and `/purchase-returns*` aliases were removed in Product Completion P4 after repository consumer verification.
+
 ## Extensions
 
-- `/sale-returns`, `/purchase-returns`.
 - `/loyalty/programs`, `/loyalty/transactions`.
 - `/finance/fiscal-periods`, `/finance/bank-statements/import`, `/finance/reconciliations`.
 - `/devices`, `/devices/:id/offline-transactions`.

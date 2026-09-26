@@ -47,7 +47,11 @@
     "Daily summary ownership is ADMIN_EXPLICIT in P3: materialization is an intentional Admin Data Governance operation; worker automatic ownership must not be claimed unless a later phase explicitly changes the contract.",
     "Feature enabled state and product maturity are separate truths; scoped feature overrides must preserve catalog maturityClass, operatorVisibility, ownership and helpText.",
     "Archive execution requires explicit ARCHIVE confirmation and retains status/error/checksum/artifact URI/provider history; P3 runtime verification must prove this on non-production exact source.",
-    "P3 exact-runtime closure requires ci:p3:probe PASS in both exact-source GitHub workflows and aggregate evidence on the same source fingerprint with productionTouched=false."
+    "P3 exact-runtime closure requires ci:p3:probe PASS in both exact-source GitHub workflows and aggregate evidence on the same source fingerprint with productionTouched=false.",
+    "P3 FULL is runtime-verified on exact-source commit c61273e99104c0dbdc61ee4790379d4ed2edd8a3 / fingerprint cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5; P3 is frozen without regression evidence.",
+    "P4 is one atomic wave: verified-unused /sale-returns* and /purchase-returns* aliases are removed, /returns/* remains authoritative, and nine-domain ownership truth is machine-readable.",
+    "P4 exact-runtime closure requires ci:p4:probe PASS in both heavy GitHub workflows and aggregate evidence with productionTouched=false.",
+    "Post-completion POST-1 is planned only after P7 + Human Stage-20 + current PRODUCT_READY: each store/branch gets a local-first TOKO360 server, central hosting consolidates through event/transaction sync, mobile/PWA and Telegram use canonical APIs, and LAN price kiosks are read-only; POST-1 must not interrupt P4-P7."
   ],
   "acceptanceCriteria": [
     "P0-P7 are executed in order without skipping dependency gates.",
@@ -60,7 +64,10 @@
     "Admin, POS, Storefront, and Employee Portal pass human visual acceptance after page-level redesign.",
     "Final exact-source runtime simulation and Human Stage-20 both pass before PRODUCT_READY=true.",
     "P3 A-05/A-06/A-08/A-11 ship as one wave with Admin operator ownership, maturity truth, and exact-runtime evidence.",
-    "P3 exact-runtime probe proves session revoke denial, API-key rotation/revoke, archive safety/history/checksum/artifact, Admin daily summary materialization, audit events and feature maturity truth."
+    "P3 exact-runtime probe proves session revoke denial, API-key rotation/revoke, archive safety/history/checksum/artifact, Admin daily summary materialization, audit events and feature maturity truth.",
+    "P4 removes legacy return aliases only after compatibility/consumer verification and proves canonical /returns/* remains live.",
+    "P4 canonical ownership audit covers inventory, returns, accounting, payments, notifications, payroll, assets, marketplace and summaries.",
+    "A canonical post-completion roadmap exists for hybrid central-host + per-branch local servers, deterministic offline/online sync, mobile/PWA + Telegram stock operations, and LAN barcode price kiosks, while remaining explicitly non-blocking for P0-P7 PRODUCT_READY."
   ],
   "testPlan": [
     "npm run prisma:generate:postgres -w @toko360/api",
@@ -86,7 +93,10 @@
     "Document-number tenant-scope regression: two tenant-local sequences may both start at 000001, but generated business numbers must remain globally distinct and branch scope must be validated against company.",
     "node --test tests/product-completion-p3-hidden-capability-productization.test.mjs",
     "Exact-source PostgreSQL P3 runtime: npm run ci:p3:probe; evidence handoff/quality/github-p3-productization-probe-latest.json must PASS with productionTouched=false.",
-    "Both full-system-simulation and toko360-full-uat must report P3 productization probe success before P3 can become RUNTIME_VERIFIED."
+    "Both full-system-simulation and toko360-full-uat must report P3 productization probe success before P3 can become RUNTIME_VERIFIED.",
+    "npm run audit:canonical:ownership",
+    "node --test tests/product-completion-p4-canonical-ownership.test.mjs",
+    "Exact-source PostgreSQL P4 runtime: npm run ci:p4:probe; evidence handoff/quality/github-p4-canonical-ownership-probe-latest.json must PASS with productionTouched=false."
   ],
   "migrationPlan": "Use expand-only migrations for new persistence required by functional-completeness fixes. Rehearse PostgreSQL migrations before exact-runtime closure. Never rewrite applied migration history.",
   "rollbackPlan": "Rollback one atomic wave at a time to the preceding clean exact-source checkpoint. Schema-changing waves require a documented compatibility/roll-forward strategy; do not use destructive migration rollback against shared data.",
@@ -98,14 +108,17 @@
     "handoff/CURRENT-WORK.md",
     "TOKO360-FULL-FUNCTIONAL-AUDIT-2026-09-25.md",
     "config/product-completeness.json",
-    "docs/PRODUCT-COMPLETENESS-STATUS.md"
+    "docs/PRODUCT-COMPLETENESS-STATUS.md",
+    "docs/TOKO360-POST-COMPLETION-HYBRID-BRANCH-WORKFLOW.md"
   ],
   "createdAt": "2026-09-25T18:00:00+08:00",
-  "updatedAt": "2026-09-26T02:18:00+08:00",
+  "updatedAt": "2026-09-26T04:10:00+08:00",
   "verificationGates": [
     "P2 Payroll exact-source PostgreSQL runtime: execute GROSS, GROSS_UP and NET in one effective-dated payroll period, prove actual split component/rule allocation, balanced posting, salary settlement, post-payment differential adjustment, employee-receivable recovery and recovery settlement.",
     "P2 full aggregate gate requires both handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json and handoff/quality/github-p2-payroll-runtime-probe-latest.json PASS on matching source fingerprints with productionTouched=false.",
     "P3 exact-source runtime gate covers A-05 retention/archive, A-06 API-key/session lifecycle, A-08 capability maturity truth, and A-11 explicit Admin daily-summary ownership as one atomic wave.",
-    "P3 aggregate gate requires handoff/quality/github-p3-productization-probe-latest.json PASS on current source and productionTouched=false."
+    "P3 aggregate gate requires handoff/quality/github-p3-productization-probe-latest.json PASS on current source and productionTouched=false.",
+    "P4 exact-source runtime gate proves legacy return aliases are absent from Swagger/router while canonical /returns/* routes remain live.",
+    "P4 aggregate gate requires github-p4-canonical-ownership-probe-latest.json PASS on the current source fingerprint with productionTouched=false."
   ]
 }

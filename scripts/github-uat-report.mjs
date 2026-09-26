@@ -24,6 +24,7 @@ const rows = [
   ['R5 assets/fleet runtime probe', process.env.STEP_R5_ASSETS_FLEET],
   ['R6 scale/summary/archive/capability runtime probe', process.env.STEP_R6_SCALE_AI],
   ['P3 hidden capability productization and maturity truth', process.env.STEP_P3_PRODUCTIZATION],
+  ['P4 canonical domain ownership and legacy-surface removal', process.env.STEP_P4_CANONICAL_OWNERSHIP],
   ['R3 residual payment/reporting/edge/marketplace runtime probe', process.env.STEP_R3_RESIDUAL],
   ['R7 full UI / information architecture probe', process.env.STEP_R7_UI],
   ['R8 reporting/security runtime probe', process.env.STEP_R8_REPORTING_SECURITY],

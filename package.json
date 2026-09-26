@@ -102,7 +102,7 @@
     "ci:preflight:local": "npm run workflow:validate && npm run validate:repo && npm run test:dependency-free",
     "ci:security:proposal": "node scripts/ci-propose-security-dependency-refresh.mjs",
     "uat:pre-github:local": "node scripts/run-local-candidate-gate.mjs",
-    "audit:full:repo": "node scripts/audit-full-repository.mjs && npm run audit:product:completeness && npm run audit:admin:contextual",
+    "audit:full:repo": "node scripts/audit-full-repository.mjs && npm run audit:product:completeness && npm run audit:admin:contextual && npm run audit:canonical:ownership",
     "ci:api:sweep": "node scripts/ci-runtime-api-sweep.mjs",
     "ci:ui:audit": "node scripts/ci-ui-source-audit.mjs",
     "ci:provider:probe": "node scripts/ci-notification-provider-probe.mjs",
@@ -121,7 +121,9 @@
     "audit:admin:contextual": "node scripts/audit-admin-contextual-workflows.mjs",
     "ci:p2a:multi-uom-probe": "node scripts/ci-p2a-multi-uom-runtime-probe.mjs",
     "ci:p2:payroll-probe": "node scripts/ci-p2-payroll-runtime-probe.mjs",
-    "ci:p3:probe": "node scripts/ci-p3-productization-probe.mjs"
+    "ci:p3:probe": "node scripts/ci-p3-productization-probe.mjs",
+    "audit:canonical:ownership": "node scripts/audit-canonical-domain-ownership.mjs",
+    "ci:p4:probe": "node scripts/ci-p4-canonical-ownership-probe.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",

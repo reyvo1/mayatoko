@@ -7,16 +7,13 @@ const controller = read('apps/api/src/extensions/extensions.controller.ts');
 const service = read('apps/api/src/extensions/extensions.service.ts');
 const dto = read('apps/api/src/extensions/dto/extensions.dto.ts');
 const moduleSource = read('apps/api/src/extensions/extensions.module.ts');
-const returnsModule = read('apps/api/src/returns/returns.module.ts');
-const legacyReturns = service.slice(service.indexOf('  saleReturns('), service.indexOf('  async loyaltyPrograms('));
 const syncBlock = service.slice(service.indexOf('  async devices('), service.indexOf('  async forecasts('));
 
 const methodReceivesUser = (method) => new RegExp(`${method}\\([^;]*@CurrentUser\\(\\) user: AuthUser`, 's');
 
 test('remaining extension endpoints receive authenticated tenant context', () => {
   for (const method of [
-    'batches', 'createBatch', 'serials', 'createSerial', 'saleReturns', 'createSaleReturn',
-    'completeSaleReturn', 'purchaseReturns', 'createPurchaseReturn', 'completePurchaseReturn',
+    'batches', 'createBatch', 'serials', 'createSerial',
     'loyaltyPrograms', 'createLoyaltyProgram', 'loyaltyTransaction', 'devices', 'registerDevice',
     'submitOfflineTransactions', 'forecasts', 'runForecast', 'shipments', 'createShipment',
     'marketplaces', 'importMarketplaceOrder', 'notifications', 'queueNotification',
@@ -40,18 +37,12 @@ test('inventory batches and serials are constrained to token warehouses', () => 
   assert.match(service, /'CREATE_INVENTORY_SERIAL'/);
 });
 
-test('legacy return routes delegate to canonical tenant-safe returns service', () => {
-  assert.match(moduleSource, /imports: \[ReturnsModule, PlatformModule\]/);
-  assert.match(returnsModule, /exports: \[ReturnsService\]/);
-  assert.match(service, /private readonly returns: ReturnsService/);
-  assert.match(legacyReturns, /this\.returns\.listSaleReturns\(user\)/);
-  assert.match(legacyReturns, /this\.returns\.createSaleReturn\(mapped, user\)/);
-  assert.match(legacyReturns, /this\.returns\.confirmSaleReturn\(id, new ConfirmReturnDto\(\), user\)/);
-  assert.match(legacyReturns, /this\.returns\.listPurchaseReturns\(user\)/);
-  assert.match(legacyReturns, /this\.returns\.createPurchaseReturn\(mapped, user\)/);
-  assert.match(legacyReturns, /this\.returns\.confirmPurchaseReturn\(id, new ConfirmReturnDto\(\), user\)/);
-  assert.doesNotMatch(legacyReturns, /inventoryMovement\.create/);
-  assert.doesNotMatch(legacyReturns, /eventOutbox\.create/);
+test('P4 removes legacy return aliases from extensions and keeps returns ownership canonical', () => {
+  assert.match(moduleSource, /imports: \[PlatformModule\]/);
+  assert.doesNotMatch(moduleSource, /ReturnsModule/);
+  assert.doesNotMatch(controller, /sale-returns|purchase-returns/);
+  assert.doesNotMatch(service, /ReturnsService|saleReturns\(|createSaleReturn\(|completeSaleReturn\(|purchaseReturns\(|createPurchaseReturn\(|completePurchaseReturn\(/);
+  assert.doesNotMatch(dto, /class CreateSaleReturnDto|class CreatePurchaseReturnDto|class ReturnItemDto/);
 });
 
 test('loyalty program and transactions remain inside token company', () => {
