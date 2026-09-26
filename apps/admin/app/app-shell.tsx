@@ -38,7 +38,7 @@ export default function AdminAppShell({ manifest, identity, navigation, activeWo
   const navigate = (route: string) => { setMobileOpen(false); onNavigate(route); };
 
   return (
-    <div className="shell">
+    <div className="shell" data-visual-product="admin" data-visual-workspace={activeWorkspace.key} data-visual-view={effectiveDomainView?.key ?? "overview"}>
       <a className="skipLink" href="#admin-main">Lewati ke konten utama</a>
       <aside className={`sidebar ${mobileOpen ? 'mobileOpen' : ''}`} aria-label="Navigasi Admin">
         <div className="logo">
@@ -90,11 +90,19 @@ export default function AdminAppShell({ manifest, identity, navigation, activeWo
         </header>
 
         <main id="admin-main" className="content" tabIndex={-1} data-admin-workspace={activeWorkspace.key} data-admin-view={effectiveDomainView?.key ?? ""}>
-          <section className="pageHeader">
+          <section className="pageHeader" data-visual-role="page-header">
             <div className="pageHeaderCopy">
               <div className="pageHeaderKicker"><span className="eyebrow">{activeWorkspace.eyebrow}</span><span>{manifest?.branch?.name ?? 'Branch context'}</span></div>
-              <h1>{effectiveDomainView?.title ?? activeWorkspace.title}</h1>
+              <div className="pageTitleRow">
+                <h1>{effectiveDomainView?.title ?? activeWorkspace.title}</h1>
+                <span className="pageWorkspaceBadge">{activeWorkspace.label}</span>
+              </div>
               <p className="pageDesc">{effectiveDomainView?.description ?? activeWorkspace.description}</p>
+              <div className="pageContextStrip" aria-label="Konteks workspace">
+                <span>{manifest?.company?.name ?? 'Tenant'}</span>
+                <span>{manifest?.branch?.code ?? manifest?.branch?.name ?? 'Branch'}</span>
+                <span>{domainViews.length ? `${domainViews.length} area kerja` : 'Ringkasan workspace'}</span>
+              </div>
             </div>
             {headerAction && <div className="pageHeaderActions">{headerAction}</div>}
           </section>

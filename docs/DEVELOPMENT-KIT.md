@@ -596,3 +596,8 @@ Empat operator-facing application memakai Tailwind CSS v4 sebagai presentation f
 Admin information architecture wajib memperjelas Tenant/User/System, Telegram/WhatsApp/owner reporting, dan AI/forecast assistant. Fitur backend tidak dianggap selesai secara produk bila operator tidak memiliki route/menu/configuration flow yang jelas.
 
 Full GitHub UAT wajib menjalankan structural repo audit, UI interaction inventory, PostgreSQL migration rehearsal, exact build, browser route/workspace + responsive geometry sweep, seluruh documented OpenAPI runtime sweep, Telegram/WhatsApp/owner-digest provider simulation, worker/report probe, tenant integration, Stage-18/19/20, staging/load/index/DR, dan evidence aggregation. Optional live Telegram test memakai protected `provider-uat` GitHub Environment. Detail canonical berada di `docs/FULL-GITHUB-UAT.md`.
+
+
+## P5 Full Visual Product Rebuild
+
+P5 is a single four-product visual wave. Canonical coverage is `config/p5-visual-surface-map.json`. Local/source verification includes `npm run audit:p5:visual` and `node --test tests/product-completion-p5-visual-rebuild.test.mjs`. Exact-source GitHub browser verification uses `npm run ci:p5:probe` and writes `handoff/quality/github-p5-visual-rebuild-probe-latest.json`. Automated P5 evidence must keep `humanAcceptance=PENDING`; human UI acceptance is a distinct required gate.

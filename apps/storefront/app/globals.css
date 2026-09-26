@@ -6,3 +6,51 @@
 @media(pointer:coarse){button,input,select{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
 
 .branchChooser select{@apply min-w-36 rounded-lg border border-store-border bg-store-surface px-3 py-2 text-xs text-store-text outline-none focus:border-blue-500}.srOnly{@apply sr-only}
+/* P5 — customer storefront visual rebuild */
+.storefrontApp[data-visual-product="storefront"] { @apply bg-[#0a0d12]; }
+.storefrontApp[data-visual-product="storefront"] .storefrontHeader { @apply border-[#262f3f] bg-[#0a0d12]/95; box-shadow: 0 8px 24px rgba(0,0,0,.14); }
+.storefrontApp[data-visual-product="storefront"] .storefrontHeaderInner { @apply h-[72px] max-w-[1520px] gap-4 px-4 md:px-7; }
+.storefrontApp[data-visual-product="storefront"] .brandMark { @apply h-10 w-10 rounded-[14px] shadow-lg shadow-blue-950/40; }
+.storefrontApp[data-visual-product="storefront"] .brandText strong { @apply text-[15px] font-semibold; }
+.storefrontApp[data-visual-product="storefront"] .desktopNav { @apply ml-7 gap-2; }
+.storefrontApp[data-visual-product="storefront"] .desktopNav button { @apply min-h-10 rounded-xl px-3.5; }
+.storefrontApp[data-visual-product="storefront"] .desktopNav button.active { @apply border border-blue-400/20 bg-[#16233a] text-blue-200; }
+.storefrontApp[data-visual-product="storefront"] .accountShortcut { @apply rounded-xl border-[#2c3648] bg-[#111720]; }
+.storefrontApp[data-visual-product="storefront"] .storefrontMain { @apply max-w-[1520px] px-4 py-6 md:px-7 md:py-8; }
+.storefrontApp[data-visual-product="storefront"] .viewContext { @apply mb-3 text-[9px] tracking-[.17em]; }
+.storefrontApp[data-visual-product="storefront"] .storefrontViewHeader { @apply mb-5 flex flex-col gap-3 rounded-2xl border border-[#262f3f] bg-[#111720] p-5 md:flex-row md:items-end md:justify-between md:p-6; box-shadow: 0 12px 30px rgba(0,0,0,.12); }
+.storefrontApp[data-visual-product="storefront"] .storefrontViewHeader h1 { @apply m-0 text-2xl font-semibold tracking-tight md:text-[28px]; }
+.storefrontApp[data-visual-product="storefront"] .storefrontViewHeader p { @apply m-0 mt-1.5 max-w-2xl text-[13px] leading-6 text-store-muted; }
+.storefrontApp[data-visual-product="storefront"] .storefrontBranchContext { @apply inline-flex min-h-8 w-fit items-center rounded-full border border-[#303a4d] bg-[#0a0f16] px-3 text-[10px] font-semibold text-slate-300; }
+.storefrontApp[data-visual-product="storefront"] .storefrontViewBody { @apply min-w-0; }
+
+.storefrontApp[data-visual-product="storefront"] .panel,
+.storefrontApp[data-visual-product="storefront"] .orderPanel,
+.storefrontApp[data-visual-product="storefront"] .productDetail,
+.storefrontApp[data-visual-product="storefront"] .homeDeck { @apply rounded-2xl border-[#262f3f] bg-[#111720] p-5 md:p-6; box-shadow: 0 10px 26px rgba(0,0,0,.12); }
+.storefrontApp[data-visual-product="storefront"] .homeIntro { @apply gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,.4fr)]; }
+.storefrontApp[data-visual-product="storefront"] .homeIntro h1 { @apply text-4xl leading-tight md:text-5xl; }
+.storefrontApp[data-visual-product="storefront"] .homeSubtitle { @apply text-[15px] leading-7; }
+.storefrontApp[data-visual-product="storefront"] .metricDeck { @apply mt-5 gap-3; }
+.storefrontApp[data-visual-product="storefront"] .metricDeck>div { @apply rounded-2xl border-[#262f3f] bg-[#111720] p-4; }
+.storefrontApp[data-visual-product="storefront"] .catalogToolbar { @apply mb-4 rounded-2xl border border-[#262f3f] bg-[#111720] p-3.5; }
+.storefrontApp[data-visual-product="storefront"] .productGrid { @apply gap-3 md:gap-4; }
+.storefrontApp[data-visual-product="storefront"] .productCard { @apply rounded-2xl border-[#283246] bg-[#111720]; }
+.storefrontApp[data-visual-product="storefront"] .productCard:hover { box-shadow: 0 14px 30px rgba(0,0,0,.18); }
+.storefrontApp[data-visual-product="storefront"] .productImage,
+.storefrontApp[data-visual-product="storefront"] .productDetailVisual { @apply bg-[#171e29]; }
+.storefrontApp[data-visual-product="storefront"] .productCard>div:not(.productImage) { @apply p-4; }
+.storefrontApp[data-visual-product="storefront"] .productDetail { @apply gap-6 lg:grid-cols-[minmax(340px,.72fr)_minmax(0,1.28fr)]; }
+.storefrontApp[data-visual-product="storefront"] .checkoutGrid { @apply gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(340px,.75fr)]; }
+.storefrontApp[data-visual-product="storefront"] .emptyState { @apply min-h-48 rounded-2xl border-[#303a4d] bg-[#0d1219] p-7; }
+
+@media(max-width:639px){
+  .storefrontApp[data-visual-product="storefront"] .storefrontHeaderInner { @apply h-16 px-3; }
+  .storefrontApp[data-visual-product="storefront"] .storefrontMain { @apply px-3 py-4; }
+  .storefrontApp[data-visual-product="storefront"] .storefrontViewHeader { @apply mb-4 rounded-xl p-4; }
+  .storefrontApp[data-visual-product="storefront"] .homeIntro h1 { @apply text-[30px]; }
+  .storefrontApp[data-visual-product="storefront"] .panel,
+  .storefrontApp[data-visual-product="storefront"] .orderPanel,
+  .storefrontApp[data-visual-product="storefront"] .productDetail,
+  .storefrontApp[data-visual-product="storefront"] .homeDeck { @apply rounded-xl p-4; }
+}

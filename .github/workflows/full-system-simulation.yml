@@ -240,6 +240,11 @@ jobs:
         continue-on-error: true
         run: npm run ci:r7:probe
 
+      - name: Verify P5 full visual product rebuild screenshot matrix
+        id: p5_visual_rebuild
+        continue-on-error: true
+        run: npm run ci:p5:probe
+
       - name: Start exact built runtime for certification and load
         id: runtime_start
         continue-on-error: true
@@ -554,6 +559,7 @@ jobs:
           T360_CI_STEP_P4_CANONICAL_OWNERSHIP: ${{ steps.p4_canonical_ownership.outcome }}
           T360_CI_STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           T360_CI_STEP_R7_UI: ${{ steps.r7_ui.outcome }}
+          T360_CI_STEP_P5_VISUAL: ${{ steps.p5_visual_rebuild.outcome }}
           T360_CI_STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}
           T360_CI_STEP_R8_RELEASE: ${{ steps.r8_release.outcome }}
           T360_CI_STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}

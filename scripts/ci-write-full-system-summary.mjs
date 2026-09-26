@@ -70,6 +70,7 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
   const r6ScaleAi = readJson(root, 'handoff/quality/github-r6-scale-ai-probe-latest.json');
   const p3Productization = readJson(root, 'handoff/quality/github-p3-productization-probe-latest.json');
   const p4CanonicalOwnership = readJson(root, 'handoff/quality/github-p4-canonical-ownership-probe-latest.json');
+  const p5VisualRebuild = readJson(root, 'handoff/quality/github-p5-visual-rebuild-probe-latest.json');
   const r3Residual = readJson(root, 'handoff/quality/github-r3-residual-probe-latest.json');
   const r7Ui = readJson(root, 'handoff/quality/github-r7-ui-probe-latest.json');
   const r8ReportingSecurity = readJson(root, 'handoff/quality/github-r8-reporting-security-probe-latest.json');
@@ -118,6 +119,7 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
     r6ScaleAi: gateStatus(r6ScaleAi, current, (v) => v.status === 'PASS' && Object.values(v.checks || {}).every(Boolean)),
     p3Productization: gateStatus(p3Productization, current, (v) => v.status === 'PASS' && v.productionTouched === false && Object.values(v.checks || {}).every(Boolean)),
     p4CanonicalOwnership: gateStatus(p4CanonicalOwnership, current, (v) => v.status === 'PASS' && v.productionTouched === false && Object.values(v.checks || {}).every(Boolean) && v.ownership?.domainCount === 9),
+    p5VisualRebuild: gateStatus(p5VisualRebuild, current, (v) => v.status === 'PASS' && v.productionTouched === false && v.humanAcceptance === 'PENDING' && Object.values(v.checks || {}).every(Boolean) && v.screenshotCounts?.adminPrimary === 14 && v.screenshotCounts?.adminContextual === 13 && v.screenshotCounts?.pos === 4 && v.screenshotCounts?.storefront === 5 && v.screenshotCounts?.employeePortal === 7),
     r3Residual: gateStatus(r3Residual, current, (v) => v.status === 'PASS' && Object.values(v.checks || {}).every(Boolean)),
     r7Ui: gateStatus(r7Ui, current, (v) => v.status === 'PASS' && Object.values(v.checks || {}).every(Boolean) && v.workspaceCount >= 14),
     r8ReportingSecurity: gateStatus(r8ReportingSecurity, current, (v) => v.status === 'PASS' && Object.values(v.checks || {}).every(Boolean) && v.productionTouched === false),
@@ -159,6 +161,7 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
     r6ScaleAi: stepOutcome(env, 'T360_CI_STEP_R6_SCALE_AI'),
     p3Productization: stepOutcome(env, 'T360_CI_STEP_P3_PRODUCTIZATION'),
     p4CanonicalOwnership: stepOutcome(env, 'T360_CI_STEP_P4_CANONICAL_OWNERSHIP'),
+    p5VisualRebuild: stepOutcome(env, 'T360_CI_STEP_P5_VISUAL'),
     r3Residual: stepOutcome(env, 'T360_CI_STEP_R3_RESIDUAL'),
     r7Ui: stepOutcome(env, 'T360_CI_STEP_R7_UI'),
     r8ReportingSecurity: stepOutcome(env, 'T360_CI_STEP_R8_REPORTING_SECURITY'),
@@ -177,7 +180,7 @@ export function collectFullSystemSummary(root = process.cwd(), env = process.env
   const priorJobStatus = String(env.T360_CI_JOB_STATUS || 'unknown').toLowerCase();
   const requiredAutomated = [
     'build','buildArtifact','artifactTransport','dependencyAudit','criticalUatCoverage','repositoryAudit','uiInteractionAudit','stage18','payrollMigration','stage19',
-    'builtBrowser','r7Ui','workerRuntime','apiRuntimeSweep','r1TenantAccess','r2HrPayroll','r4CoreBusiness','p2aMultiUom','p2Payroll','r5AssetsFleet','r6ScaleAi','p3Productization','p4CanonicalOwnership','notificationProviderProbe','stagingCertification','load','indexProfile','dr','stage20Automated',
+    'builtBrowser','r7Ui','workerRuntime','apiRuntimeSweep','r1TenantAccess','r2HrPayroll','r4CoreBusiness','p2aMultiUom','p2Payroll','r5AssetsFleet','r6ScaleAi','p3Productization','p4CanonicalOwnership','p5VisualRebuild','notificationProviderProbe','stagingCertification','load','indexProfile','dr','stage20Automated',
   ];
   const automatedPassed = requiredAutomated.every((key) => gate[key] === 'PASS');
   const reportedDiagnostics = Object.values(diagnosticSteps).filter((value) => value !== 'NOT_REPORTED');

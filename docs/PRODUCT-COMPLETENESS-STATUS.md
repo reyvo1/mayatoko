@@ -11,29 +11,34 @@ Rules:
 
 ## Current phase
 
-**P4 — Legacy Surface Cleanup and Canonical Domain Ownership**
+**P5 — Full Visual Product Rebuild**
 Status: **IMPLEMENTED_RUNTIME_PENDING**
-Delivery boundary: **P4 FULL one atomic wave**
+Delivery boundary: **P5 FULL one atomic wave across all four products**
 
-## P3 closure
+## P4 closure
 
-P3 FULL is `RUNTIME_VERIFIED` on:
-- commit `c61273e99104c0dbdc61ee4790379d4ed2edd8a3`;
-- source fingerprint `cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5`;
-- P3 hidden-capability runtime probe PASS in both heavy GitHub workflows;
+P4 FULL is `RUNTIME_VERIFIED` on:
+- commit `d305ade2050765de86c7f5ef1c54eb7426c5e25b`;
+- source fingerprint `cf6165fcc74e94abb3866230aa1764cee9487d4de6b630377465d20bda7d9246`;
+- P4 canonical ownership exact-runtime probe PASS;
 - Stage-19 and automated Stage-20 PASS;
 - R8 exact-source evidence PASS;
 - full-system aggregate PASS and Automated UAT PASS.
 
-A-05, A-06, A-08 and A-11 are `RUNTIME_VERIFIED`. Human Stage-20 remains separately PENDING.
+A-10 is `RUNTIME_VERIFIED`. Canonical `/returns/*` remains authoritative, legacy `/sale-returns*` and `/purchase-returns*` are absent, and nine-domain ownership remains guarded by `audit:canonical:ownership`. Human Stage-20 remains separately PENDING.
 
-## P4 FULL truth
+## P5 FULL truth
 
-- A-10 Legacy return aliases: `IMPLEMENTED_RUNTIME_PENDING`; `/sale-returns*` and `/purchase-returns*` are removed after repository consumer verification, while `/returns/*` remains authoritative.
-- Canonical ownership: `IMPLEMENTED_RUNTIME_PENDING`; `config/canonical-domain-ownership.json` records the single canonical owner and source-of-truth/ledger contract for inventory, returns, accounting, payments, notifications, payroll, assets, marketplace, and summaries.
-- `audit:canonical:ownership` fails closed if active source reintroduces legacy return aliases or any required ownership record/source/model disappears.
+- A-07: `IMPLEMENTED_RUNTIME_PENDING`; P5 is a page-level rebuild, not a global CSS or marker cleanup.
+- Admin: 14 primary workspaces + 13 representative contextual screenshot routes.
+- POS: 4 cashier-specific workspaces.
+- Storefront: 5 customer journey views.
+- Employee Portal: 7 authenticated self-service views.
+- Responsive evidence: 1440 / 1024 / 390 with max 3px accepted overflow.
+- Permanent source audit: `npm run audit:p5:visual`.
+- Exact-source Browser evidence: `npm run ci:p5:probe` → `handoff/quality/github-p5-visual-rebuild-probe-latest.json`.
 
-P4 closes to `RUNTIME_VERIFIED` only when `ci:p4:probe` passes on exact source in both heavy GitHub workflows and aggregate evidence remains green with `productionTouched=false`.
+P5 automation must preserve `humanAcceptance=PENDING`. Human visual acceptance is mandatory and cannot be inferred from screenshot counts, source tests, or automated Browser UAT.
 
 ## P2 closure
 
@@ -50,11 +55,6 @@ P2 FULL is `RUNTIME_VERIFIED` on:
 
 A-03 and A-04 are `RUNTIME_VERIFIED`. Human Stage-20 remains separately PENDING.
 
-## P3 FULL truth
+## P3 closure
 
-- A-05 Retention/archive: `IMPLEMENTED_RUNTIME_PENDING`; Admin Data Governance owns policy lifecycle, explicit archive execution, run history, status/error, provider/artifact URI and checksum.
-- A-06 Security lifecycle: `IMPLEMENTED_RUNTIME_PENDING`; API-key rotation/one-time secret lifecycle and active-session inventory/revoke/logout-all are intentional Admin workflows with audit feedback.
-- A-08 Maturity truth: `IMPLEMENTED_RUNTIME_PENDING`; runtime catalog exposes normalized maturity class, operator visibility, ownership and help text, and scoped feature overrides cannot erase catalog maturity truth.
-- A-11 Daily summary: `IMPLEMENTED_RUNTIME_PENDING`; ownership is explicitly `ADMIN_EXPLICIT`, not an implied worker automation.
-
-P3 closes to `RUNTIME_VERIFIED` only when `ci:p3:probe` passes on exact source in both heavy GitHub workflows and aggregate evidence remains green with `productionTouched=false`.
+P3 FULL is `RUNTIME_VERIFIED` on exact-source commit `c61273e99104c0dbdc61ee4790379d4ed2edd8a3`, source fingerprint `cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5`. A-05 Retention/archive, A-06 Security lifecycle, A-08 Maturity truth, and A-11 Admin-owned daily summary are closed by exact-source P3 probe, aggregate, and Automated UAT evidence. Human Stage-20 remains separately PENDING.

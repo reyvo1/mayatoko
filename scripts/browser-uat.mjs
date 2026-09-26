@@ -47,6 +47,7 @@ const surfaces = [
 ];
 
 const adminContextualWorkflowMap = JSON.parse(fs.readFileSync(path.join(root, 'config', 'admin-contextual-workflow-map.json'), 'utf8'));
+const p5VisualSurfaceMap = JSON.parse(fs.readFileSync(path.join(root, 'config', 'p5-visual-surface-map.json'), 'utf8'));
 const adminContextualRoutes = new Map();
 for (const row of adminContextualWorkflowMap.rows ?? []) {
   const route = `/${row.workspace}/${row.view}`;
@@ -219,6 +220,11 @@ async function captureSuccessScreenshot(cdp, name) {
   return path.relative(root, screenshotPath).replaceAll('\\', '/');
 }
 
+
+function screenshotSlug(value) {
+  return String(value || 'view').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'view';
+}
+
 async function clickAllNavigation(cdp, selector, label) {
   const labels = await evaluateValue(cdp, `([...document.querySelectorAll(${JSON.stringify(selector)})]).filter(x => x.getClientRects().length).map(x => (x.textContent || '').trim()).filter(Boolean)`);
   const visited = [];
@@ -363,6 +369,7 @@ async function main() {
       .filter((entry) => entry.route && entry.label)`);
     const adminWorkspaces = adminWorkspaceEntries.map((entry) => entry.label);
     const adminDomainViews = [];
+    const p5AdminPrimaryScreenshots = [];
     for (const entry of adminWorkspaceEntries) {
       const clicked = await evaluateValue(cdp, `(() => { const el=document.querySelector('.navItem[data-admin-route=${JSON.stringify(entry.route)}]'); if(!(el instanceof HTMLElement) || el.offsetParent===null)return false; el.click(); return true; })()`);
       if (!clicked) throw new Error(`Admin workspace hilang saat domain sweep: ${entry.label}`);
@@ -371,8 +378,23 @@ async function main() {
       await assertViewportIntegrity(cdp, `Admin workspace: ${entry.label}`, 1440, 900);
       const domains = await clickAllNavigation(cdp, '.domainTabs button', `Admin domain ${entry.label}`);
       adminDomainViews.push({ workspace: entry.label, domains });
+      p5AdminPrimaryScreenshots.push({
+        route: entry.route,
+        label: entry.label,
+        screenshot: await captureSuccessScreenshot(cdp, `p5-admin-primary-${screenshotSlug(entry.label)}`),
+      });
     }
     evidence.checks.push({ id: 'ADMIN_ALL_NAVIGATION_RUNTIME', status: 'PASS', workspaces: adminWorkspaces, domainViews: adminDomainViews, screenshot: await captureSuccessScreenshot(cdp, 'admin-navigation-success') });
+
+    const p5AdminContextualScreenshots = [];
+    for (const route of p5VisualSurfaceMap.admin?.representativeContextualRoutes || []) {
+      await navigateAdminContext(cdp, route, `P5 visual contextual ${route}`);
+      await assertViewportIntegrity(cdp, `P5 visual contextual ${route}`, 1440, 900);
+      p5AdminContextualScreenshots.push({
+        route,
+        screenshot: await captureSuccessScreenshot(cdp, `p5-admin-context-${screenshotSlug(route)}`),
+      });
+    }
 
     await navigateAdminContext(cdp, '/integrations/notifications', 'R8 contextual route /integrations/notifications active');
     await waitExpression(cdp, `document.body && document.body.innerText.includes('Owner Daily Digest') && [...document.querySelectorAll('button')].some(x=>x.textContent?.trim()==='Simpan daily digest')`, 'R8 owner daily digest operator surface', 45000);
@@ -443,6 +465,24 @@ async function main() {
     const storefrontViews = await clickAllNavigation(cdp, '.desktopNav button', 'Storefront navigation');
     evidence.checks.push({ id: 'STOREFRONT_NAVIGATION_RUNTIME', status: 'PASS', views: storefrontViews, matrix: await assertResponsiveMatrix(cdp, 'Storefront'), screenshot: await captureSuccessScreenshot(cdp, 'storefront-navigation-success') });
 
+    const p5StorefrontScreenshots = [];
+    for (const view of ['home','catalog','cart','account']) {
+      const clicked = await evaluateValue(cdp, `(() => { const root=document.querySelector('[data-visual-product="storefront"]'); if(!root)return false; const target=[...document.querySelectorAll('.desktopNav button')].find((node) => { const text=(node.textContent||'').toLowerCase(); return (${JSON.stringify(view)}==='home'&&text.includes('beranda'))||(${JSON.stringify(view)}==='catalog'&&text.includes('katalog'))||(${JSON.stringify(view)}==='cart'&&text.includes('keranjang'))||(${JSON.stringify(view)}==='account'&&text.includes('akun')); }); if(!target)return false; target.click(); return true; })()`);
+      if (!clicked) throw new Error(`P5 Storefront view tidak dapat dibuka: ${view}`);
+      await waitExpression(cdp, `document.querySelector('[data-visual-product="storefront"]')?.getAttribute('data-visual-view') === ${JSON.stringify(view)}`, `P5 Storefront visual ${view}`);
+      await assertViewportIntegrity(cdp, `P5 Storefront ${view}`, 1440, 900);
+      p5StorefrontScreenshots.push({ view, screenshot: await captureSuccessScreenshot(cdp, `p5-storefront-${view}`) });
+    }
+    await waitExpression(cdp, `document.querySelector('[data-visual-product="storefront"]')?.getAttribute('data-visual-view') === 'account'`, 'P5 Storefront account before product visual');
+    const openedCatalogForProduct = await evaluateValue(cdp, `(() => { const target=[...document.querySelectorAll('.desktopNav button')].find((node)=>(node.textContent||'').includes('Katalog')); if(!target)return false; target.click(); return true; })()`);
+    if (!openedCatalogForProduct) throw new Error('P5 Storefront tidak dapat kembali ke katalog untuk visual detail produk.');
+    await waitExpression(cdp, `document.querySelector('[data-visual-product="storefront"]')?.getAttribute('data-visual-view') === 'catalog'`, 'P5 Storefront catalog for product detail');
+    const openedProduct = await evaluateValue(cdp, `(() => { const target=[...document.querySelectorAll('.productCard button')].find((node)=>/Lihat detail|Lihat produk/.test(node.textContent||'')); if(!target)return false; target.click(); return true; })()`);
+    if (!openedProduct) throw new Error('P5 Storefront detail produk tidak dapat dibuka dari katalog runtime.');
+    await waitExpression(cdp, `document.querySelector('[data-visual-product="storefront"]')?.getAttribute('data-visual-view') === 'product'`, 'P5 Storefront product detail visual');
+    await assertViewportIntegrity(cdp, 'P5 Storefront product', 1440, 900);
+    p5StorefrontScreenshots.push({ view: 'product', screenshot: await captureSuccessScreenshot(cdp, 'p5-storefront-product') });
+
     await navigateAndAssert(cdp, posUrl, `document.body && document.body.innerText.includes('KASIR TOKO360') && document.body.innerText.includes('Masuk ke terminal kasir')`, 'POS browser render');
     evidence.checks.push({ id: 'POS_BROWSER_RENDER', status: 'PASS', url: posUrl });
     await cdp.call('Runtime.evaluate', { expression: `localStorage.setItem('toko360_pos_token', ${access}); location.reload(); true`, returnByValue: true });
@@ -457,6 +497,15 @@ async function main() {
     const posWorkspaces = await clickAllNavigation(cdp, '.posWorkspaceNav button', 'POS workspace');
     evidence.checks.push({ id: 'POS_ALL_WORKSPACES_RUNTIME', status: 'PASS', workspaces: posWorkspaces, matrix: await assertResponsiveMatrix(cdp, 'POS'), screenshot: await captureSuccessScreenshot(cdp, 'pos-workspaces-success') });
 
+    const p5PosScreenshots = [];
+    for (const view of p5VisualSurfaceMap.pos?.views || []) {
+      const clicked = await evaluateValue(cdp, `(() => { const target=[...document.querySelectorAll('.posWorkspaceNav button')].find((node) => { const text=(node.textContent||'').toLowerCase(); return (${JSON.stringify(view)}==='sale'&&text.includes('penjualan'))||(${JSON.stringify(view)}==='shift'&&text.includes('shift'))||(${JSON.stringify(view)}==='returns'&&text.includes('retur'))||(${JSON.stringify(view)}==='sync'&&text.includes('sinkronisasi')); }); if(!target)return false; target.click(); return true; })()`);
+      if (!clicked) throw new Error(`P5 POS workspace tidak dapat dibuka: ${view}`);
+      await waitExpression(cdp, `document.querySelector('[data-visual-product="pos"]')?.getAttribute('data-visual-view') === ${JSON.stringify(view)}`, `P5 POS visual ${view}`);
+      await assertViewportIntegrity(cdp, `P5 POS ${view}`, 1440, 900);
+      p5PosScreenshots.push({ view, screenshot: await captureSuccessScreenshot(cdp, `p5-pos-${view}`) });
+    }
+
     await navigateAndAssert(cdp, employeeUrl, `document.body && document.body.innerText.includes('TOKO360 HR') && document.body.innerText.includes('Portal Karyawan')`, 'Employee Portal browser render');
     evidence.checks.push({ id: 'EMPLOYEE_PORTAL_BROWSER_RENDER', status: 'PASS', url: employeeUrl });
     evidence.checks.push({ id: 'EMPLOYEE_PORTAL_RESPONSIVE', status: 'PASS', matrix: await assertResponsiveMatrix(cdp, 'Employee Portal public shell'), screenshot: await captureSuccessScreenshot(cdp, 'employee-portal-responsive-success') });
@@ -468,12 +517,34 @@ async function main() {
       evidence.checks.push({ id: 'EMPLOYEE_PORTAL_AUTHENTICATED_RUNTIME', status: 'PASS', assertions: ['employee profile', 'attendance history', 'payslip self-service'] });
       const employeeRoutes = await evaluateValue(cdp, `([...document.querySelectorAll('.employeeNav a')]).map(a => a.getAttribute('href')).filter(Boolean)`);
       const visitedEmployeeRoutes = [];
+      const p5EmployeeScreenshots = [];
       for (const href of [...new Set(employeeRoutes || [])]) {
         await navigateAndAssert(cdp, new URL(href, employeeUrl).href, `document.body && document.body.innerText.includes('TOKO360 HR')`, `Employee Portal ${href}`);
         await assertViewportIntegrity(cdp, `Employee Portal ${href}`, 1440, 900);
         visitedEmployeeRoutes.push(href);
+        const view = href === '/' ? 'home' : href.replace(/^\//,'');
+        p5EmployeeScreenshots.push({ view, route: href, screenshot: await captureSuccessScreenshot(cdp, `p5-employee-${screenshotSlug(view)}`) });
       }
       evidence.checks.push({ id: 'EMPLOYEE_ALL_SELF_SERVICE_ROUTES', status: 'PASS', routes: visitedEmployeeRoutes, matrix: await assertResponsiveMatrix(cdp, 'Employee Portal'), screenshot: await captureSuccessScreenshot(cdp, 'employee-routes-success') });
+
+      const p5ScreenshotMatrix = {
+        id: 'P5_VISUAL_SCREENSHOT_MATRIX',
+        status: 'PASS',
+        baseline: p5VisualSurfaceMap.baseline,
+        admin: { primary: p5AdminPrimaryScreenshots, contextual: p5AdminContextualScreenshots },
+        pos: p5PosScreenshots,
+        storefront: p5StorefrontScreenshots,
+        employeePortal: p5EmployeeScreenshots,
+        counts: {
+          adminPrimary: p5AdminPrimaryScreenshots.length,
+          adminContextual: p5AdminContextualScreenshots.length,
+          pos: p5PosScreenshots.length,
+          storefront: p5StorefrontScreenshots.length,
+          employeePortal: p5EmployeeScreenshots.length,
+        },
+        humanAcceptance: 'PENDING',
+      };
+      evidence.checks.push(p5ScreenshotMatrix);
     }
 
     // A page that renders while throwing an uncaught JS exception is not a browser-UAT PASS.

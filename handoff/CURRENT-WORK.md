@@ -1,3 +1,21 @@
+# CURRENT AUTHORITATIVE WORK — 2026-09-26 P5 FULL
+
+Active work item: `T360-20260925-180000-product-completion-after-full-audit.json`.
+
+- Current phase: **P5 — Full Visual Product Rebuild**.
+- Delivery boundary: **one P5 FULL atomic wave** across Admin, POS, Storefront, and Employee Portal; no per-product operator boundary.
+- P4 FULL is **RUNTIME_VERIFIED** on commit `d305ade2050765de86c7f5ef1c54eb7426c5e25b`, source fingerprint `cf6165fcc74e94abb3866230aa1764cee9487d4de6b630377465d20bda7d9246`.
+- Supplied green GitHub evidence: `logs_98081239959.zip`, `logs_98081239969.zip`, `logs_98081240037.zip`; P4 canonical ownership, Stage-19, automated Stage-20, R8, aggregate and Automated UAT are green on the exact source.
+- Human Stage-20 remains **PENDING** and is not promoted by P4/P5 automation.
+- P0-P4 business source is frozen unless new regression evidence appears.
+- P5 visual coverage authority is `config/p5-visual-surface-map.json`: 14 Admin primary workspaces, 13 representative Admin contextual routes, 4 POS views, 5 Storefront views, and 7 Employee Portal views.
+- `audit:p5:visual` is the permanent source-level visual contract.
+- `ci:p5:probe` consumes exact-source Browser UAT and requires the complete screenshot matrix plus 1440/1024/390 responsive geometry with `productionTouched=false`.
+- Human visual acceptance remains a distinct mandatory gate; automated P5 evidence records `humanAcceptance=PENDING` and must never auto-promote it.
+- POST-1 remains reserved after P7 + Human Stage-20 + PRODUCT_READY and must not interrupt P5-P7.
+
+---
+
 # CURRENT AUTHORITATIVE WORK — 2026-09-26 P4 FULL
 
 Active work item: `T360-20260925-180000-product-completion-after-full-audit.json`.

@@ -1,0 +1,97 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+
+const root = process.cwd();
+const visualMapPath = path.join(root, 'config/p5-visual-surface-map.json');
+
+function fail(message) {
+  console.error(`P5 visual audit FAIL: ${message}`);
+  process.exit(1);
+}
+function read(file) {
+  const full = path.join(root, file);
+  if (!fs.existsSync(full)) fail(`file tidak ada: ${file}`);
+  return fs.readFileSync(full, 'utf8');
+}
+function readJson(file) {
+  try { return JSON.parse(read(file)); }
+  catch (error) { fail(`JSON invalid ${file}: ${error instanceof Error ? error.message : String(error)}`); }
+}
+
+const map = readJson('config/p5-visual-surface-map.json');
+if (map.phase !== 'P5') fail(`visual map phase harus P5, actual=${map.phase}`);
+if (map.baseline?.commit !== 'd305ade2050765de86c7f5ef1c54eb7426c5e25b') fail('baseline P4 commit tidak cocok.');
+if (map.admin?.primaryWorkspaces?.length !== 14) fail(`Admin primary workspace harus 14, actual=${map.admin?.primaryWorkspaces?.length ?? 0}`);
+if (map.admin?.representativeContextualRoutes?.length !== 13) fail(`Admin contextual representative harus 13, actual=${map.admin?.representativeContextualRoutes?.length ?? 0}`);
+if (map.pos?.views?.length !== 4) fail('POS visual view harus 4.');
+if (map.storefront?.views?.length !== 5) fail('Storefront visual view harus 5.');
+if (map.employeePortal?.views?.length !== 7) fail('Employee Portal visual view harus 7.');
+
+const sources = {
+  adminShell: read('apps/admin/app/app-shell.tsx'),
+  adminCss: read('apps/admin/app/globals.css'),
+  posShell: read('apps/pos/app/pos-shell.tsx'),
+  posCss: read('apps/pos/app/globals.css'),
+  storeShell: read('apps/storefront/app/storefront-shell.tsx'),
+  storeCss: read('apps/storefront/app/globals.css'),
+  employeeShell: read('apps/employee-portal/app/employee-portal-shell.tsx'),
+  employeeCss: read('apps/employee-portal/app/globals.css'),
+  navigation: read('apps/admin/app/navigation.ts'),
+  domains: read('apps/admin/app/domain-workspaces.ts'),
+  browser: read('scripts/browser-uat.mjs'),
+};
+
+for (const [name, source] of Object.entries({
+  admin: sources.adminShell,
+  pos: sources.posShell,
+  storefront: sources.storeShell,
+  employeePortal: sources.employeeShell,
+})) {
+  if (!source.includes('data-visual-product=')) fail(`${name} belum memiliki page-level visual identity.`);
+}
+
+for (const marker of ['pageTitleRow','pageWorkspaceBadge','pageContextStrip']) {
+  if (!sources.adminShell.includes(marker) || !sources.adminCss.includes(marker)) fail(`Admin P5 primitive hilang: ${marker}`);
+}
+for (const marker of ['posWorkspaceHeader','posWorkspaceStatus','posWorkspaceBody']) {
+  if (!sources.posShell.includes(marker) || !sources.posCss.includes(marker)) fail(`POS P5 primitive hilang: ${marker}`);
+}
+for (const marker of ['storefrontViewHeader','storefrontBranchContext','storefrontViewBody']) {
+  if (!sources.storeShell.includes(marker) || !sources.storeCss.includes(marker)) fail(`Storefront P5 primitive hilang: ${marker}`);
+}
+for (const marker of ['employeeContextPill','employeeViewBody']) {
+  if (!sources.employeeShell.includes(marker) || !sources.employeeCss.includes(marker)) fail(`Employee P5 primitive hilang: ${marker}`);
+}
+
+for (const workspace of map.admin.primaryWorkspaces) {
+  if (!sources.navigation.includes(`route: '${workspace.route}'`)) fail(`Admin visual route tidak ada di navigation: ${workspace.route}`);
+}
+for (const route of map.admin.representativeContextualRoutes) {
+  const [workspaceRoute, view] = route.split('/').filter(Boolean);
+  if (!workspaceRoute || !view) fail(`Admin contextual route invalid: ${route}`);
+  if (!sources.domains.includes(`key: '${view}'`)) fail(`Admin contextual visual view tidak ditemukan: ${route}`);
+}
+
+const cssBundle = [sources.adminCss, sources.posCss, sources.storeCss, sources.employeeCss].join('\n');
+for (const required of ['@media', 'prefers-reduced-motion', 'pointer:coarse']) {
+  if (!cssBundle.includes(required)) fail(`responsive/accessibility CSS contract hilang: ${required}`);
+}
+if (/linear-gradient|radial-gradient|conic-gradient/i.test(cssBundle)) fail('P5 melarang decorative gradient pada canonical surfaces.');
+
+for (const token of [
+  'P5_VISUAL_SCREENSHOT_MATRIX',
+  'p5-admin-primary-',
+  'p5-admin-context-',
+  'p5-storefront-',
+  'p5-pos-',
+  'p5-employee-',
+  'humanAcceptance',
+]) {
+  if (!sources.browser.includes(token)) fail(`Browser UAT belum membawa P5 evidence: ${token}`);
+}
+
+console.log(
+  `P5 visual audit PASS — Admin ${map.admin.primaryWorkspaces.length} primary/${map.admin.representativeContextualRoutes.length} contextual, POS ${map.pos.views.length}, Storefront ${map.storefront.views.length}, Employee ${map.employeePortal.views.length}.`,
+);

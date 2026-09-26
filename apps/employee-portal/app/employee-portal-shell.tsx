@@ -54,7 +54,7 @@ export function EmployeePortalShell({
   const meta = employeePortalMeta(activeView);
 
   return (
-    <main className="employeeShell">
+    <main className="employeeShell" data-visual-product="employee-portal" data-visual-view={activeView}>
       <a className="skipLink" href="#employee-main">Lewati ke konten utama</a>
       <aside className="employeeSidebar">
         <div className="employeeBrand">
@@ -120,9 +120,10 @@ export function EmployeePortalShell({
             <h2>{meta.label}</h2>
             <p>{meta.description}</p>
           </div>
+          <div className="employeeContextPill">{loading ? 'Memuat data' : 'Self-service aktif'}</div>
         </div>
 
-        {children}
+        <div className="employeeViewBody">{children}</div>
       </section>
     </main>
   );

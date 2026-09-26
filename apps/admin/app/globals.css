@@ -252,3 +252,75 @@ button.dangerButton { @apply border-red-500 bg-red-500 hover:bg-red-400; }
 .metricGrid > div { @apply rounded-xl border border-app-border bg-app-surface-2 p-3; }
 .metricGrid small { @apply block text-[11px] uppercase tracking-[0.12em] text-slate-500; }
 .metricGrid strong { @apply mt-1 block text-xl text-slate-100; }
+/* P5 — full visual product rebuild */
+.shell[data-visual-product="admin"] { @apply bg-[#0a0d12]; }
+.shell[data-visual-product="admin"] .sidebar { @apply border-r-[#273042] bg-[#10151d]; box-shadow: 18px 0 40px rgba(0,0,0,.16); }
+.shell[data-visual-product="admin"] .logo { @apply min-h-[72px] px-4; }
+.shell[data-visual-product="admin"] .logoMark { @apply h-10 w-10 rounded-[14px] bg-blue-500 shadow-lg shadow-blue-950/40; }
+.shell[data-visual-product="admin"] .navSearch { @apply mx-3 mt-4 h-11 rounded-xl border-[#2d3749] bg-[#0c1118]; }
+.shell[data-visual-product="admin"] .navScroll { @apply px-2.5 pb-4 pt-4; }
+.shell[data-visual-product="admin"] .navGroup { @apply px-3 pb-2 pt-1 text-[9px] tracking-[.19em] text-slate-500; }
+.shell[data-visual-product="admin"] .navItem { @apply mb-1.5 min-h-12 grid-cols-[38px_minmax(0,1fr)] rounded-xl px-2.5 py-2.5; }
+.shell[data-visual-product="admin"] .navIcon { @apply h-9 w-9 rounded-xl border border-transparent bg-[#171e29]; }
+.shell[data-visual-product="admin"] .navItem.active { @apply border-blue-400/25 bg-[#16233a]; box-shadow: inset 3px 0 0 #60a5fa; }
+.shell[data-visual-product="admin"] .navItem.active .navIcon { @apply bg-blue-500 shadow-md shadow-blue-950/40; }
+.shell[data-visual-product="admin"] .sidebarFoot { @apply p-3.5; }
+.shell[data-visual-product="admin"] .tenantMini { @apply rounded-xl border border-[#293246] bg-[#0c1118] p-3.5; }
+
+.shell[data-visual-product="admin"] .topbar { @apply h-[72px] border-[#202838] bg-[#0a0d12]/95 px-5 md:px-7; }
+.shell[data-visual-product="admin"] .topContext span { @apply text-[9px] tracking-[.16em] text-slate-500; }
+.shell[data-visual-product="admin"] .topContext strong { @apply mt-0.5 text-[13px] font-semibold; }
+.shell[data-visual-product="admin"] .content { @apply max-w-[1600px] px-4 pb-16 pt-5 md:px-7 md:pt-7 2xl:px-9; }
+
+.shell[data-visual-product="admin"] .pageHeader { @apply rounded-2xl border border-[#252f41] bg-[#10151d] p-5 md:p-6; box-shadow: 0 14px 32px rgba(0,0,0,.16); }
+.shell[data-visual-product="admin"] .pageTitleRow { @apply flex flex-wrap items-center gap-3; }
+.shell[data-visual-product="admin"] .pageTitleRow h1 { @apply text-[26px] leading-tight md:text-[30px]; }
+.shell[data-visual-product="admin"] .pageWorkspaceBadge { @apply inline-flex min-h-7 items-center rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 text-[10px] font-semibold uppercase tracking-[.08em] text-blue-300; }
+.shell[data-visual-product="admin"] .pageDesc { @apply mt-2 max-w-3xl text-[13px] leading-6 text-slate-400; }
+.shell[data-visual-product="admin"] .pageContextStrip { @apply mt-4 flex flex-wrap gap-2; }
+.shell[data-visual-product="admin"] .pageContextStrip span { @apply inline-flex min-h-7 items-center rounded-lg border border-[#293246] bg-[#0b1017] px-2.5 text-[10px] font-medium text-slate-400; }
+
+.shell[data-visual-product="admin"] .domainTabs { @apply mt-4 gap-1.5 rounded-2xl border border-[#252f41] bg-[#10151d] p-2; }
+.shell[data-visual-product="admin"] .domainTabs button { @apply min-h-10 rounded-xl px-3.5; }
+.shell[data-visual-product="admin"] .domainTabs button.active { @apply border-blue-400/25 bg-[#16233a] text-blue-200; }
+.shell[data-visual-product="admin"] .workspaceSurface { @apply mt-4; }
+
+.shell[data-visual-product="admin"] .panel,
+.shell[data-visual-product="admin"] .statCard,
+.shell[data-visual-product="admin"] .stat { @apply rounded-2xl border-[#252f41] bg-[#10151d]; box-shadow: 0 10px 26px rgba(0,0,0,.12); }
+.shell[data-visual-product="admin"] .panel { @apply p-5 md:p-6; }
+.shell[data-visual-product="admin"] .panel + .panel { @apply mt-5; }
+.shell[data-visual-product="admin"] .panelTitle { @apply mb-5 border-[#252f41] pb-4; }
+.shell[data-visual-product="admin"] .panelTitle h2 { @apply text-[15px] leading-6; }
+.shell[data-visual-product="admin"] .stats { @apply gap-4; }
+.shell[data-visual-product="admin"] .statCard { @apply min-h-36 p-5; }
+.shell[data-visual-product="admin"] .statCard .ico { @apply mb-6 h-10 w-10 rounded-xl; }
+.shell[data-visual-product="admin"] .grid2 { @apply gap-5; }
+.shell[data-visual-product="admin"] .grid4 { @apply gap-4; }
+.shell[data-visual-product="admin"] .formStack { @apply gap-4; }
+.shell[data-visual-product="admin"] .table { @apply rounded-2xl border-[#252f41] bg-[#0e131b]; }
+.shell[data-visual-product="admin"] .tr { @apply px-4 py-3; }
+.shell[data-visual-product="admin"] .tr.th { @apply bg-[#151c27] text-slate-500; }
+.shell[data-visual-product="admin"] .emptyState { @apply min-h-48 rounded-2xl border-[#30394b] bg-[#0d1219] p-8; }
+.shell[data-visual-product="admin"] .modalCard { @apply rounded-2xl border-[#30394b] bg-[#10151d] p-6; }
+
+@media (width >= 80rem) {
+  .shell[data-visual-product="admin"][data-visual-workspace="dashboard"] .workspaceSurface > .grid2:first-child,
+  .shell[data-visual-product="admin"][data-visual-workspace="reports"] .workspaceSurface > .grid2:first-child,
+  .shell[data-visual-product="admin"][data-visual-workspace="finance"] .workspaceSurface > .grid2:first-child {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+  }
+  .shell[data-visual-product="admin"][data-visual-workspace="settings"] .workspaceSurface,
+  .shell[data-visual-product="admin"][data-visual-workspace="organization"] .workspaceSurface {
+    max-width: 1320px;
+  }
+}
+@media (max-width: 767px) {
+  .shell[data-visual-product="admin"] .content { @apply px-3 pb-10 pt-3; }
+  .shell[data-visual-product="admin"] .pageHeader { @apply rounded-xl p-4; }
+  .shell[data-visual-product="admin"] .pageTitleRow { @apply items-start; }
+  .shell[data-visual-product="admin"] .pageTitleRow h1 { @apply text-[22px]; }
+  .shell[data-visual-product="admin"] .pageWorkspaceBadge { @apply order-first; }
+  .shell[data-visual-product="admin"] .domainTabs { @apply mt-3 rounded-xl p-1.5; }
+  .shell[data-visual-product="admin"] .panel { @apply rounded-xl p-4; }
+}

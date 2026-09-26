@@ -31,6 +31,12 @@ RC0.5.3.1_EMBEDDED_INSTRUCTIONS_DYNAMIC_CHAT_HANDOFF
 6. Work item aktif
 7. Commit/tag checkpoint resmi
 
+## 2026-09-26 — P4 runtime closure / P5 FULL visual rebuild
+
+P4 is **RUNTIME_VERIFIED** on exact-source commit `d305ade2050765de86c7f5ef1c54eb7426c5e25b`, source fingerprint `cf6165fcc74e94abb3866230aa1764cee9487d4de6b630377465d20bda7d9246`. P4 canonical ownership, Stage-19, automated Stage-20, R8, full-system aggregate and Automated UAT are green on this source. A-10 is closed and P0-P4 source is frozen absent regression evidence. Human Stage-20 remains separately PENDING.
+
+P5 is now **IMPLEMENTED_RUNTIME_PENDING** as one full visual-product wave across Admin, POS, Storefront and Employee Portal. `config/p5-visual-surface-map.json` defines 14 Admin primary workspaces, 13 representative contextual routes, 4 POS views, 5 Storefront views, 7 Employee Portal views, and the 1440/1024/390 responsive matrix. `audit:p5:visual` fails closed on source-contract regressions; both heavy GitHub workflows require `ci:p5:probe` against exact-source Browser UAT screenshot evidence. Automated P5 evidence must keep human visual acceptance explicitly PENDING until human review is recorded.
+
 ## Planned post-completion expansion
 
 After the current P0-P7 product-completion program reaches Human Stage-20 acceptance and `PRODUCT_READY = true`, the next planned program is **POST-1 — Hybrid Multi-Branch Edge Operations**. Canonical plan: `docs/TOKO360-POST-COMPLETION-HYBRID-BRANCH-WORKFLOW.md`. It covers one local TOKO360 server per store/branch plus central hosting sync, local-first continuity, mobile/PWA + Telegram stock operations, and multi-device LAN barcode price-check kiosks. POST-1 is planning-only now and must not interrupt P4-P7.
@@ -115,11 +121,11 @@ Immediate order: P0 truth/security/hygiene -> P1 Admin contextual workflow isola
 
 Historical `docs/TOKO360-MASTER-RECOVERY-WORKFLOW.md` remains preserved as recovery history and runtime evidence sequencing, but does not override the new product-completion verdict or permit source-marker/browser-no-overflow evidence to substitute for real operator/human acceptance.
 
-## 2026-09-26 — P3 runtime closure / P4 FULL implementation
+## 2026-09-26 — P3 runtime closure / P4 implementation history
 
 P3 A-05/A-06/A-08/A-11 is **RUNTIME_VERIFIED** on exact commit `c61273e99104c0dbdc61ee4790379d4ed2edd8a3`, source fingerprint `cfe0323c096eb253730c1751e37ecc3a0b4e77853d3048360271ed97e360f8c5`. Both heavy GitHub workflows report P3 productization success; full-system aggregate and Automated UAT PASS. Human Stage-20 remains PENDING and separate.
 
-P4 is now the active product-completion wave. Scope is A-10 plus canonical ownership cleanup: remove verified-unused `/sale-returns*` and `/purchase-returns*` compatibility routes, retain `/returns/*` as the only return mutation authority, document nine required domain owners/source-of-truth contracts, and require exact-source `ci:p4:probe` in both heavy GitHub workflows and aggregate reporting before P4 closure.
+P4 subsequently removed verified-unused `/sale-returns*` and `/purchase-returns*` compatibility routes, retained `/returns/*` as the only return mutation authority, and documented nine required domain owners/source-of-truth contracts. P4 is now runtime-closed by the newer exact-source P4 checkpoint recorded above; this section is historical implementation context only.
 
 ## P1 Admin contextual workflow isolation — 2026-09-25
 - P0 atomic source is complete; active product-completion phase moved to P1.

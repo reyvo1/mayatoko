@@ -1,0 +1,112 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+
+const read = (file) => fs.readFileSync(file, 'utf8');
+const visualMap = JSON.parse(read('config/p5-visual-surface-map.json'));
+const packageJson = JSON.parse(read('package.json'));
+const adminShell = read('apps/admin/app/app-shell.tsx');
+const posShell = read('apps/pos/app/pos-shell.tsx');
+const storefrontShell = read('apps/storefront/app/storefront-shell.tsx');
+const employeeShell = read('apps/employee-portal/app/employee-portal-shell.tsx');
+const cssBundle = [
+  read('apps/admin/app/globals.css'),
+  read('apps/pos/app/globals.css'),
+  read('apps/storefront/app/globals.css'),
+  read('apps/employee-portal/app/globals.css'),
+].join('\n');
+const browserUat = read('scripts/browser-uat.mjs');
+const p5Audit = read('scripts/audit-p5-visual-rebuild.mjs');
+const p5Probe = read('scripts/ci-p5-visual-probe.mjs');
+const fullSystem = read('.github/workflows/full-system-simulation.yml');
+const fullUat = read('.github/workflows/toko360-full-uat.yml');
+const summary = read('scripts/ci-write-full-system-summary.mjs');
+const uatReport = read('scripts/github-uat-report.mjs');
+
+const expectedBaseline = {
+  commit: 'd305ade2050765de86c7f5ef1c54eb7426c5e25b',
+  sourceFingerprint: 'cf6165fcc74e94abb3866230aa1764cee9487d4de6b630377465d20bda7d9246',
+};
+
+test('P5 visual map covers all four products and representative page-level surfaces', () => {
+  assert.equal(visualMap.phase, 'P5');
+  assert.equal(visualMap.baseline.commit, expectedBaseline.commit);
+  assert.equal(visualMap.baseline.sourceFingerprint, expectedBaseline.sourceFingerprint);
+  assert.equal(visualMap.admin.primaryWorkspaces.length, 14);
+  assert.equal(visualMap.admin.representativeContextualRoutes.length, 13);
+  assert.equal(visualMap.pos.views.length, 4);
+  assert.equal(visualMap.storefront.views.length, 5);
+  assert.equal(visualMap.employeePortal.views.length, 7);
+  assert.equal(visualMap.requirements.humanAcceptanceRequired, true);
+  assert.deepEqual(
+    [visualMap.requirements.desktopWidth, visualMap.requirements.tabletWidth, visualMap.requirements.mobileWidth],
+    [1440, 1024, 390],
+  );
+});
+
+test('P5 rebuild gives Admin POS Storefront and Employee Portal product-specific visual composition', () => {
+  assert.match(adminShell, /data-visual-product="admin"/);
+  assert.match(adminShell, /pageTitleRow/);
+  assert.match(adminShell, /pageContextStrip/);
+
+  assert.match(posShell, /data-visual-product="pos"/);
+  assert.match(posShell, /posWorkspaceHeader/);
+  assert.match(posShell, /posWorkspaceStatus/);
+
+  assert.match(storefrontShell, /data-visual-product="storefront"/);
+  assert.match(storefrontShell, /storefrontViewHeader/);
+  assert.match(storefrontShell, /storefrontBranchContext/);
+
+  assert.match(employeeShell, /data-visual-product="employee-portal"/);
+  assert.match(employeeShell, /employeeContextPill/);
+  assert.match(employeeShell, /employeeViewBody/);
+});
+
+test('P5 canonical surfaces keep responsive/accessibility primitives and no decorative gradients', () => {
+  assert.match(cssBundle, /@media/);
+  assert.match(cssBundle, /prefers-reduced-motion/);
+  assert.match(cssBundle, /pointer:\s*coarse/);
+  assert.doesNotMatch(cssBundle, /linear-gradient|radial-gradient|conic-gradient/i);
+});
+
+test('P5 browser UAT creates exact page-level screenshot matrix and keeps human acceptance pending', () => {
+  for (const marker of [
+    'P5_VISUAL_SCREENSHOT_MATRIX',
+    'p5-admin-primary-',
+    'p5-admin-context-',
+    'p5-pos-',
+    'p5-storefront-',
+    'p5-employee-',
+  ]) assert.match(browserUat, new RegExp(marker));
+  assert.match(browserUat, /humanAcceptance:\s*'PENDING'/);
+  assert.match(browserUat, /T360_UAT_PREPARE_EMPLOYEE_SELF/);
+  assert.match(p5Probe, /humanAcceptance:\s*'PENDING'/);
+  assert.match(p5Probe, /github-p5-visual-rebuild-probe-latest\.json/);
+  assert.match(p5Probe, /productionTouched:\s*false/);
+});
+
+test('P5 visual audit is permanent and exact-runtime P5 probe is mandatory in both heavy workflows', () => {
+  assert.equal(packageJson.scripts['audit:p5:visual'], 'node scripts/audit-p5-visual-rebuild.mjs');
+  assert.equal(packageJson.scripts['ci:p5:probe'], 'node scripts/ci-p5-visual-probe.mjs');
+  assert.match(packageJson.scripts['audit:full:repo'], /audit:p5:visual/);
+  assert.match(p5Audit, /P5 visual audit PASS/);
+
+  for (const workflow of [fullSystem, fullUat]) {
+    assert.match(workflow, /id: p5_visual_rebuild/);
+    assert.match(workflow, /npm run ci:p5:probe/);
+  }
+  assert.match(fullSystem, /T360_CI_STEP_P5_VISUAL: \$\{\{ steps\.p5_visual_rebuild\.outcome \}\}/);
+  assert.match(fullUat, /STEP_P5_VISUAL: \$\{\{ steps\.p5_visual_rebuild\.outcome \}\}/);
+  assert.match(fullUat, /T360_UAT_PREPARE_EMPLOYEE_SELF: 'true'/);
+  assert.match(fullUat, /check "P5 full visual product rebuild screenshot matrix" "\$STEP_P5_VISUAL"/);
+});
+
+test('P5 exact-source evidence participates in full-system aggregate and UAT report without auto-promoting human acceptance', () => {
+  assert.match(summary, /github-p5-visual-rebuild-probe-latest\.json/);
+  assert.match(summary, /p5VisualRebuild/);
+  assert.match(summary, /T360_CI_STEP_P5_VISUAL/);
+  assert.match(summary, /humanAcceptance === 'PENDING'/);
+  assert.match(summary, /'p5VisualRebuild'/);
+  assert.match(uatReport, /P5 full visual product rebuild screenshot matrix/);
+  assert.match(uatReport, /STEP_P5_VISUAL/);
+});

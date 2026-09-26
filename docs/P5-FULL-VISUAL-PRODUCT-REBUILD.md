@@ -1,0 +1,99 @@
+# P5 FULL — Visual Product Rebuild
+
+Status: **IMPLEMENTED_RUNTIME_PENDING**
+Delivery boundary: **one P5 FULL atomic wave**
+Baseline P4 commit: `d305ade2050765de86c7f5ef1c54eb7426c5e25b`
+Baseline source fingerprint: `cf6165fcc74e94abb3866230aa1764cee9487d4de6b630377465d20bda7d9246`
+
+## Purpose
+
+P5 closes audit finding A-07 by rebuilding the four operator/customer products at page-composition level. A global stylesheet, route marker, or source-contract test is not sufficient evidence. Admin, POS, Storefront, and Employee Portal must each retain a product-specific hierarchy and must be verified through exact-source browser screenshots and responsive geometry.
+
+## Product contracts
+
+### Admin
+
+- Keep one primary navigation, one contextual navigation, and one content surface.
+- Give every primary workspace a clear title row, workspace identity, tenant/branch context, and intentional content density.
+- Preserve the 14 canonical primary workspaces and verify 13 representative contextual routes.
+- Tables, panels, stats, forms, and contextual tabs must remain readable at desktop/tablet/mobile widths without uncontrolled horizontal overflow.
+
+### POS
+
+- Keep the cashier flow visually distinct from Admin.
+- Surface current workspace, operational description, and online/offline state before the workspace body.
+- Preserve touch-first sale/cart density, shift, return, and synchronization workspaces.
+- Avoid generic dashboard composition for the sale terminal.
+
+### Storefront
+
+- Keep customer browsing visually distinct from operator products.
+- Give non-home journeys an explicit view heading and branch/store context.
+- Preserve separate home, catalog, product detail, cart, and account compositions.
+- Product cards, checkout/cart regions, and account surfaces must remain responsive without decorative dashboard treatment.
+
+### Employee Portal
+
+- Keep self-service identity distinct from Admin.
+- Surface current self-service context and authenticated state clearly.
+- Preserve home, attendance, leave, overtime, payslips, history, and profile as explicit routes.
+- Cards, tables, forms, and status surfaces must remain usable at desktop/tablet/mobile widths.
+
+## Machine-readable visual map
+
+`config/p5-visual-surface-map.json` is the P5 visual coverage contract:
+
+- Admin primary: 14
+- Admin representative contextual: 13
+- POS views: 4
+- Storefront views: 5
+- Employee Portal views: 7
+- Responsive widths: 1440 / 1024 / 390
+- Maximum accepted horizontal overflow: 3 px
+- Human acceptance: mandatory and separate
+
+## Permanent source audit
+
+Run:
+
+```bash
+npm run audit:p5:visual
+```
+
+The audit fails closed when:
+
+- a product loses its page-level visual identity;
+- required product-specific composition primitives disappear;
+- configured Admin visual routes disappear;
+- responsive/accessibility CSS contracts disappear;
+- decorative gradients return to canonical surfaces;
+- Browser UAT no longer produces the P5 screenshot matrix.
+
+## Exact-source browser gate
+
+Both heavy GitHub workflows execute:
+
+```bash
+npm run ci:p5:probe
+```
+
+The probe consumes exact-source `handoff/quality/browser-uat-latest.json` and requires:
+
+- Browser UAT PASS on the current source fingerprint;
+- 14 Admin primary screenshots;
+- 13 Admin contextual screenshots;
+- 4 POS screenshots;
+- 5 Storefront screenshots;
+- 7 authenticated Employee Portal screenshots;
+- responsive matrices at 1440 / 1024 / 390 for all four products;
+- no browser runtime exception;
+- `productionTouched=false`;
+- `humanAcceptance=PENDING` until a human review is explicitly recorded.
+
+Evidence is written to:
+
+`handoff/quality/github-p5-visual-rebuild-probe-latest.json`
+
+## Closure rule
+
+P5 source remains `IMPLEMENTED_RUNTIME_PENDING` after local tests and after source implementation. Automated GitHub evidence must be green on the exact committed source before any runtime closure statement. Automated screenshots do **not** replace human visual acceptance. P6 must not start until the canonical P5 sequencing rule is satisfied by the project workflow.

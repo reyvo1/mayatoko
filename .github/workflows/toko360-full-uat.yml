@@ -52,6 +52,7 @@ jobs:
       T360_UAT_ADMIN_EMAIL: ci-admin@example.invalid
       T360_UAT_ADMIN_PASSWORD: CI-Only-Strong-Password-2026!
       T360_UAT_HR_MUTATIONS: 'true'
+      T360_UAT_PREPARE_EMPLOYEE_SELF: 'true'
       T360_UAT_EXPECTED_HOST: localhost
       T360_UAT_EXPECTED_DATABASE: toko360_staging
       T360_CI_EXPECTED_HOST: localhost
@@ -220,6 +221,11 @@ jobs:
         id: r7_ui
         continue-on-error: true
         run: npm run ci:r7:probe
+
+      - name: Verify P5 full visual product rebuild screenshot matrix
+        id: p5_visual_rebuild
+        continue-on-error: true
+        run: npm run ci:p5:probe
 
       - name: Start exact API + worker + provider simulator for deep runtime sweeps
         id: runtime_sweep_start
@@ -469,6 +475,7 @@ jobs:
           STEP_P4_CANONICAL_OWNERSHIP: ${{ steps.p4_canonical_ownership.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           STEP_R7_UI: ${{ steps.r7_ui.outcome }}
+          STEP_P5_VISUAL: ${{ steps.p5_visual_rebuild.outcome }}
           STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}
           STEP_R8_RELEASE: ${{ steps.r8_release.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
@@ -525,6 +532,7 @@ jobs:
           STEP_P4_CANONICAL_OWNERSHIP: ${{ steps.p4_canonical_ownership.outcome }}
           STEP_R3_RESIDUAL: ${{ steps.r3_residual.outcome }}
           STEP_R7_UI: ${{ steps.r7_ui.outcome }}
+          STEP_P5_VISUAL: ${{ steps.p5_visual_rebuild.outcome }}
           STEP_R8_REPORTING_SECURITY: ${{ steps.r8_reporting_security.outcome }}
           STEP_R8_RELEASE: ${{ steps.r8_release.outcome }}
           STEP_PROVIDER_PROBE: ${{ steps.provider_probe.outcome }}
@@ -567,6 +575,7 @@ jobs:
           check "P4 canonical domain ownership and legacy-surface removal" "$STEP_P4_CANONICAL_OWNERSHIP"
           check "R3 residual payment/reporting/edge/marketplace runtime probe" "$STEP_R3_RESIDUAL"
           check "R7 full UI / information architecture probe" "$STEP_R7_UI"
+          check "P5 full visual product rebuild screenshot matrix" "$STEP_P5_VISUAL"
           check "R8 reporting/security runtime probe" "$STEP_R8_REPORTING_SECURITY"
           check "R8 exact-source release evidence" "$STEP_R8_RELEASE"
           check "Telegram/WhatsApp provider probe" "$STEP_PROVIDER_PROBE"
