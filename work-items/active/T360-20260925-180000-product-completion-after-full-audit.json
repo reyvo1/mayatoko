@@ -107,7 +107,8 @@
     "npm run audit:p5:visual",
     "node --test tests/product-completion-p5-visual-rebuild.test.mjs",
     "Exact-source Browser/runtime P5: npm run ci:p5:probe; handoff/quality/github-p5-visual-rebuild-probe-latest.json must PASS with productionTouched=false and humanAcceptance=PENDING.",
-    "Both heavy GitHub workflows must report P5 visual rebuild probe success before P5 automated closure."
+    "Both heavy GitHub workflows must report P5 visual rebuild probe success before P5 automated closure.",
+    "P5 finance responsive regression: Admin Keuangan Chart of Accounts create form must not use a fixed four-column grid at 1440px; source contract requires accountCreateGrid to collapse before the 96rem wide-layout breakpoint."
   ],
   "migrationPlan": "Use expand-only migrations for new persistence required by functional-completeness fixes. Rehearse PostgreSQL migrations before exact-runtime closure. Never rewrite applied migration history.",
   "rollbackPlan": "Rollback one atomic wave at a time to the preceding clean exact-source checkpoint. Schema-changing waves require a documented compatibility/roll-forward strategy; do not use destructive migration rollback against shared data.",
@@ -124,7 +125,7 @@
     "docs/P5-FULL-VISUAL-PRODUCT-REBUILD.md"
   ],
   "createdAt": "2026-09-25T18:00:00+08:00",
-  "updatedAt": "2026-09-26T12:30:00+08:00",
+  "updatedAt": "2026-09-26T13:21:00+08:00",
   "verificationGates": [
     "P2 Payroll exact-source PostgreSQL runtime: execute GROSS, GROSS_UP and NET in one effective-dated payroll period, prove actual split component/rule allocation, balanced posting, salary settlement, post-payment differential adjustment, employee-receivable recovery and recovery settlement.",
     "P2 full aggregate gate requires both handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json and handoff/quality/github-p2-payroll-runtime-probe-latest.json PASS on matching source fingerprints with productionTouched=false.",

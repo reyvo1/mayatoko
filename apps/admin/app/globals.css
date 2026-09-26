@@ -115,6 +115,12 @@ a { color: inherit; }
 .inline { @apply grid grid-cols-1 gap-3 sm:grid-cols-2; }
 .formStack { @apply grid grid-cols-1 gap-3 md:grid-cols-2; }
 .formStack > button, .formStack > .actionRow, .formStack > .sectionHelp { @apply md:col-span-2; }
+
+.accountCreateGrid { @apply mb-4 grid min-w-0 grid-cols-1 items-end gap-2 md:grid-cols-2; }
+.accountCreateGrid > label, .accountCreateGrid > button { @apply min-w-0; }
+@media (width >= 96rem) {
+  .accountCreateGrid { grid-template-columns: 120px minmax(180px,1fr) 150px auto; }
+}
 label { @apply block text-xs font-medium text-slate-300; }
 label > input:not([type="checkbox"]):not([type="radio"]), label > select, label > textarea,
 .panel input:not([type="checkbox"]):not([type="radio"]), .panel select, .panel textarea,

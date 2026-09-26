@@ -6,6 +6,8 @@ const read = (file) => fs.readFileSync(file, 'utf8');
 const visualMap = JSON.parse(read('config/p5-visual-surface-map.json'));
 const packageJson = JSON.parse(read('package.json'));
 const adminShell = read('apps/admin/app/app-shell.tsx');
+const accountingWorkspace = read('apps/admin/app/modules/accounting.tsx');
+const adminCss = read('apps/admin/app/globals.css');
 const posShell = read('apps/pos/app/pos-shell.tsx');
 const storefrontShell = read('apps/storefront/app/storefront-shell.tsx');
 const employeeShell = read('apps/employee-portal/app/employee-portal-shell.tsx');
@@ -109,4 +111,11 @@ test('P5 exact-source evidence participates in full-system aggregate and UAT rep
   assert.match(summary, /'p5VisualRebuild'/);
   assert.match(uatReport, /P5 full visual product rebuild screenshot matrix/);
   assert.match(uatReport, /STEP_P5_VISUAL/);
+});
+
+test('P5 finance account creation form stays responsive inside the two-panel desktop composition', () => {
+  assert.match(accountingWorkspace, /className="accountCreateGrid"/);
+  assert.doesNotMatch(accountingWorkspace, /gridTemplateColumns:\s*'120px minmax\(180px, 1fr\) 150px auto'/);
+  assert.match(adminCss, /\.accountCreateGrid\s*\{[^}]*grid-cols-1[^}]*md:grid-cols-2/s);
+  assert.match(adminCss, /@media \(width >= 96rem\)[\s\S]*?\.accountCreateGrid\s*\{\s*grid-template-columns:\s*120px minmax\(180px,1fr\) 150px auto;/);
 });

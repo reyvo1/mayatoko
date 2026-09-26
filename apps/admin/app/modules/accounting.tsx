@@ -387,7 +387,7 @@ export default function AccountingView({ token, mode }: { token: string; mode?: 
           <Table head={['Event / Source', 'Status', 'Tanggal', 'Aksi']} rows={events.slice(0, 20).map((e) => [<><strong>{e.eventType}</strong><small style={{ display: 'block', color: 'var(--muted)' }}>{e.sourceType ?? '-'} · {e.sourceId ?? '-'}</small></>, <StatusChip status={e.status} />, tanggal(e.businessDate ?? e.createdAt), <button type="button" className="secondary" onClick={() => void loadEventDetail(e.id)}>Drill-down</button>])} empty="Belum ada jurnal." />
         </Panel>}
         {show('ledger') && <Panel eyebrow="CHART OF ACCOUNTS" title="Akun Branch" badge={`${accounts.length} akun`}>
-          <form onSubmit={createAccount} style={{ display: 'grid', gridTemplateColumns: '120px minmax(180px, 1fr) 150px auto', gap: 8, alignItems: 'end', marginBottom: 14 }}>
+          <form className="accountCreateGrid" onSubmit={createAccount}>
             <label>Kode<input required value={accountForm.code} onChange={(e) => setAccountForm({ ...accountForm, code: e.target.value.toUpperCase() })} /></label>
             <label>Nama<input required value={accountForm.name} onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })} /></label>
             <label>Tipe<select value={accountForm.type} onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value })}><option>ASSET</option><option>LIABILITY</option><option>EQUITY</option><option>REVENUE</option><option>EXPENSE</option></select></label>
