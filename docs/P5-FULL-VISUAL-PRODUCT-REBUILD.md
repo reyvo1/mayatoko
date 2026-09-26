@@ -97,3 +97,10 @@ Evidence is written to:
 ## Closure rule
 
 P5 source remains `IMPLEMENTED_RUNTIME_PENDING` after local tests and after source implementation. Automated GitHub evidence must be green on the exact committed source before any runtime closure statement. Automated screenshots do **not** replace human visual acceptance. P6 must not start until the canonical P5 sequencing rule is satisfied by the project workflow.
+## P5 V2 human visual rework
+
+P5 V1 exact-source automation later passed on commit `af7cb87bbdc1ee898f785a072993e79877326b27`, fingerprint `f7f2c6bf6f1a22c8df42afbe0cda001e0f926a09b9b2a33e27650eb2fc58bd3e`. Human review of the real runtime recording nevertheless rejected the presentation: navigation still felt stacked, surfaces remained too flat and predominantly black, depth/elevation was weak, and Storefront did not read as a customer retail product.
+
+P5 V2 therefore reopens only the presentation layer as one atomic wave. `config/p5-v2-art-direction.json` is the machine-readable art-direction contract. The existing route/screenshot/geometry gates stay intact; V2 adds product-specific glass/elevation and distinct color identity while retaining the no-decorative-gradient rule. Prior V1 automation is historical evidence only for the rejected visual source.
+
+P5 cannot close and P6 cannot start until V2 exact-source automation is green and the human explicitly accepts the new runtime presentation.

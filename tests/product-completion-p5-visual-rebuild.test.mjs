@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const visualMap = JSON.parse(read('config/p5-visual-surface-map.json'));
+const artDirection = JSON.parse(read('config/p5-v2-art-direction.json'));
 const packageJson = JSON.parse(read('package.json'));
 const adminShell = read('apps/admin/app/app-shell.tsx');
 const accountingWorkspace = read('apps/admin/app/modules/accounting.tsx');
@@ -19,6 +20,7 @@ const cssBundle = [
 ].join('\n');
 const browserUat = read('scripts/browser-uat.mjs');
 const p5Audit = read('scripts/audit-p5-visual-rebuild.mjs');
+const p5V2Audit = read('scripts/audit-p5-v2-art-direction.mjs');
 const p5Probe = read('scripts/ci-p5-visual-probe.mjs');
 const fullSystem = read('.github/workflows/full-system-simulation.yml');
 const fullUat = read('.github/workflows/toko360-full-uat.yml');
@@ -48,18 +50,22 @@ test('P5 visual map covers all four products and representative page-level surfa
 
 test('P5 rebuild gives Admin POS Storefront and Employee Portal product-specific visual composition', () => {
   assert.match(adminShell, /data-visual-product="admin"/);
+  assert.match(adminShell, /data-visual-version="p5-v2"/);
   assert.match(adminShell, /pageTitleRow/);
   assert.match(adminShell, /pageContextStrip/);
 
   assert.match(posShell, /data-visual-product="pos"/);
+  assert.match(posShell, /data-visual-version="p5-v2"/);
   assert.match(posShell, /posWorkspaceHeader/);
   assert.match(posShell, /posWorkspaceStatus/);
 
   assert.match(storefrontShell, /data-visual-product="storefront"/);
+  assert.match(storefrontShell, /data-visual-version="p5-v2"/);
   assert.match(storefrontShell, /storefrontViewHeader/);
   assert.match(storefrontShell, /storefrontBranchContext/);
 
   assert.match(employeeShell, /data-visual-product="employee-portal"/);
+  assert.match(employeeShell, /data-visual-version="p5-v2"/);
   assert.match(employeeShell, /employeeContextPill/);
   assert.match(employeeShell, /employeeViewBody/);
 });
@@ -103,10 +109,11 @@ test('P5 storefront visual fixture is explicit in both heavy GitHub workflows an
 });
 
 test('P5 visual audit is permanent and exact-runtime P5 probe is mandatory in both heavy workflows', () => {
-  assert.equal(packageJson.scripts['audit:p5:visual'], 'node scripts/audit-p5-visual-rebuild.mjs');
+  assert.equal(packageJson.scripts['audit:p5:visual'], 'node scripts/audit-p5-visual-rebuild.mjs && node scripts/audit-p5-v2-art-direction.mjs');
   assert.equal(packageJson.scripts['ci:p5:probe'], 'node scripts/ci-p5-visual-probe.mjs');
   assert.match(packageJson.scripts['audit:full:repo'], /audit:p5:visual/);
   assert.match(p5Audit, /P5 visual audit PASS/);
+  assert.match(p5V2Audit, /P5 V2 art-direction audit PASS/);
 
   for (const workflow of [fullSystem, fullUat]) {
     assert.match(workflow, /id: p5_visual_rebuild/);
@@ -133,4 +140,27 @@ test('P5 finance account creation form stays responsive inside the two-panel des
   assert.doesNotMatch(accountingWorkspace, /gridTemplateColumns:\s*'120px minmax\(180px, 1fr\) 150px auto'/);
   assert.match(adminCss, /\.accountCreateGrid\s*\{[^}]*grid-cols-1[^}]*md:grid-cols-2/s);
   assert.match(adminCss, /@media \(width >= 96rem\)[\s\S]*?\.accountCreateGrid\s*\{\s*grid-template-columns:\s*120px minmax\(180px,1fr\) 150px auto;/);
+});
+
+test('P5 V2 art direction answers human visual rejection with four distinct layered product identities', () => {
+  assert.equal(artDirection.phase, 'P5-V2');
+  assert.equal(artDirection.baseline.commit, 'af7cb87bbdc1ee898f785a072993e79877326b27');
+  assert.equal(artDirection.baseline.automatedP5, 'PASS');
+  assert.equal(artDirection.baseline.humanVisualAcceptance, 'REJECTED');
+  assert.equal(artDirection.decision.deliveryBoundary, 'ONE_P5_FULL_V2_ATOMIC_WAVE');
+  assert.equal(artDirection.decision.businessLogicChangesAllowed, false);
+  assert.equal(artDirection.decision.glassLayeringRequired, true);
+  assert.equal(artDirection.decision.elevationRequired, true);
+  assert.equal(artDirection.decision.decorativeGradientsAllowed, false);
+
+  const themes = Object.values(artDirection.products).map((item) => item.theme);
+  assert.equal(new Set(themes).size, 4);
+  assert.equal(artDirection.products.storefront.theme, 'light-premium-retail');
+  assert.equal(artDirection.products.employeePortal.theme, 'light-violet-self-service');
+
+  assert.match(adminCss, /backdrop-filter:\s*blur/);
+  assert.match(adminCss, /box-shadow:/);
+  assert.match(adminCss, /\.navLabel small \{ display: none; \}/);
+  assert.match(cssBundle, /color-scheme:\s*light/);
+  assert.doesNotMatch(cssBundle, /(?:linear|radial|conic)-gradient\s*\(/i);
 });

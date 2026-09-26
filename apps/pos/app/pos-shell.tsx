@@ -31,7 +31,7 @@ export function PosShell({
 }) {
   const activeMeta = WORKSPACES.find((item) => item.id === workspace) ?? WORKSPACES[0];
   return (
-    <main className="pos posModern" data-visual-product="pos" data-visual-view={workspace.toLowerCase()}>
+    <main className="pos posModern" data-visual-product="pos" data-visual-version="p5-v2" data-visual-view={workspace.toLowerCase()}>
       <a className="skipLink" href="#pos-workspace">Lewati ke workspace POS</a>
       <header className="posTopbar">
         <div className="posBrand">

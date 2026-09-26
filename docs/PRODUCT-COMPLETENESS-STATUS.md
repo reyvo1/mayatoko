@@ -40,6 +40,15 @@ A-10 is `RUNTIME_VERIFIED`. Canonical `/returns/*` remains authoritative, legacy
 
 P5 automation must preserve `humanAcceptance=PENDING`. Human visual acceptance is mandatory and cannot be inferred from screenshot counts, source tests, or automated Browser UAT.
 
+### P5 V2 human visual rework
+
+- P5 V1 automated exact-source chain is green on commit `af7cb87bbdc1ee898f785a072993e79877326b27`, fingerprint `f7f2c6bf6f1a22c8df42afbe0cda001e0f926a09b9b2a33e27650eb2fc58bd3e`.
+- Human review of the real runtime video rejected the visual result: stacked navigation feel, flat depth, mostly-black surfaces, and insufficient product differentiation.
+- P5 V2 is one presentation-only atomic wave across all four products.
+- Art direction authority: `config/p5-v2-art-direction.json` and `docs/P5-V2-VISUAL-ART-DIRECTION.md`.
+- Automated V2 evidence must be rerun on the new exact source; Human visual acceptance remains mandatory.
+- P6 remains blocked.
+
 ## P2 closure
 
 P2 FULL is `RUNTIME_VERIFIED` on:

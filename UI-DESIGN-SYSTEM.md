@@ -82,6 +82,13 @@ Nested Admin tabs/cards mengikuti resolved runtime surface: module aktif, identi
 - Top-level Admin wajib mengekspos secara eksplisit: Dashboard, Penjualan & Order, Pembelian, Persediaan, Kontrol Operasional, Produk & Master Data, Keuangan, Laporan & Analitik, HRIS & Payroll, Aset & Armada, AI & Otomasi, Integrasi & Notifikasi, Tenant & Organisasi, serta Pengaturan & Akses.
 - Telegram/WhatsApp/provider configuration, notification history, AI/forecast/automation, tenant/company/branch/warehouse, user/security/API key tidak boleh tersembunyi di domain yang tidak relevan.
 - Kontrol visual yang terlihat interaktif wajib mempunyai aksi nyata atau semantik non-button; tombol dekoratif/inert dilarang.
-- Empat surface tetap memakai Tailwind CSS v4 + Lucide, flat one-accent visual language, tanpa decorative gradient, tanpa primary horizontal navigation, dan tanpa accumulated override CSS lama.
+- Empat surface tetap memakai Tailwind CSS v4 + Lucide, tetapi P5 V2 mengganti flat all-dark treatment dengan layered product-specific art direction: translucent solid glass surfaces, backdrop blur, elevation/shadow, dan warna produk yang berbeda. Decorative gradient tetap dilarang, primary horizontal navigation tetap dilarang, dan accumulated override CSS lama tidak boleh kembali.
 - GitHub Browser UAT wajib mengunjungi route/workspace yang tersedia pada desktop/tablet/mobile, memeriksa geometry/no-overflow, menyimpan screenshot sukses/gagal, dan tetap menjadi companion bagi source/API/provider/worker/runtime gates.
 - Human Stage-20 tetap BLOCKED sampai operator menerima visual/usability hasil rebuild.
+
+
+## P5 V2 — human visual rework
+- Exact-source P5 V1 automated evidence passed, but human runtime video review rejected the flat, stacked, mostly-black result.
+- Admin uses deep-indigo layered enterprise surfaces; POS uses teal operations; Storefront uses light premium retail; Employee Portal uses light violet self-service.
+- Human acceptance evaluates hierarchy, product identity, depth, readability, responsive geometry, and whether the four products are visibly distinct.
+- P6 remains blocked until V2 automation and explicit human visual acceptance both pass.

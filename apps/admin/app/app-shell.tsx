@@ -38,7 +38,7 @@ export default function AdminAppShell({ manifest, identity, navigation, activeWo
   const navigate = (route: string) => { setMobileOpen(false); onNavigate(route); };
 
   return (
-    <div className="shell" data-visual-product="admin" data-visual-workspace={activeWorkspace.key} data-visual-view={effectiveDomainView?.key ?? "overview"}>
+    <div className="shell" data-visual-product="admin" data-visual-version="p5-v2" data-visual-workspace={activeWorkspace.key} data-visual-view={effectiveDomainView?.key ?? "overview"}>
       <a className="skipLink" href="#admin-main">Lewati ke konten utama</a>
       <aside className={`sidebar ${mobileOpen ? 'mobileOpen' : ''}`} aria-label="Navigasi Admin">
         <div className="logo">

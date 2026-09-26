@@ -54,7 +54,7 @@ export function EmployeePortalShell({
   const meta = employeePortalMeta(activeView);
 
   return (
-    <main className="employeeShell" data-visual-product="employee-portal" data-visual-view={activeView}>
+    <main className="employeeShell" data-visual-product="employee-portal" data-visual-version="p5-v2" data-visual-view={activeView}>
       <a className="skipLink" href="#employee-main">Lewati ke konten utama</a>
       <aside className="employeeSidebar">
         <div className="employeeBrand">

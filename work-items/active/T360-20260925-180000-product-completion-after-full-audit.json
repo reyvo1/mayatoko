@@ -56,7 +56,10 @@
     "P5 is one atomic visual-product wave across Admin, POS, Storefront and Employee Portal; global CSS-only or marker-only closure is forbidden.",
     "P5 automated closure requires audit:p5:visual and exact-source ci:p5:probe screenshot evidence for 14 Admin primary workspaces, 13 Admin contextual routes, 4 POS views, 5 Storefront views and 7 Employee Portal views at desktop/tablet/mobile geometry.",
     "P5 automated PASS cannot set human visual acceptance; human review remains an explicit separate gate.",
-    "P5 Browser UAT must not depend on demo seed data: both heavy GitHub workflows explicitly enable a non-production storefront fixture; Browser UAT creates one active product through canonical POST /products only when the public branch catalog is empty, records productionTouched=false, and still requires the real catalog-to-product-detail screenshot journey."
+    "P5 Browser UAT must not depend on demo seed data: both heavy GitHub workflows explicitly enable a non-production storefront fixture; Browser UAT creates one active product through canonical POST /products only when the public branch catalog is empty, records productionTouched=false, and still requires the real catalog-to-product-detail screenshot journey.",
+    "P5 V1 exact-source automation is green on af7cb87bbdc1ee898f785a072993e79877326b27 but human runtime video review rejected the flat/stacked/mostly-black visual result.",
+    "P5 V2 is a single presentation-only atomic wave across Admin, POS, Storefront and Employee Portal; P6 remains blocked until V2 automated evidence and explicit human acceptance both pass.",
+    "P5 V2 keeps decorative gradients forbidden while requiring product-specific color identity, glass/backdrop blur, elevation/shadow, and reduced navigation stacking."
   ],
   "acceptanceCriteria": [
     "P0-P7 are executed in order without skipping dependency gates.",
@@ -76,7 +79,11 @@
     "P5 provides product-specific page composition for Admin, POS, Storefront and Employee Portal with intentional hierarchy, responsive density and explicit state surfaces.",
     "P5 exact-source Browser UAT produces the configured page-level screenshot matrix and 1440/1024/390 geometry evidence.",
     "P5 human visual acceptance remains mandatory and separate from automated exact-source PASS.",
-    "P5 Browser UAT remains deterministic with bootstrap seed: an empty public catalog is prepared through an explicit non-production canonical product fixture, never by enabling demo seed or skipping the product-detail screenshot."
+    "P5 Browser UAT remains deterministic with bootstrap seed: an empty public catalog is prepared through an explicit non-production canonical product fixture, never by enabling demo seed or skipping the product-detail screenshot.",
+    "Admin uses deep-indigo layered enterprise surfaces with compact sidebar hierarchy and one contextual navigation layer.",
+    "POS uses teal touch-first operational surfaces with high-contrast sale/cart/shift/returns/sync hierarchy.",
+    "Storefront is a light premium retail surface and no longer visually resembles the dark back-office products.",
+    "Employee Portal is a light violet self-service surface with personal rather than Admin visual identity."
   ],
   "testPlan": [
     "npm run prisma:generate:postgres -w @toko360/api",
@@ -111,7 +118,8 @@
     "Exact-source Browser/runtime P5: npm run ci:p5:probe; handoff/quality/github-p5-visual-rebuild-probe-latest.json must PASS with productionTouched=false and humanAcceptance=PENDING.",
     "Both heavy GitHub workflows must report P5 visual rebuild probe success before P5 automated closure.",
     "P5 finance responsive regression: Admin Keuangan Chart of Accounts create form must not use a fixed four-column grid at 1440px; source contract requires accountCreateGrid to collapse before the 96rem wide-layout breakpoint.",
-    "P5 Storefront fixture regression: both heavy workflows set T360_UAT_PREPARE_P5_STOREFRONT_FIXTURE=true; Browser UAT reads the public PUSAT catalog, creates an active product via authenticated POST /products only when empty, waits for public visibility, records P5_STOREFRONT_PRODUCT_FIXTURE productionTouched=false, then must open and screenshot the real product detail view."
+    "P5 Storefront fixture regression: both heavy workflows set T360_UAT_PREPARE_P5_STOREFRONT_FIXTURE=true; Browser UAT reads the public PUSAT catalog, creates an active product via authenticated POST /products only when empty, waits for public visibility, records P5_STOREFRONT_PRODUCT_FIXTURE productionTouched=false, then must open and screenshot the real product detail view.",
+    "Exact-source Browser screenshots for P5 V2 at 1440/1024/390, followed by explicit human visual review."
   ],
   "migrationPlan": "Use expand-only migrations for new persistence required by functional-completeness fixes. Rehearse PostgreSQL migrations before exact-runtime closure. Never rewrite applied migration history.",
   "rollbackPlan": "Rollback one atomic wave at a time to the preceding clean exact-source checkpoint. Schema-changing waves require a documented compatibility/roll-forward strategy; do not use destructive migration rollback against shared data.",
@@ -125,10 +133,12 @@
     "config/product-completeness.json",
     "docs/PRODUCT-COMPLETENESS-STATUS.md",
     "docs/TOKO360-POST-COMPLETION-HYBRID-BRANCH-WORKFLOW.md",
-    "docs/P5-FULL-VISUAL-PRODUCT-REBUILD.md"
+    "docs/P5-FULL-VISUAL-PRODUCT-REBUILD.md",
+    "config/p5-v2-art-direction.json",
+    "docs/P5-V2-VISUAL-ART-DIRECTION.md"
   ],
   "createdAt": "2026-09-25T18:00:00+08:00",
-  "updatedAt": "2026-09-26T14:10:00+08:00",
+  "updatedAt": "2026-09-26T15:30:00+08:00",
   "verificationGates": [
     "P2 Payroll exact-source PostgreSQL runtime: execute GROSS, GROSS_UP and NET in one effective-dated payroll period, prove actual split component/rule allocation, balanced posting, salary settlement, post-payment differential adjustment, employee-receivable recovery and recovery settlement.",
     "P2 full aggregate gate requires both handoff/quality/github-p2a-multi-uom-runtime-probe-latest.json and handoff/quality/github-p2-payroll-runtime-probe-latest.json PASS on matching source fingerprints with productionTouched=false.",
@@ -138,6 +148,8 @@
     "P4 aggregate gate requires github-p4-canonical-ownership-probe-latest.json PASS on the current source fingerprint with productionTouched=false.",
     "P5 exact-source visual gate requires page-level screenshot coverage for all configured Admin/POS/Storefront/Employee surfaces and desktop/tablet/mobile responsive matrices.",
     "P5 automated evidence remains distinct from mandatory human visual acceptance.",
-    "P5 exact-source Browser gate must pass with bootstrap seed while preserving a real Storefront product-detail screenshot; any fixture used for this proof must be explicit non-production setup through canonical API and productionTouched=false."
+    "P5 exact-source Browser gate must pass with bootstrap seed while preserving a real Storefront product-detail screenshot; any fixture used for this proof must be explicit non-production setup through canonical API and productionTouched=false.",
+    "P5 V2 must preserve all prior P5 Browser geometry and screenshot coverage while changing only presentation.",
+    "Human visual acceptance after V2 is mandatory before P6."
   ]
 }

@@ -37,7 +37,7 @@ export function StorefrontShell({
     ? { label: 'Detail produk', description: 'Periksa varian, unit, harga, stok, dan pilihan pembelian sebelum menambah ke keranjang.' }
     : (NAV_ITEMS.find((item) => item.id === activeView) ?? NAV_ITEMS[0]);
   return (
-    <div className="storefrontApp" data-visual-product="storefront" data-visual-view={activeView}>
+    <div className="storefrontApp" data-visual-product="storefront" data-visual-version="p5-v2" data-visual-view={activeView}>
       <a className="skipLink" href="#storefront-main">Lewati ke konten utama</a>
       <header className="storefrontHeader">
         <div className="storefrontHeaderInner">

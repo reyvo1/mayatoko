@@ -124,7 +124,7 @@
     "ci:p3:probe": "node scripts/ci-p3-productization-probe.mjs",
     "audit:canonical:ownership": "node scripts/audit-canonical-domain-ownership.mjs",
     "ci:p4:probe": "node scripts/ci-p4-canonical-ownership-probe.mjs",
-    "audit:p5:visual": "node scripts/audit-p5-visual-rebuild.mjs",
+    "audit:p5:visual": "node scripts/audit-p5-visual-rebuild.mjs && node scripts/audit-p5-v2-art-direction.mjs",
     "ci:p5:probe": "node scripts/ci-p5-visual-probe.mjs"
   },
   "devDependencies": {
