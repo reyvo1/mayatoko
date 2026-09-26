@@ -1,94 +1,123 @@
-# UI DESIGN SYSTEM — Standar Wajib Semua Projek Rey
+# TOKO360 UI DESIGN SYSTEM — P5 V3
 
-> Referensi riset internet (Agustus 2026): tren dashboard SaaS terbaik — Linear, Vercel, Stripe, Supabase, Raycast, Mercury.
-> Berlaku untuk SEMUA pekerjaan UI baru. Jika projek punya design system sendiri yang sudah matang → itu menang; ini standar minimum.
+> Canonical visual authority for TOKO360 after the second human visual rejection.
+> P5 V3 is a total presentation rebuild. Business rules, authorization, tenant/branch authority, API contracts, inventory/accounting/payroll/returns semantics, and server-side validation remain authoritative and unchanged.
 
-## Prinsip Inti (2026 trends)
-1. **Progressive disclosure** — tampilkan 1 metrik utama dulu ("apakah semua aman?"), detail menyusul via drill-down. Jangan dinding data di first paint (gaya Stripe/Linear).
-2. **Dark-mode-first** — desain dark theme DULU sebagai tema utama (token-based, bukan invert asal), light mode menyusul. Satu warna aksen saja, kontras ketat (gaya Raycast/Supabase).
-3. **Warna = status, bukan dekorasi** — merah berarti rusak, kuning perhatian, hijau sehat. Maksimal 1 aksen + netral.
-4. **Cap KPI** — maksimal 1 metrik primer + beberapa sekunder per view.
-5. **AI-native surface** — ringkasan/saran AI sebagai elemen kelas satu, bukan chat widget nempel di pojok.
+## 1. Delivery model
 
-## Token Visual
-- Font: Inter / Geist / system-ui. Ukuran: 13-14px body, 24px+ heading.
-- Radius: 8-12px kartu, 6px input/button. Shadow halus ATAU border 1px (pilih satu gaya, konsisten).
-- Spacing kelipatan 4px (4/8/12/16/24/32). Padding kartu 16-24px.
-- Grid: max-width konten 1200-1440px, sidebar 240px collapsible.
-- Dark palette dasar: bg #0B0E14, surface #131722, border rgba(255,255,255,.08), text #E6E9F0 / muted #8B93A7.
-- Aksen: pilih 1 (indigo #6366F1 atau biru #3B82F6), success #22C55E, warning #F59E0B, danger #EF4444.
+- Tailwind CSS v4 is the canonical presentation layer for Admin, POS, Storefront, and Employee Portal.
+- Product shells and high-value shared primitives use Tailwind utility classes directly in TSX.
+- `globals.css` is a bounded Tailwind theme/component compatibility layer using `@theme` and `@apply`; it must not become an append-only patch log.
+- Selectors that reactivate or override prior visual generations such as `[data-visual-version="p5-v2"]` are forbidden.
+- Decorative `linear-gradient`, `radial-gradient`, and `conic-gradient` treatments are forbidden. Depth comes from solid/translucent surfaces, borders, backdrop blur, shadow, hierarchy, and whitespace.
+- Lucide React is the canonical icon set. Emoji/text glyphs are not action icons.
 
-## Komponen Wajib Rapi
-- Tabel: header sticky, zebra halus, row hover, empty state berilustrasi teks jelas.
-- Form: label di atas, validasi inline, disabled state jelas.
-- Loading: skeleton screen (bukan spinner polos).
-- Toast untuk feedback aksi; konfirmasi modal untuk aksi destruktif.
-- Chart: gunakan library konsisten (Recharts/Tremor), tooltip interaktif.
+## 2. Product identities
 
-## Anti-Pattern (DILARANG)
-- ❌ Gradient ungu-biru norak, glow berlebihan, emoji sebagai ikon UI
-- ❌ Bootstrap default look, font Times/Arial, tabel polos tanpa style
-- ❌ Alert browser native (alert()/confirm())
-- ❌ Warna acak tiap halaman, spacing tidak konsisten
-- ❌ Menampilkan semua data sekaligus tanpa hierarki
+### Admin — Light Enterprise Command Center
+- Canvas: `#F5F7FB`.
+- Command navigation: deep navy `#0B1220`.
+- Primary accent: sky `#0284C7`.
+- Structure: one command sidebar, one contextual navigation layer, one bounded workspace surface.
+- Dense operational content uses white elevated panels, restrained borders, meaningful shadows, clear table headers, compact forms, and high-signal KPI cards.
+- Analytics uses a restrained series palette with clear axes/grid/legend hierarchy; charts must remain readable without relying on color alone.
 
-## Proses
-Sebelum bikin UI baru: cek dulu apakah projek punya design system sendiri → ikuti itu.
-Kalau tidak ada → terapkan standar file ini. Ragu referensi? cari contoh dashboard
-SaaS terkini di internet sebelum coding.
+### POS — Teal Transaction Cockpit
+- Canvas: `#EEF4F6`.
+- Primary accent: teal `#0F766E`.
+- Touch-first composition: product search/catalog dominates discovery, cart/payment dominates checkout, shift/return/sync remain explicit workspaces.
+- Primary action and payment state must be visually dominant without weakening offline/payment guards.
+- Desktop retains a sticky cart; mobile collapses to a single-column transaction flow.
 
-## UI-P2 — Domain workspace navigation
-- Domain besar memakai satu secondary navigation yang sticky dan deep-linkable.
-- Secondary navigation tidak boleh digandakan dengan workspace rail/deck/context strip tambahan.
-- Breadcrumb hanya dipakai bila benar-benar membantu orientasi dan tidak menggandakan judul/subnav.
-- Nested route tidak boleh mengubah security boundary atau menggandakan business logic di client.
+### Storefront — Light Premium Retail
+- Canvas: `#F7F7F5`.
+- Primary accent: deep retail green `#15261F`.
+- Customer-facing hierarchy: clear retail header, product-first cards, prominent product detail, clean cart/checkout, restrained account/order surfaces.
+- Storefront must not look like an Admin dashboard.
+- Product cards prioritize name, price, availability/promo, and imagery space; operational metadata stays secondary.
 
-## UI-P3 POS operator workspaces
-POS menggunakan flat workspace navigation: Penjualan, Shift & Kas, Retur, dan Sinkronisasi. Desktop mempertahankan cart sticky dan katalog luas; mobile menurunkan workspace menjadi grid dua kolom dan single-column transaction flow. Presentation shell tidak boleh mengubah payment/offline/security gate.
+### Employee Portal — Calm Violet Self-Service
+- Canvas: `#F6F7FB`.
+- Primary accent: violet `#7C3AED`.
+- Calm self-service hierarchy with attendance, leave, overtime, payslip, history, and profile as explicit destinations.
+- Desktop sidebar and mobile bottom/grid navigation are visually lighter than Admin and optimized for personal status/action comprehension.
 
+## 3. Typography and spacing
 
-## UI-P4 Storefront
+- Font stack: Inter / Geist / system-ui.
+- Body: 13–14px; helper/meta: 10–12px; page title: 24–32px depending viewport.
+- Heading tracking may be slightly tightened; body copy must remain readable at normal browser zoom.
+- Spacing uses a 4px rhythm with primary steps 4/8/12/16/20/24/32.
+- Cards/panels use deliberate internal grouping; unrelated controls must not appear as one continuous wall.
+- Main content is bounded by product-specific max widths and must never require page-level horizontal scrolling.
 
-Storefront memakai sticky global header, desktop/mobile primary navigation, view context, customer-focused progressive disclosure, catalog controls, product-detail surface, dan pemisahan cart/checkout dari account/order tracking. Mobile memakai bottom navigation dan seluruh action tetap mempunyai focus/disabled semantics native.
+## 4. Surface/elevation system
 
-## Employee Portal productization
-Employee self-service memakai desktop sidebar + mobile grid navigation yang wrap ke viewport, page heading per workspace, progressive disclosure, status pills, responsive forms/tables, dan flat dark surfaces. Browser contract `TOKO360 HR` / `Portal Karyawan` tetap dipertahankan.
+- Canvas -> primary surface -> elevated/interactive surface is the canonical depth order.
+- Glass is allowed only as restrained translucent solid surfaces with `backdrop-blur`; it is not a substitute for hierarchy.
+- Border and shadow may be combined when subtle; avoid glow/neon effects.
+- Typical panel radius: 20–28px for major surfaces, 12–18px for controls/cards, full pill only for status/filter chips.
+- Hover elevation may move at most ~1–2px; motion must remain functional and respect reduced-motion preferences.
 
-## UI-P6 — server-driven Admin surfaces
-Nested Admin tabs/cards mengikuti resolved runtime surface: module aktif, identity visibility, dan UiSchema admin. Runtime override tidak boleh menciptakan action atau route baru.
+## 5. Navigation rules
 
-## UI-P7 accessibility baseline
-- Semua shell utama menyediakan `.skipLink` ke primary content.
-- Semua interactive controls harus mempunyai `:focus-visible` yang jelas.
-- Motion wajib menghormati `prefers-reduced-motion: reduce`.
-- Untuk coarse pointer, interactive control minimum 44px.
-- Navigation state aktif memakai `aria-current="page"` jika semantiknya sesuai.
-- Connection/runtime status yang berubah tanpa page navigation memakai `role="status"` + `aria-live="polite"` jika relevan.
+- Admin: exactly one primary sidebar + one contextual domain navigation. No workspace rail/deck/breadcrumb/statusbar layer that competes with them.
+- Sidebar item descriptions are secondary and truncate; they must not create tall stacked menu walls.
+- Search must remain available for Admin navigation (`Cari menu, fitur, atau area kerja`).
+- POS: four explicit workspaces; mobile navigation remains inside viewport.
+- Storefront: desktop primary nav + mobile bottom navigation; customer journeys stay distinct.
+- Employee Portal: desktop sidebar + mobile 4-column/grid navigation.
+- Active state uses `aria-current="page"` where appropriate.
 
-## F12R3 — Tailwind CSS v4 canonical presentation layer
-- Admin, POS, Storefront, dan Employee Portal wajib memakai Tailwind CSS v4 melalui `@tailwindcss/postcss` dan `@import "tailwindcss"`.
-- `globals.css` hanya boleh menjadi Tailwind theme/component layer yang terstruktur; dilarang menumpuk patch/override generasi lama di bagian bawah file.
-- Canonical accent Toko360 adalah biru `#3B82F6`; status colors hanya success/warning/danger.
-- Primary navigation tidak boleh membutuhkan horizontal scroll. Mobile navigation harus wrap/grid ke viewport.
-- Admin hanya boleh memiliki satu primary sidebar/top navigation dan satu secondary domain navigation. Workspace rail/deck/context dekoratif yang menggandakan navigasi dilarang.
-- Tabel desktop harus berada di viewport; narrow viewport mengubah row menjadi stacked labeled cells bila kolom tidak muat.
-- Lucide React adalah canonical icon set untuk empat operator surfaces. Emoji/simbol teks tidak boleh dipakai sebagai ikon aksi.
-- Visual acceptance harus dibuktikan oleh Browser UAT geometry matrix + screenshot artifact, bukan static CSS test saja.
+## 6. Forms, tables, states, and feedback
 
+### Forms
+- Label above control, helper/error inline, required/disabled/read-only state explicit.
+- Inputs/selects/buttons must share radius, height, focus ring, and spacing rhythm per product.
+- Destructive actions use explicit confirmation modal, never native `confirm()`.
 
-## F12R4 — Full UI rebuild after operator visual rejection
-- F12R3 automated green evidence tidak dianggap visual acceptance; operator review membuka kembali F12 karena struktur informasi dan usability masih gagal.
-- Admin canonical information architecture adalah **satu primary sidebar + satu contextual secondary navigation + satu content surface**. `workspaceRail`, `domainDeck`, `domainContext`, statusbar dekoratif, atau layer navigasi paralel dilarang dirender.
-- Top-level Admin wajib mengekspos secara eksplisit: Dashboard, Penjualan & Order, Pembelian, Persediaan, Kontrol Operasional, Produk & Master Data, Keuangan, Laporan & Analitik, HRIS & Payroll, Aset & Armada, AI & Otomasi, Integrasi & Notifikasi, Tenant & Organisasi, serta Pengaturan & Akses.
-- Telegram/WhatsApp/provider configuration, notification history, AI/forecast/automation, tenant/company/branch/warehouse, user/security/API key tidak boleh tersembunyi di domain yang tidak relevan.
-- Kontrol visual yang terlihat interaktif wajib mempunyai aksi nyata atau semantik non-button; tombol dekoratif/inert dilarang.
-- Empat surface tetap memakai Tailwind CSS v4 + Lucide, tetapi P5 V2 mengganti flat all-dark treatment dengan layered product-specific art direction: translucent solid glass surfaces, backdrop blur, elevation/shadow, dan warna produk yang berbeda. Decorative gradient tetap dilarang, primary horizontal navigation tetap dilarang, dan accumulated override CSS lama tidak boleh kembali.
-- GitHub Browser UAT wajib mengunjungi route/workspace yang tersedia pada desktop/tablet/mobile, memeriksa geometry/no-overflow, menyimpan screenshot sukses/gagal, dan tetap menjadi companion bagi source/API/provider/worker/runtime gates.
-- Human Stage-20 tetap BLOCKED sampai operator menerima visual/usability hasil rebuild.
+### Tables and lists
+- Strong header hierarchy, subtle row separators/hover, readable numeric alignment, clear status chips.
+- Wide operational content must adapt before causing page overflow; stacked responsive presentation is preferred over horizontal page scroll.
+- Empty tables use purposeful empty states rather than blank frames.
 
+### Loading / empty / error / success
+- Loading uses skeletons or local progress state rather than an unexplained blank screen.
+- Empty state explains what is absent and, where allowed, gives the canonical next action.
+- Errors distinguish transport failure from a valid empty response.
+- Action feedback uses toast/status surfaces with semantic colors.
 
-## P5 V2 — human visual rework
-- Exact-source P5 V1 automated evidence passed, but human runtime video review rejected the flat, stacked, mostly-black result.
-- Admin uses deep-indigo layered enterprise surfaces; POS uses teal operations; Storefront uses light premium retail; Employee Portal uses light violet self-service.
-- Human acceptance evaluates hierarchy, product identity, depth, readability, responsive geometry, and whether the four products are visibly distinct.
-- P6 remains blocked until V2 automation and explicit human visual acceptance both pass.
+## 7. Charts and analytics
+
+- Charts must have visible hierarchy: title/context, axis/grid reference, data marks, legend/labels where useful.
+- Use a small consistent palette per product; success/warning/danger colors preserve semantic meaning.
+- KPI cards must not become decorative tiles with no drill-down/context.
+- Admin analytics must remain legible at desktop/tablet/mobile screenshots and must not overflow its panel.
+
+## 8. Accessibility and responsive baseline
+
+- Every primary shell provides `.skipLink` to focusable main content.
+- `:focus-visible` is clearly visible on all interactive controls.
+- `prefers-reduced-motion: reduce` is mandatory.
+- Coarse-pointer interactive targets are at least 44px.
+- Runtime/connection states use `role="status"` + `aria-live="polite"` where applicable.
+- Canonical responsive evidence is 1440px desktop, 1024px tablet, and 390px mobile.
+- Page `scrollWidth` must remain within viewport tolerance at all canonical widths.
+
+## 9. Business-authority boundary
+
+- Presentation may hide/rearrange only what existing visibility/runtime constraints already authorize; it cannot create permissions.
+- UI never becomes inventory, accounting, payment, payroll, return, tax, or pricing authority.
+- Server validation, canonical mutation paths, tenant/branch scope, idempotency, and fail-closed business gates remain unchanged.
+- Runtime UiSchema overrides remain presentation-only and cannot invent routes/actions.
+
+## 10. P5 V3 permanent acceptance contract
+
+P5 V3 is accepted only when all of the following are true:
+
+1. Source audit proves utility-first shells, Tailwind-only compatibility layers, four distinct identities, no prior-generation override blocks, no decorative gradients, and no horizontal page scroll.
+2. All existing UI/business source regression suites remain green; visual rebaseline may update obsolete color/layout expectations but must preserve structural/security/business assertions.
+3. Exact-source Browser UAT captures the configured Admin/POS/Storefront/Employee screenshot matrix at desktop/tablet/mobile geometry.
+4. `ci:p5:probe` passes on the same source fingerprint and records `visualGeneration=P5-V3`, `productionTouched=false`, and `humanAcceptance=PENDING`.
+5. A human reviews the actual runtime and explicitly accepts the visual/usability result. Automated screenshots cannot auto-promote this gate.
+6. P6 remains blocked until item 5 is recorded.

@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const visualMap = JSON.parse(read('config/p5-visual-surface-map.json'));
-const artDirection = JSON.parse(read('config/p5-v2-art-direction.json'));
+const artDirection = JSON.parse(read('config/p5-v3-tailwind-rebuild.json'));
 const packageJson = JSON.parse(read('package.json'));
 const adminShell = read('apps/admin/app/app-shell.tsx');
 const accountingWorkspace = read('apps/admin/app/modules/accounting.tsx');
@@ -20,7 +20,7 @@ const cssBundle = [
 ].join('\n');
 const browserUat = read('scripts/browser-uat.mjs');
 const p5Audit = read('scripts/audit-p5-visual-rebuild.mjs');
-const p5V2Audit = read('scripts/audit-p5-v2-art-direction.mjs');
+const p5V3Audit = read('scripts/audit-p5-v3-tailwind-rebuild.mjs');
 const p5Probe = read('scripts/ci-p5-visual-probe.mjs');
 const fullSystem = read('.github/workflows/full-system-simulation.yml');
 const fullUat = read('.github/workflows/toko360-full-uat.yml');
@@ -51,21 +51,25 @@ test('P5 visual map covers all four products and representative page-level surfa
 test('P5 rebuild gives Admin POS Storefront and Employee Portal product-specific visual composition', () => {
   assert.match(adminShell, /data-visual-product="admin"/);
   assert.match(adminShell, /data-visual-version="p5-v2"/);
+  assert.match(adminShell, /data-visual-generation="p5-v3"/);
   assert.match(adminShell, /pageTitleRow/);
   assert.match(adminShell, /pageContextStrip/);
 
   assert.match(posShell, /data-visual-product="pos"/);
   assert.match(posShell, /data-visual-version="p5-v2"/);
+  assert.match(posShell, /data-visual-generation="p5-v3"/);
   assert.match(posShell, /posWorkspaceHeader/);
   assert.match(posShell, /posWorkspaceStatus/);
 
   assert.match(storefrontShell, /data-visual-product="storefront"/);
   assert.match(storefrontShell, /data-visual-version="p5-v2"/);
+  assert.match(storefrontShell, /data-visual-generation="p5-v3"/);
   assert.match(storefrontShell, /storefrontViewHeader/);
   assert.match(storefrontShell, /storefrontBranchContext/);
 
   assert.match(employeeShell, /data-visual-product="employee-portal"/);
   assert.match(employeeShell, /data-visual-version="p5-v2"/);
+  assert.match(employeeShell, /data-visual-generation="p5-v3"/);
   assert.match(employeeShell, /employeeContextPill/);
   assert.match(employeeShell, /employeeViewBody/);
 });
@@ -97,6 +101,9 @@ test('P5 browser UAT creates exact page-level screenshot matrix and keeps human 
   assert.match(p5Probe, /humanAcceptance:\s*'PENDING'/);
   assert.match(p5Probe, /github-p5-visual-rebuild-probe-latest\.json/);
   assert.match(p5Probe, /productionTouched:\s*false/);
+  assert.match(p5Probe, /visualGeneration:\s*'P5-V3'/);
+  assert.match(p5Probe, /p5V3TailwindTotalRebuildContract/);
+  assert.match(p5Probe, /businessApiAuthorityFrozen/);
 });
 
 test('P5 storefront visual fixture is explicit in both heavy GitHub workflows and does not weaken product-detail coverage', () => {
@@ -109,11 +116,11 @@ test('P5 storefront visual fixture is explicit in both heavy GitHub workflows an
 });
 
 test('P5 visual audit is permanent and exact-runtime P5 probe is mandatory in both heavy workflows', () => {
-  assert.equal(packageJson.scripts['audit:p5:visual'], 'node scripts/audit-p5-visual-rebuild.mjs && node scripts/audit-p5-v2-art-direction.mjs');
+  assert.equal(packageJson.scripts['audit:p5:visual'], 'node scripts/audit-p5-visual-rebuild.mjs && node scripts/audit-p5-v3-tailwind-rebuild.mjs');
   assert.equal(packageJson.scripts['ci:p5:probe'], 'node scripts/ci-p5-visual-probe.mjs');
   assert.match(packageJson.scripts['audit:full:repo'], /audit:p5:visual/);
   assert.match(p5Audit, /P5 visual audit PASS/);
-  assert.match(p5V2Audit, /P5 V2 art-direction audit PASS/);
+  assert.match(p5V3Audit, /P5 V3 Tailwind rebuild audit PASS/);
 
   for (const workflow of [fullSystem, fullUat]) {
     assert.match(workflow, /id: p5_visual_rebuild/);
@@ -142,25 +149,40 @@ test('P5 finance account creation form stays responsive inside the two-panel des
   assert.match(adminCss, /@media \(width >= 96rem\)[\s\S]*?\.accountCreateGrid\s*\{\s*grid-template-columns:\s*120px minmax\(180px,1fr\) 150px auto;/);
 });
 
-test('P5 V2 art direction answers human visual rejection with four distinct layered product identities', () => {
-  assert.equal(artDirection.phase, 'P5-V2');
-  assert.equal(artDirection.baseline.commit, 'af7cb87bbdc1ee898f785a072993e79877326b27');
+test('P5 V3 replaces rejected V2 overrides with utility-first Tailwind product shells', () => {
+  assert.equal(artDirection.phase, 'P5-V3');
+  assert.equal(artDirection.baseline.commit, 'fd2d29d9a8d7d6bd0db3c1e085fb4e376440f6bc');
   assert.equal(artDirection.baseline.automatedP5, 'PASS');
   assert.equal(artDirection.baseline.humanVisualAcceptance, 'REJECTED');
-  assert.equal(artDirection.decision.deliveryBoundary, 'ONE_P5_FULL_V2_ATOMIC_WAVE');
+  assert.equal(artDirection.decision.deliveryBoundary, 'ONE_P5_FULL_V3_TOTAL_UI_REBUILD');
   assert.equal(artDirection.decision.businessLogicChangesAllowed, false);
-  assert.equal(artDirection.decision.glassLayeringRequired, true);
-  assert.equal(artDirection.decision.elevationRequired, true);
+  assert.equal(artDirection.decision.apiContractChangesAllowed, false);
+  assert.equal(artDirection.decision.tailwindUtilityFirstRequired, true);
+  assert.equal(artDirection.decision.legacyCompatibilityLayerTailwindOnly, true);
+  assert.equal(artDirection.decision.p5V2OverrideBlocksForbidden, true);
   assert.equal(artDirection.decision.decorativeGradientsAllowed, false);
 
   const themes = Object.values(artDirection.products).map((item) => item.theme);
   assert.equal(new Set(themes).size, 4);
+  assert.equal(artDirection.products.admin.theme, 'light-enterprise-command-center');
+  assert.equal(artDirection.products.pos.theme, 'teal-transaction-cockpit');
   assert.equal(artDirection.products.storefront.theme, 'light-premium-retail');
-  assert.equal(artDirection.products.employeePortal.theme, 'light-violet-self-service');
+  assert.equal(artDirection.products.employeePortal.theme, 'calm-violet-self-service');
 
-  assert.match(adminCss, /backdrop-filter:\s*blur/);
-  assert.match(adminCss, /box-shadow:/);
-  assert.match(adminCss, /\.navLabel small \{ display: none; \}/);
+  for (const shell of [adminShell, posShell, storefrontShell, employeeShell]) {
+    assert.match(shell, /data-visual-generation="p5-v3"/);
+    assert.match(shell, /(?:rounded-|shadow-|bg-|border-|grid|flex)/);
+  }
+  assert.match(adminCss, /\.shell/);
+  assert.match(adminCss, /\.accountCreateGrid/);
   assert.match(cssBundle, /color-scheme:\s*light/);
+  assert.doesNotMatch(cssBundle, /\[data-visual-version=["']?p5-v2/i);
   assert.doesNotMatch(cssBundle, /(?:linear|radial|conic)-gradient\s*\(/i);
+});
+
+test('P5 V3 Tailwind compatibility CSS never @applys group markers', () => {
+  const storefrontCss = read('apps/storefront/app/globals.css');
+  assert.doesNotMatch(storefrontCss, /@apply[^;]*\bgroup\b/);
+  assert.doesNotMatch(storefrontCss, /@apply[^;]*group-hover:/);
+  assert.match(storefrontCss, /\.productCard:hover \.productImage\s*\{[^}]*@apply bg-\[#e8ede5\]/s);
 });

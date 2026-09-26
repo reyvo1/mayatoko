@@ -1,253 +1,77 @@
 @import "tailwindcss";
 @source "./**/*.{js,ts,jsx,tsx,mdx}";
-@theme { --font-sans:Inter,Geist,ui-sans-serif,system-ui,sans-serif; --color-hr-bg:#0b0e14; --color-hr-surface:#131722; --color-hr-surface-2:#181d29; --color-hr-border:#2a3140; --color-hr-text:#eef2f7; --color-hr-muted:#8b93a7; --color-hr-accent:#3b82f6; }
-*{box-sizing:border-box}html{background:var(--color-hr-bg);color-scheme:dark}body{margin:0;overflow-x:hidden;background:var(--color-hr-bg);color:var(--color-hr-text);font-family:var(--font-sans);font-size:14px}button,input,select,textarea{font:inherit}.skipLink{@apply fixed left-4 top-4 z-[100] -translate-y-24 rounded-lg bg-blue-500 px-4 py-2 font-semibold text-white focus:translate-y-0}.employeeShell{@apply min-h-screen bg-hr-bg lg:grid lg:grid-cols-[240px_minmax(0,1fr)]}.employeeSidebar{@apply hidden h-screen flex-col border-r border-hr-border bg-hr-surface p-3 lg:sticky lg:top-0 lg:flex}.employeeBrand{@apply border-b border-hr-border px-2 pb-4 pt-2}.employeeBrand strong{@apply block text-base}.employeeBrand small,.brandEyebrow{@apply text-[10px] uppercase tracking-[.12em] text-hr-muted}.brandEyebrow{@apply font-bold text-blue-400}.employeeNav{@apply mt-3 grid gap-1}.employeeNavItem{@apply grid grid-cols-[34px_minmax(0,1fr)] items-center gap-2 rounded-xl border border-transparent px-2 py-2 text-hr-muted no-underline transition hover:bg-hr-surface-2 hover:text-white}.employeeNavItem.active{@apply border-blue-500/25 bg-blue-500/10 text-white}.employeeNavIcon{@apply grid h-8 w-8 place-items-center rounded-lg bg-hr-surface-2}.employeeNavItem.active .employeeNavIcon{@apply bg-blue-500 text-white}.employeeNavCopy strong{@apply block text-xs}.employeeNavCopy small{@apply mt-0.5 block truncate text-[10px] text-hr-muted}.employeeSidebarFooter{@apply mt-auto rounded-xl border border-hr-border bg-hr-surface-2 p-3}.employeeSidebarFooter small,.employeeSidebarFooter span{@apply block truncate text-[10px] text-hr-muted}.employeeSidebarFooter strong{@apply my-0.5 block truncate text-xs}.employeeWorkspace{@apply min-w-0}.employeeTopbar{@apply sticky top-0 z-30 flex min-h-16 items-center justify-between border-b border-hr-border bg-hr-bg/95 px-3 backdrop-blur md:px-5}.employeeTopbar h1{@apply m-0 text-sm font-semibold}.employeeTopbar p{@apply m-0 text-[10px] text-hr-muted}.outline,.secondary,.actions button,.formStack button,.iconButton{@apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-hr-border bg-hr-surface-2 px-3 text-xs font-semibold text-hr-text transition hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500}.employeeMobileNav{@apply grid grid-cols-4 gap-1 border-b border-hr-border bg-hr-surface p-1.5 lg:hidden}.employeeMobileNav a{@apply flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[9px] text-hr-muted no-underline}.employeeMobileNav a.active{@apply bg-blue-500/10 text-blue-300}.employeePageHeading{@apply mx-auto flex max-w-[1280px] items-end justify-between px-3 pb-3 pt-5 md:px-5}.employeePageHeading h2{@apply m-0 text-xl font-semibold}.employeePageHeading p{@apply m-0 mt-1 text-xs text-hr-muted}.employeePageHeading small{@apply text-[10px] font-bold tracking-[.12em] text-blue-400}.singleWorkspace{@apply mx-auto w-full max-w-[1280px] px-3 pb-10 md:px-5}.card,.profileCard,.attendanceCard,.welcomeDeck{@apply rounded-xl border border-hr-border bg-hr-surface p-4}.cardHeading{@apply mb-3 flex items-center justify-between gap-2 border-b border-hr-border pb-3}.cardHeading h3{@apply m-0 text-sm font-semibold}.dashboardGrid,.profileGrid,.formGrid,.statGrid{@apply grid gap-3}.dashboardGrid{@apply lg:grid-cols-2}.profileGrid,.formGrid{@apply md:grid-cols-2}.statGrid{@apply grid-cols-2 md:grid-cols-4}.pStat{@apply rounded-xl border border-hr-border bg-hr-surface p-3}.pStat strong{@apply block text-xl}.pStat small{@apply text-[10px] text-hr-muted}.formStack{@apply grid gap-3}.formStack label{@apply grid gap-1.5 text-xs text-slate-300}.formStack input,.formStack select,.formStack textarea,.card input,.card select,.card textarea{@apply w-full min-w-0 rounded-lg border border-hr-border bg-hr-bg px-3 py-2.5 text-xs text-white outline-none focus:border-blue-500}.actions{@apply flex flex-wrap gap-2}.statusPill{@apply inline-flex w-fit rounded-full border border-hr-border bg-hr-surface-2 px-2 py-1 text-[10px] font-semibold text-hr-muted}.notice{@apply rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-200}.mutedText{@apply text-xs text-hr-muted}.emptyState{@apply grid min-h-36 place-items-center rounded-xl border border-dashed border-hr-border p-5 text-center text-hr-muted}.table{@apply w-full min-w-0 overflow-hidden rounded-xl border border-hr-border}.tr{@apply grid min-w-0 items-center gap-2 border-t border-hr-border px-3 py-2.5 text-xs first:border-t-0}.tr.th{@apply bg-hr-surface-2 text-[10px] font-bold uppercase tracking-[.08em] text-hr-muted}.coords{@apply text-[10px] text-hr-muted}.skeletonList{@apply grid gap-2}.skeletonList>*{@apply h-12 animate-pulse rounded-lg bg-slate-800}.login{@apply grid min-h-screen place-items-center p-4}.login>.card{@apply w-full max-w-md}
-@media(max-width:767px){.employeeMobileNav{@apply grid-cols-4}.employeePageHeading{@apply pt-4}.dashboardGrid,.profileGrid,.formGrid{@apply grid-cols-1}.table{@apply overflow-visible border-0}.tr.th{display:none}.tr{@apply mb-2 grid-cols-1 rounded-xl border border-hr-border bg-hr-surface}.tr>span{@apply block}}
-@media(pointer:coarse){button,input,select,a{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
-/* P5 V2 — light violet employee self-service art direction */
-.employeeShell[data-visual-version="p5-v2"] {
-  --v2-hr-bg: #f4f6ff;
-  --v2-hr-surface: rgba(255,255,255,.88);
-  --v2-hr-border: rgba(91, 102, 158, .14);
-  --v2-hr-text: #1d2744;
-  --v2-hr-muted: #75809b;
-  --v2-hr-accent: #6f63e8;
-  min-height: 100vh;
-  color-scheme: light;
-  background: var(--v2-hr-bg);
-  color: var(--v2-hr-text);
-  position: relative;
-  isolation: isolate;
+
+@theme { --font-sans: Inter, Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+*{box-sizing:border-box} html{background:#f6f7fb;color-scheme:light} body{margin:0;min-width:0;overflow-x:hidden;background:#f6f7fb;color:#0f172a;font-family:var(--font-sans)} button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}::selection{background:#ddd6fe;color:#4c1d95}
+
+@layer components {
+  .employeeContextPill { @apply inline-flex items-center; }
+  .skipLink { @apply fixed left-4 top-4 z-[100] -translate-y-24 rounded-xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-xl transition-transform focus:translate-y-0; }
+  .employeeWorkspace { @apply min-w-0 pb-24 lg:pb-10; }
+  .employeeViewBody { @apply mx-auto w-full max-w-[1480px] min-w-0 px-4 pb-10 sm:px-6 lg:px-8; }
+
+  .welcomeDeck { @apply mb-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_14px_38px_rgba(15,23,42,.055)] sm:p-6; }
+  .dashboardGrid { @apply grid min-w-0 gap-4 xl:grid-cols-2; }
+  .singleWorkspace { @apply min-w-0; }
+  .profileGrid { @apply grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]; }
+  .statGrid { @apply mb-4 grid min-w-0 grid-cols-2 gap-3 xl:grid-cols-4; }
+  .pStat { @apply min-w-0 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,.045)]; }
+  .pStat small { @apply text-[9px] font-bold uppercase tracking-[.12em] text-slate-400; }
+  .pStat strong { @apply mt-2 block text-2xl font-bold tracking-[-.04em] text-slate-950; }
+
+  .card, .profileCard, .attendanceCard { @apply min-w-0 rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_36px_rgba(15,23,42,.055)] sm:p-6; }
+  .card + .card { @apply mt-4; }
+  .cardHeading { @apply mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4; }
+  .cardHeading small { @apply text-[9px] font-bold uppercase tracking-[.14em] text-violet-600; }
+  .cardHeading h3 { @apply mt-1 text-base font-semibold tracking-[-.025em] text-slate-900; }
+  .mutedText { @apply text-xs leading-5 text-slate-500; }
+  .coords { @apply mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-[10px] text-slate-500; }
+  .actions { @apply mt-4 flex flex-wrap gap-2; }
+
+  .statusPill { @apply inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700; }
+  .statusPill.ready { @apply border-emerald-200 bg-emerald-50 text-emerald-700; }
+  .notice { @apply mb-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-800; }
+  .notice.success { @apply border-emerald-200 bg-emerald-50 text-emerald-700; }
+  .notice.error { @apply border-rose-200 bg-rose-50 text-rose-700; }
+
+  .formStack { @apply flex min-w-0 flex-col gap-3; }
+  .formGrid { @apply grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2; }
+  .formStack label, .formGrid label { @apply flex min-w-0 flex-col gap-1.5 text-[10px] font-semibold text-slate-600; }
+  input,select,textarea { @apply min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100; }
+  textarea { @apply min-h-24 resize-y; }
+  .formStack button, .actions button { @apply min-h-10 rounded-xl border border-violet-700 bg-violet-700 px-3.5 py-2.5 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(109,40,217,.18)] transition hover:-translate-y-px hover:bg-violet-800; }
+  button.secondary, .secondary { @apply border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50; }
+
+  .table { @apply mt-4 min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white; }
+  .tr { @apply grid min-w-0 gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-600 last:border-0; }
+  .tr.th { @apply bg-slate-50 text-[9px] font-bold uppercase tracking-[.08em] text-slate-500; }
+  .tr:not(.th) { @apply transition-colors hover:bg-violet-50/35; }
+  .tr > span { @apply min-w-0 break-words; }
+  .row { @apply flex min-w-0 items-center justify-between gap-3 border-b border-slate-100 py-3 text-xs last:border-0; }
+  .emptyState { @apply grid min-h-40 place-items-center rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center text-xs text-slate-500; }
+  .skeletonList { @apply space-y-2; }
+  .skeletonList > * { @apply block h-10 animate-pulse rounded-xl bg-slate-100; }
+
+  .login { @apply relative grid min-h-screen place-items-center overflow-hidden bg-[#f6f7fb] p-4; }
+  .login::before { content:""; @apply pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-violet-200/50 blur-3xl; }
+  .login > form, .login > .card { @apply relative z-10 w-full max-w-md rounded-[28px] border border-white/80 bg-white/90 p-6 shadow-[0_28px_80px_rgba(15,23,42,.13)] backdrop-blur-2xl sm:p-8; }
 }
-.employeeShell[data-visual-version="p5-v2"]::before {
-  content: "";
-  position: fixed;
-  z-index: 0;
-  width: 340px;
-  height: 340px;
-  top: -100px;
-  right: 8%;
-  border-radius: 999px;
-  background: #d8d4ff;
-  filter: blur(120px);
-  opacity: .55;
-  pointer-events: none;
-}
-.employeeShell[data-visual-version="p5-v2"] > * { position: relative; z-index: 1; }
-.employeeShell[data-visual-version="p5-v2"] .employeeSidebar {
-  width: 252px;
-  padding: 16px;
-  border-color: var(--v2-hr-border);
-  background: rgba(255,255,255,.84);
-  color: var(--v2-hr-text);
-  backdrop-filter: blur(22px) saturate(135%);
-  box-shadow: 18px 0 44px rgba(62,73,128,.08);
-}
-.employeeShell[data-visual-version="p5-v2"] .employeeBrand {
-  padding: 9px 9px 19px;
-  border-color: rgba(91,102,158,.12);
-}
-.employeeShell[data-visual-version="p5-v2"] .brandEyebrow { color: #7468e9; }
-.employeeShell[data-visual-version="p5-v2"] .employeeBrand strong { margin-top: 4px; color: #1d2744; font-size: 18px; letter-spacing: -.02em; }
-.employeeShell[data-visual-version="p5-v2"] .employeeBrand small { color: #8a94aa; }
-.employeeShell[data-visual-version="p5-v2"] .employeeNav { margin-top: 14px; gap: 5px; }
-.employeeShell[data-visual-version="p5-v2"] .employeeNavItem {
-  min-height: 46px;
-  grid-template-columns: 38px minmax(0,1fr);
-  border-radius: 13px;
-  color: #727e96;
-  padding: 5px 8px;
-}
-.employeeShell[data-visual-version="p5-v2"] .employeeNavItem:hover { background: rgba(111,99,232,.065); color: #36446b; }
-.employeeShell[data-visual-version="p5-v2"] .employeeNavItem.active {
-  border-color: rgba(111,99,232,.16);
-  background: rgba(111,99,232,.10);
-  color: #3f3a9c;
-  box-shadow: inset 3px 0 0 #7569e9;
-}
-.employeeShell[data-visual-version="p5-v2"] .employeeNavIcon {
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgba(91,102,158,.10);
-  border-radius: 11px;
-  background: #f0f2fb;
-  color: #7d87a0;
-}
-.employeeShell[data-visual-version="p5-v2"] .employeeNavItem.active .employeeNavIcon {
-  border-color: rgba(111,99,232,.15);
-  background: #6f63e8;
-  color: #fff;
-  box-shadow: 0 7px 18px rgba(111,99,232,.19);
-}
-.employeeShell[data-visual-version="p5-v2"] .employeeNavCopy strong { color: inherit; font-size: 12px; }
-.employeeShell[data-visual-version="p5-v2"] .employeeNavCopy small { display: none; }
-.employeeShell[data-visual-version="p5-v2"] .employeeSidebarFooter {
-  border-color: rgba(91,102,158,.13);
-  border-radius: 16px;
-  background: rgba(246,247,253,.90);
-  color: #6d7891;
-  box-shadow: inset 0 1px rgba(255,255,255,.8);
-}
-.employeeShell[data-visual-version="p5-v2"] .employeeSidebarFooter strong { color: #273455; }
-.employeeShell[data-visual-version="p5-v2"] .employeeTopbar {
-  min-height: 72px;
-  padding-inline: 28px;
-  border-color: rgba(91,102,158,.12);
-  background: rgba(247,248,255,.78);
-  color: #1d2744;
-  backdrop-filter: blur(22px) saturate(140%);
-  box-shadow: 0 8px 28px rgba(62,73,128,.06);
-}
-.employeeShell[data-visual-version="p5-v2"] .employeeTopbar h1 { color: #1f2b48; font-size: 15px; }
-.employeeShell[data-visual-version="p5-v2"] .employeeTopbar p { color: #8993a8; }
-.employeeShell[data-visual-version="p5-v2"] .employeeTopbar .outline {
-  border-color: rgba(91,102,158,.14);
-  background: rgba(255,255,255,.84);
-  color: #4f5b74;
-  box-shadow: 0 6px 18px rgba(62,73,128,.05);
-}
-.employeeShell[data-visual-version="p5-v2"] .employeePageHeading { max-width: 1400px; padding: 28px 28px 16px; }
-.employeeShell[data-visual-version="p5-v2"] .employeePageHeading small { color: #7468e9; }
-.employeeShell[data-visual-version="p5-v2"] .employeePageHeading h2 { margin-top: 5px; color: #1d2744; font-size: 30px; font-weight: 700; letter-spacing: -.035em; }
-.employeeShell[data-visual-version="p5-v2"] .employeePageHeading p { color: #768199; font-size: 13.5px; line-height: 1.55; }
-.employeeShell[data-visual-version="p5-v2"] .employeeContextPill {
-  display: inline-flex;
-  border-color: rgba(15,159,130,.15);
-  background: rgba(15,159,130,.08);
-  color: #087861;
-}
-.employeeShell[data-visual-version="p5-v2"] .singleWorkspace,
-.employeeShell[data-visual-version="p5-v2"] .profileGrid,
-.employeeShell[data-visual-version="p5-v2"] .statGrid,
-.employeeShell[data-visual-version="p5-v2"] .dashboardGrid,
-.employeeShell[data-visual-version="p5-v2"] .welcomeDeck { max-width: 1400px; }
-.employeeShell[data-visual-version="p5-v2"] .singleWorkspace { padding: 0 28px 56px; }
-.employeeShell[data-visual-version="p5-v2"] .profileGrid,
-.employeeShell[data-visual-version="p5-v2"] .statGrid,
-.employeeShell[data-visual-version="p5-v2"] .dashboardGrid,
-.employeeShell[data-visual-version="p5-v2"] .welcomeDeck { padding-inline: 28px; }
-.employeeShell[data-visual-version="p5-v2"] .card,
-.employeeShell[data-visual-version="p5-v2"] .profileCard,
-.employeeShell[data-visual-version="p5-v2"] .attendanceCard,
-.employeeShell[data-visual-version="p5-v2"] .welcomeDeck,
-.employeeShell[data-visual-version="p5-v2"] .pStat {
-  border-color: var(--v2-hr-border);
-  border-radius: 20px;
-  background: var(--v2-hr-surface);
-  color: var(--v2-hr-text);
-  backdrop-filter: blur(15px) saturate(125%);
-  box-shadow: 0 15px 36px rgba(62,73,128,.075), inset 0 1px rgba(255,255,255,.8);
-}
-.employeeShell[data-visual-version="p5-v2"] .card,
-.employeeShell[data-visual-version="p5-v2"] .profileCard,
-.employeeShell[data-visual-version="p5-v2"] .attendanceCard,
-.employeeShell[data-visual-version="p5-v2"] .welcomeDeck { padding: 22px; }
-.employeeShell[data-visual-version="p5-v2"] .pStat { min-height: 112px; padding: 16px; }
-.employeeShell[data-visual-version="p5-v2"] .pStat strong { color: #202c49; font-size: 27px; }
-.employeeShell[data-visual-version="p5-v2"] .pStat small { color: #7f8aa1; }
-.employeeShell[data-visual-version="p5-v2"] .cardHeading { border-color: rgba(91,102,158,.11); }
-.employeeShell[data-visual-version="p5-v2"] .cardHeading h3 { color: #273455; font-size: 14px; }
-.employeeShell[data-visual-version="p5-v2"] .formStack label { color: #5e6980; }
-.employeeShell[data-visual-version="p5-v2"] .formStack input,
-.employeeShell[data-visual-version="p5-v2"] .formStack select,
-.employeeShell[data-visual-version="p5-v2"] .formStack textarea,
-.employeeShell[data-visual-version="p5-v2"] .card input,
-.employeeShell[data-visual-version="p5-v2"] .card select,
-.employeeShell[data-visual-version="p5-v2"] .card textarea {
-  border-color: rgba(91,102,158,.15);
-  border-radius: 12px;
-  background: #fff;
-  color: #25324f;
-  box-shadow: inset 0 1px 2px rgba(57,67,109,.035);
-}
-.employeeShell[data-visual-version="p5-v2"] .actions button,
-.employeeShell[data-visual-version="p5-v2"] .formStack button,
-.employeeShell[data-visual-version="p5-v2"] .secondary,
-.employeeShell[data-visual-version="p5-v2"] .outline {
-  border-color: rgba(91,102,158,.14);
-  border-radius: 12px;
-  background: #fff;
-  color: #46536e;
-  box-shadow: 0 7px 18px rgba(62,73,128,.055);
-}
-.employeeShell[data-visual-version="p5-v2"] .actions button:first-child,
-.employeeShell[data-visual-version="p5-v2"] .formStack button:first-of-type {
-  border-color: #6f63e8;
-  background: #6f63e8;
-  color: #fff;
-  box-shadow: 0 9px 22px rgba(111,99,232,.20), inset 0 1px rgba(255,255,255,.18);
-}
-.employeeShell[data-visual-version="p5-v2"] .statusPill {
-  border-color: rgba(111,99,232,.13);
-  background: rgba(111,99,232,.075);
-  color: #6258c2;
-}
-.employeeShell[data-visual-version="p5-v2"] .notice {
-  border-color: rgba(79,109,245,.14);
-  background: rgba(79,109,245,.065);
-  color: #4059bf;
-}
-.employeeShell[data-visual-version="p5-v2"] .mutedText,
-.employeeShell[data-visual-version="p5-v2"] .coords { color: #8390a6; }
-.employeeShell[data-visual-version="p5-v2"] .emptyState {
-  border-color: rgba(91,102,158,.16);
-  border-radius: 18px;
-  background: rgba(255,255,255,.58);
-  color: #8a95aa;
-}
-.employeeShell[data-visual-version="p5-v2"] .table {
-  border-color: rgba(91,102,158,.13);
-  border-radius: 18px;
-  background: rgba(255,255,255,.78);
-  color: #2a3756;
-}
-.employeeShell[data-visual-version="p5-v2"] .tr { border-color: rgba(91,102,158,.10); }
-.employeeShell[data-visual-version="p5-v2"] .tr.th { background: #f0f2fa; color: #76829a; }
-.employeeShell[data-visual-version="p5-v2"] .skeletonList>* { background: #e9ecf6; }
-.employeeShell[data-visual-version="p5-v2"] .employeeMobileNav {
-  border-color: rgba(91,102,158,.12);
-  background: rgba(250,251,255,.92);
-  backdrop-filter: blur(18px) saturate(135%);
-}
-.employeeShell[data-visual-version="p5-v2"] .employeeMobileNav a { color: #7f8aa1; }
-.employeeShell[data-visual-version="p5-v2"] .employeeMobileNav a.active { background: rgba(111,99,232,.09); color: #5d53c5; }
-.login {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  background: #f4f6ff;
-  color: #1d2744;
-}
-.login::before {
-  content: "";
-  position: absolute;
-  width: 380px;
-  height: 380px;
-  border-radius: 999px;
-  background: #d8d4ff;
-  filter: blur(120px);
-  opacity: .62;
-}
-.login>.card,
-.login>form {
-  position: relative;
-  z-index: 1;
-  border: 1px solid rgba(91,102,158,.14);
-  border-radius: 22px;
-  background: rgba(255,255,255,.88);
-  color: #1d2744;
-  backdrop-filter: blur(20px) saturate(130%);
-  box-shadow: 0 26px 70px rgba(62,73,128,.14), inset 0 1px rgba(255,255,255,.8);
-}
+
+.employeeMobileNav{@apply grid grid-cols-4 fixed inset-x-3 bottom-3 z-40 gap-1 rounded-[22px] border border-white/70 bg-white/92 p-1.5 shadow-[0_18px_50px_rgba(15,23,42,.16)] backdrop-blur-xl lg:hidden;}
+.employeeMobileNav a { @apply flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-2xl text-[9px] font-semibold text-slate-400 transition; }
+.employeeMobileNav a.active { @apply bg-violet-700 text-white shadow-sm; }
+
 @media(max-width:767px){
-  .employeeShell[data-visual-version="p5-v2"] .employeeTopbar { padding-inline: 14px; }
-  .employeeShell[data-visual-version="p5-v2"] .employeePageHeading { padding: 18px 14px 12px; }
-  .employeeShell[data-visual-version="p5-v2"] .singleWorkspace,
-  .employeeShell[data-visual-version="p5-v2"] .profileGrid,
-  .employeeShell[data-visual-version="p5-v2"] .statGrid,
-  .employeeShell[data-visual-version="p5-v2"] .dashboardGrid,
-  .employeeShell[data-visual-version="p5-v2"] .welcomeDeck { padding-inline: 12px; }
-  .employeeShell[data-visual-version="p5-v2"] .card,
-  .employeeShell[data-visual-version="p5-v2"] .welcomeDeck { border-radius: 16px; padding: 16px; }
+  .statGrid { @apply grid-cols-2; }
+  .card,.profileCard,.attendanceCard,.welcomeDeck { @apply rounded-[20px] p-4; }
+  .tr { @apply px-3 py-2.5; }
 }
-.employeeShell[data-visual-version="p5-v2"] .employeeViewBody { min-width: 0; }
+@media(pointer:coarse){button,select,input{min-height:44px}}
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { transition-duration:.01ms!important; animation-duration:.01ms!important; animation-iteration-count:1!important; } }
+
+:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }
+
+.employeeShell { @apply min-w-0; }
+.employeeSidebar { @apply min-w-0; }
+.employeePageHeading { @apply min-w-0; }
+@media(max-width:767px){ .employeePageHeading { @apply min-w-0; } }

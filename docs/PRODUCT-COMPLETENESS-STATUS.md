@@ -40,14 +40,16 @@ A-10 is `RUNTIME_VERIFIED`. Canonical `/returns/*` remains authoritative, legacy
 
 P5 automation must preserve `humanAcceptance=PENDING`. Human visual acceptance is mandatory and cannot be inferred from screenshot counts, source tests, or automated Browser UAT.
 
-### P5 V2 human visual rework
+### P5 V2 history / P5 V3 active total rebuild
 
-- P5 V1 automated exact-source chain is green on commit `af7cb87bbdc1ee898f785a072993e79877326b27`, fingerprint `f7f2c6bf6f1a22c8df42afbe0cda001e0f926a09b9b2a33e27650eb2fc58bd3e`.
-- Human review of the real runtime video rejected the visual result: stacked navigation feel, flat depth, mostly-black surfaces, and insufficient product differentiation.
-- P5 V2 is one presentation-only atomic wave across all four products.
-- Art direction authority: `config/p5-v2-art-direction.json` and `docs/P5-V2-VISUAL-ART-DIRECTION.md`.
-- Automated V2 evidence must be rerun on the new exact source; Human visual acceptance remains mandatory.
-- P6 remains blocked.
+- P5 V1 automated exact-source chain is green on commit `af7cb87bbdc1ee898f785a072993e79877326b27`, fingerprint `f7f2c6bf6f1a22c8df42afbe0cda001e0f926a09b9b2a33e27650eb2fc58bd3e`; human review rejected the result.
+- P5 V2 automated exact-source chain is green on commit `fd2d29d9a8d7d6bd0db3c1e085fb4e376440f6bc`, fingerprint `8526da44eee5325f40a833e03d461533bb0ddf72bc35a781d560260ddb684e68`; the second human review also rejected the presentation.
+- P5 V3 is now the only active visual candidate: `ONE_P5_FULL_V3_TOTAL_UI_REBUILD`.
+- V3 removes accumulated P5 V2 override selectors and rebuilds Admin, POS, Storefront, and Employee Portal with Tailwind CSS v4 utility-first shells plus bounded `@theme`/`@apply` compatibility layers.
+- V3 keeps business logic, API contracts, permissions, tenant/branch authority, inventory/accounting/payroll/returns/tax/pricing semantics frozen.
+- V3 authority: `config/p5-v3-tailwind-rebuild.json`, `docs/P5-V3-TAILWIND-TOTAL-UI-REBUILD.md`, `UI-DESIGN-SYSTEM.md`, and `scripts/audit-p5-v3-tailwind-rebuild.mjs`.
+- `ci:p5:probe` must emit `visualGeneration=P5-V3`, preserve `productionTouched=false`, and keep `humanAcceptance=PENDING`.
+- P6 remains blocked until V3 exact-source automation and explicit Human Visual Acceptance pass.
 
 ## P2 closure
 

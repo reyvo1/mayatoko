@@ -104,3 +104,16 @@ P5 V1 exact-source automation later passed on commit `af7cb87bbdc1ee898f785a0729
 P5 V2 therefore reopens only the presentation layer as one atomic wave. `config/p5-v2-art-direction.json` is the machine-readable art-direction contract. The existing route/screenshot/geometry gates stay intact; V2 adds product-specific glass/elevation and distinct color identity while retaining the no-decorative-gradient rule. Prior V1 automation is historical evidence only for the rejected visual source.
 
 P5 cannot close and P6 cannot start until V2 exact-source automation is green and the human explicitly accepts the new runtime presentation.
+
+## P5 V3 — Total Tailwind UI rebuild
+
+P5 V2 exact-source automation passed on `fd2d29d9a8d7d6bd0db3c1e085fb4e376440f6bc` / `8526da44eee5325f40a833e03d461533bb0ddf72bc35a781d560260ddb684e68`, but the second human review rejected the runtime appearance. V3 does not append another CSS override layer. It replaces the canonical presentation layer as one atomic wave.
+
+Canonical V3 authority:
+
+- `config/p5-v3-tailwind-rebuild.json`;
+- `docs/P5-V3-TAILWIND-TOTAL-UI-REBUILD.md`;
+- `UI-DESIGN-SYSTEM.md`;
+- `scripts/audit-p5-v3-tailwind-rebuild.mjs`.
+
+V3 requires utility-first Tailwind shells, bounded `globals.css` compatibility layers, four distinct product identities, rebuilt Admin primitives/analytics/charts, no decorative gradients, no P5 V2 override selectors, no page-level horizontal scrolling, unchanged business/API authority, exact-source screenshot evidence, and explicit human acceptance before P6.

@@ -521,3 +521,25 @@ Completion states are separate: `SOURCE_IMPLEMENTED`, `RUNTIME_VERIFIED`, `HUMAN
 - P5 V2 is one atomic presentation-only wave. Do not change API/domain/business logic. Admin becomes deep-indigo layered enterprise, POS teal touch-first operations, Storefront light premium retail, Employee Portal light violet self-service. Decorative gradients remain forbidden; translucent solid glass, backdrop blur, shadow/elevation and solid-color ambient glows are allowed/required.
 - Machine-readable authority: `config/p5-v2-art-direction.json`; design doc: `docs/P5-V2-VISUAL-ART-DIRECTION.md`; permanent gate: `npm run audit:p5:visual` now includes `audit-p5-v2-art-direction.mjs`.
 - P6 remains blocked. V2 must pass local full gate, one atomic commit/push, exact-source Browser/R7/P5/R8/aggregate, then explicit human visual acceptance.
+
+## P5 FULL V3 — TOTAL TAILWIND UI REBUILD
+
+- Baseline exact-source P5 V2 automated PASS: commit `fd2d29d9a8d7d6bd0db3c1e085fb4e376440f6bc`, fingerprint `8526da44eee5325f40a833e03d461533bb0ddf72bc35a781d560260ddb684e68`.
+- Human Visual Acceptance after V2: **REJECTED**. Reason: presentation still looked patch-like, navigation/hierarchy remained stacked/asymmetric, cards/forms/charts did not yet meet the requested modern/professional bar.
+- Active boundary: **ONE_P5_FULL_V3_TOTAL_UI_REBUILD**. P6 remains BLOCKED.
+- Business/API/domain authority is frozen; presentation-only changes may not modify permissions, tenant/branch scope, inventory/accounting/payment/payroll/returns/tax/pricing semantics, or canonical mutation paths.
+- Admin is rebuilt as a light enterprise command center with a dark command sidebar, direct Tailwind shared primitives and rebuilt analytics/charts.
+- POS is rebuilt as a teal touch-first transaction cockpit.
+- Storefront is rebuilt as a light premium retail product rather than an operator dashboard.
+- Employee Portal is rebuilt as a calm violet self-service product.
+- All four `globals.css` files are replacement Tailwind `@theme`/`@apply` compatibility layers; P5 V2 data-selector override blocks are forbidden.
+- Machine contract: `config/p5-v3-tailwind-rebuild.json`. Permanent gate: `scripts/audit-p5-v3-tailwind-rebuild.mjs`, included in `npm run audit:p5:visual`.
+- Exact-source `ci:p5:probe` must record `visualGeneration=P5-V3`, preserve `productionTouched=false`, and keep `humanAcceptance=PENDING`.
+- Source regression before package: focused UI compatibility PASS; governance/full audits PASS; dependency-free 989/989 PASS.
+- Mandatory next boundary: Ubuntu local full gate -> atomic V3 commit/push -> exact-source GitHub Browser/P5/R7/R8/aggregate -> human runtime review. Only explicit human PASS unlocks P6.
+
+## P5 FULL V3.1 Tailwind build root fix — 2026-09-26
+- Ubuntu `quality:full` proved one V3 build blocker: Storefront `globals.css` used `@apply group` and `group-hover:*`; Tailwind CSS v4 rejects `group` because it is a variant marker, not an apply-able utility.
+- Root fix removes `group`/`group-hover` from `@apply` and preserves the exact hover behavior with `.productCard:hover .productImage { @apply bg-[#e8ede5]; }`.
+- Permanent P5 V3 audit and regression now reject `@apply group` / `@apply ... group-hover:*`.
+- Business/API/domain authority remains frozen; P6 remains blocked until V3.1 local+GitHub automation and explicit human visual acceptance are green.

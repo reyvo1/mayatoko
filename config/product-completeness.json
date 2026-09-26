@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "TOKO360 Canonical Product Completeness Matrix",
-  "updatedAt": "2026-09-26T12:30:00+08:00",
+  "updatedAt": "2026-09-26T16:00:00+08:00",
   "authoritative": true,
   "productReady": false,
   "humanStage20": "PENDING",
@@ -722,14 +722,18 @@
       "severity": "HIGH",
       "targetPhase": "P5",
       "status": "IMPLEMENTED_RUNTIME_PENDING",
-      "notes": "P5 implements a page-level four-product visual rebuild with route-aware composition, responsive geometry, and exact-source screenshot evidence. Automated evidence must pass before human visual acceptance; Human acceptance remains separate and mandatory.",
+      "notes": "P5 V1 and V2 automated exact-source evidence passed but human runtime review rejected both visual candidates. P5 V3 is the active one-wave Tailwind total UI rebuild: utility-first product shells, replacement Tailwind compatibility layers, four distinct product identities, exact-source screenshot evidence, and mandatory human acceptance. Business/API/domain authority remains frozen.",
       "evidence": [
         "config/p5-visual-surface-map.json",
         "docs/P5-FULL-VISUAL-PRODUCT-REBUILD.md",
         "tests/product-completion-p5-visual-rebuild.test.mjs",
         "scripts/audit-p5-visual-rebuild.mjs",
         "scripts/ci-p5-visual-probe.mjs",
-        "handoff/quality/github-p5-visual-rebuild-probe-latest.json"
+        "handoff/quality/github-p5-visual-rebuild-probe-latest.json",
+        "config/p5-v3-tailwind-rebuild.json",
+        "docs/P5-V3-TAILWIND-TOTAL-UI-REBUILD.md",
+        "scripts/audit-p5-v3-tailwind-rebuild.mjs",
+        "UI-DESIGN-SYSTEM.md"
       ]
     },
     {
@@ -860,7 +864,12 @@
     "P5 automated PASS does not replace human visual acceptance; A-07 remains IMPLEMENTED_RUNTIME_PENDING until exact-source automated evidence is green and human UI acceptance is recorded separately.",
     "P5 V1 exact-source automated Browser/R7/P5/R8/aggregate evidence is green on commit af7cb87bbdc1ee898f785a072993e79877326b27 / fingerprint f7f2c6bf6f1a22c8df42afbe0cda001e0f926a09b9b2a33e27650eb2fc58bd3e, but human visual acceptance rejected the real runtime presentation; automation does not override that rejection.",
     "P5 V2 is one atomic presentation-only wave. It must keep business logic/API/domain behavior unchanged while giving Admin, POS, Storefront and Employee Portal visibly distinct art direction, layered glass/elevation, clearer navigation hierarchy, and non-black customer/self-service surfaces.",
-    "P5 V2 retains the no-decorative-gradient rule; glass, blur, solid-color ambient glows and shadows are allowed and required by config/p5-v2-art-direction.json."
+    "P5 V2 retains the no-decorative-gradient rule; glass, blur, solid-color ambient glows and shadows are allowed and required by config/p5-v2-art-direction.json.",
+    "P5 V2 automated exact-source PASS on fd2d29d9a8d7d6bd0db3c1e085fb4e376440f6bc does not close P5 because the second human visual review rejected the presentation.",
+    "P5 V3 is ONE_P5_FULL_V3_TOTAL_UI_REBUILD: four product presentation layers are replaced as one atomic wave; piecemeal CSS override accumulation is forbidden.",
+    "P5 V3 is presentation-only: business logic, API contracts, permissions, tenant/branch authority, inventory/accounting/payment/payroll/returns/tax/pricing semantics and canonical mutation paths are frozen.",
+    "P5 V3 canonical shells are Tailwind CSS v4 utility-first; globals.css is limited to bounded @theme/@apply compatibility layers and must not contain P5 V2 version override selectors.",
+    "P5 V3 exact-source evidence must identify visualGeneration=P5-V3 and keep humanAcceptance=PENDING until explicit human runtime acceptance."
   ],
   "acceptanceCriteria": [
     "P4 removes the legacy /sale-returns* and /purchase-returns* mutation surfaces only after proving no active repository consumer remains and canonical /returns/* runtime routes stay live.",
@@ -869,7 +878,10 @@
     "P5 exact-source Browser UAT captures the complete configured screenshot matrix and proves desktop/tablet/mobile geometry without uncontrolled overflow.",
     "P5 human visual acceptance remains explicit and cannot be auto-promoted by automated screenshots or source tests.",
     "P5 V2 human rework visibly differentiates the four products and removes the all-black/flat/stacked-menu failure observed in the runtime video.",
-    "P5 V2 keeps Browser UAT responsive geometry green while adding glass/elevation and light Storefront/Employee themes without decorative gradients."
+    "P5 V2 keeps Browser UAT responsive geometry green while adding glass/elevation and light Storefront/Employee themes without decorative gradients.",
+    "P5 V3 source audit passes with four distinct product identities, direct Tailwind shell utilities, no decorative gradients, no P5 V2 override selectors and no horizontal page scroll.",
+    "P5 V3 preserves the existing Browser screenshot matrix for 14 Admin primary, 13 Admin contextual, 4 POS, 5 Storefront and 7 Employee Portal views at 1440/1024/390.",
+    "P5 V3 human visual acceptance is explicitly recorded after exact-source automation passes; only then may P6 start."
   ],
   "testPlan": [
     "npm run audit:canonical:ownership",
@@ -881,7 +893,11 @@
     "Exact-source Browser/runtime P5: npm run ci:p5:probe; evidence handoff/quality/github-p5-visual-rebuild-probe-latest.json must PASS with productionTouched=false and humanAcceptance=PENDING.",
     "Both full-system-simulation and toko360-full-uat must report P5 visual rebuild probe success before automated P5 evidence is considered green; human visual acceptance remains separate.",
     "npm run audit:p5:visual must execute both the original P5 route/screenshot contract and the P5 V2 art-direction audit.",
-    "P5 V2 source test verifies data-visual-version=p5-v2 on all four shells, four distinct themes, required glass/elevation primitives, no decorative gradients, and light Storefront/Employee surfaces."
+    "P5 V2 source test verifies data-visual-version=p5-v2 on all four shells, four distinct themes, required glass/elevation primitives, no decorative gradients, and light Storefront/Employee surfaces.",
+    "npm run audit:p5:visual (original page/screenshot contract + P5 V3 Tailwind total-rebuild contract)",
+    "node --test tests/f12r2-modern-visual-contract.test.mjs tests/ui-p1-admin-application-shell.test.mjs tests/product-completion-p5-visual-rebuild.test.mjs",
+    "P5 V3 exact-source Browser probe must output visualGeneration=P5-V3, businessApiAuthorityFrozen=true, productionTouched=false and humanAcceptance=PENDING.",
+    "Human runtime review after P5 V3 GitHub green must evaluate navigation hierarchy, symmetry/alignment, cards/forms/tables, analytics/charts, product identity and desktop/tablet/mobile polish."
   ],
   "verificationGates": [
     "P4 exact-source runtime gate proves canonical /returns/* stays live, legacy /sale-returns* and /purchase-returns* are router-missing/absent from Swagger, and nine-domain ownership manifest is complete.",
@@ -889,10 +905,15 @@
     "P5 exact-source visual gate requires page-level screenshot coverage for all configured Admin/POS/Storefront/Employee surfaces plus 1440/1024/390 responsive matrices.",
     "P5 aggregate gate requires github-p5-visual-rebuild-probe-latest.json PASS on the current source fingerprint with productionTouched=false while preserving humanAcceptance=PENDING until human review.",
     "P5 V2 must rerun exact-source Browser screenshot/geometry evidence after the presentation-only wave; prior V1 automation is historical evidence only for the rejected visual source.",
-    "P5 cannot close and P6 cannot start until a human explicitly accepts the V2 runtime presentation after automated exact-source PASS."
+    "P5 cannot close and P6 cannot start until a human explicitly accepts the V2 runtime presentation after automated exact-source PASS.",
+    "P5 V3 source gate requires scripts/audit-p5-v3-tailwind-rebuild.mjs PASS and forbids reintroducing P5 V2 visual override selectors.",
+    "P5 V3 exact-source ci:p5:probe must bind Browser evidence to the committed fingerprint and record visualGeneration=P5-V3 with business/API authority frozen.",
+    "Human visual acceptance after P5 V3 is mandatory before P6."
   ],
   "documentation": [
     "docs/P5-V2-VISUAL-ART-DIRECTION.md",
-    "UI-DESIGN-SYSTEM.md"
+    "UI-DESIGN-SYSTEM.md",
+    "config/p5-v3-tailwind-rebuild.json",
+    "docs/P5-V3-TAILWIND-TOTAL-UI-REBUILD.md"
   ]
 }

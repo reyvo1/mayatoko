@@ -1,226 +1,98 @@
 @import "tailwindcss";
 @source "./**/*.{js,ts,jsx,tsx,mdx}";
-@theme { --font-sans:Inter,Geist,ui-sans-serif,system-ui,sans-serif; --color-store-bg:#0b0e14; --color-store-surface:#131722; --color-store-surface-2:#181d29; --color-store-border:#2a3140; --color-store-text:#eef2f7; --color-store-muted:#8b93a7; --color-store-accent:#3b82f6; }
-*{box-sizing:border-box}html{background:var(--color-store-bg);color-scheme:dark}body{margin:0;overflow-x:hidden;background:var(--color-store-bg);color:var(--color-store-text);font-family:var(--font-sans);font-size:14px}button,input,select,textarea{font:inherit}.skipLink{@apply fixed left-4 top-4 z-[100] -translate-y-24 rounded-lg bg-blue-500 px-4 py-2 font-semibold text-white focus:translate-y-0}.storefrontApp{@apply min-h-screen pb-20 md:pb-0}.storefrontHeader{@apply sticky top-0 z-30 border-b border-store-border bg-store-bg/95 backdrop-blur}.storefrontHeaderInner{@apply mx-auto flex h-16 max-w-[1440px] items-center gap-3 px-3 md:px-6}.brandButton{@apply flex min-w-0 items-center gap-2 border-0 bg-transparent p-0 text-left}.brandMark{@apply grid h-9 w-9 place-items-center rounded-xl bg-blue-500 text-xs font-black text-white}.brandText{@apply min-w-0}.brandText strong{@apply block truncate text-sm}.brandText small{@apply block text-[10px] text-store-muted}.desktopNav{@apply ml-5 hidden flex-1 items-center gap-1 md:flex}.desktopNav button,.accountShortcut{@apply inline-flex min-h-9 items-center gap-2 rounded-lg border border-transparent bg-transparent px-3 text-xs font-medium text-store-muted transition hover:bg-store-surface hover:text-white}.desktopNav button.active{@apply bg-blue-500/10 text-blue-300}.navCount,.mobileCount{@apply min-w-4 rounded-full bg-blue-500 px-1 text-center text-[9px] text-white}.accountShortcut{@apply ml-auto border-store-border bg-store-surface}.storefrontMain{@apply mx-auto w-full max-w-[1440px] px-3 py-5 md:px-6 md:py-7}.viewContext{@apply mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.12em] text-store-muted}.viewKicker{@apply text-blue-400}.panel,.orderPanel,.productDetail,.homeDeck{@apply rounded-xl border border-store-border bg-store-surface p-4 md:p-5}.sectionTitle{@apply mb-3 flex items-center justify-between gap-3}.sectionTitle h2{@apply m-0 text-lg font-semibold}.eyebrow{@apply text-[10px] font-bold uppercase tracking-[.14em] text-blue-400}.homeIntro{@apply grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,.5fr)]}.homeIntro h1{@apply m-0 max-w-3xl text-3xl font-semibold tracking-tight md:text-4xl}.homeSubtitle{@apply max-w-2xl text-sm leading-6 text-store-muted}.homeActions,.cardActions,.priceRow,.qty,.catalogToolbar,.catalogControls{@apply flex flex-wrap items-center gap-2}.primary,.secondary,.textAction,.favoriteAction,.qty button,.cardActions button,.homeActions button{@apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-store-border bg-store-surface-2 px-3 text-xs font-semibold text-store-text transition hover:border-slate-500 hover:bg-[#202838] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500}.primary{@apply border-blue-500 bg-blue-500 text-white hover:bg-blue-400}.textAction{@apply border-transparent bg-transparent text-blue-400}.metricDeck{@apply mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4}.metricDeck>div{@apply rounded-xl border border-store-border bg-store-surface p-3}.metricDeck strong{@apply block text-xl}.metricDeck small{@apply text-[10px] text-store-muted}.catalogToolbar{@apply mb-3 justify-between}.catalogControls{@apply flex-1}.catalogControls input,.sortControl,.panel input,.panel select,.panel textarea,.productDetail input,.productDetail select{@apply min-w-0 rounded-lg border border-store-border bg-store-bg px-3 py-2.5 text-xs text-white outline-none focus:border-blue-500}.catalogControls input{@apply min-w-[180px] flex-1}.productGrid{@apply grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5}.productCard{@apply min-w-0 overflow-hidden rounded-xl border border-store-border bg-store-surface transition hover:-translate-y-px hover:border-blue-500/40}.productImage,.productDetailVisual{@apply grid aspect-square place-items-center bg-store-surface-2 text-store-muted}.productCard>div:not(.productImage){@apply p-3}.productCard h3{@apply m-0 truncate text-sm font-medium}.productSku{@apply text-[10px] text-store-muted}.priceRow{@apply mt-2 justify-between}.priceRow strong,.detailPrice{@apply font-semibold text-white}.productDetail{@apply grid gap-4 lg:grid-cols-[minmax(320px,.8fr)_minmax(0,1.2fr)]}.productDetailBody{@apply min-w-0}.productDetailBody h1{@apply m-0 text-2xl font-semibold}.checkoutGrid,.compactGrid,.profileGrid{@apply grid gap-3 lg:grid-cols-2}.cartRow,.inventoryList>div{@apply flex items-center justify-between gap-3 border-b border-store-border py-3 last:border-b-0}.total{@apply text-lg font-bold}.paymentChooser{@apply grid gap-2}.notice{@apply rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-200}.emptyState{@apply grid min-h-40 place-items-center rounded-xl border border-dashed border-store-border p-5 text-center text-store-muted}.mobileNav{@apply fixed bottom-0 left-0 right-0 z-40 grid grid-cols-4 border-t border-store-border bg-store-bg/95 p-1.5 backdrop-blur md:hidden}.mobileNav button{@apply relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border-0 bg-transparent text-[10px] text-store-muted}.mobileNav button.active{@apply bg-blue-500/10 text-blue-300}.mobileIconWrap{@apply relative}.skeletonBlock{@apply animate-pulse rounded bg-slate-800}.skeletonBlock.tall{@apply h-64}
-@media(max-width:639px){.storefrontMain{@apply py-4}.homeIntro h1{@apply text-2xl}.productGrid{@apply grid-cols-2}.productDetail{@apply grid-cols-1}.panel,.orderPanel,.productDetail,.homeDeck{@apply p-3}.catalogToolbar{@apply items-stretch}.catalogControls{@apply w-full}.catalogControls input,.sortControl{@apply w-full}}
-@media(pointer:coarse){button,input,select{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
 
-.branchChooser select{@apply min-w-36 rounded-lg border border-store-border bg-store-surface px-3 py-2 text-xs text-store-text outline-none focus:border-blue-500}.srOnly{@apply sr-only}
-/* P5 V2 — light premium retail art direction */
-.storefrontApp[data-visual-version="p5-v2"] {
-  --v2-store-bg: #f5f7fb;
-  --v2-store-surface: rgba(255,255,255,.88);
-  --v2-store-surface-strong: #ffffff;
-  --v2-store-border: rgba(72, 92, 132, .15);
-  --v2-store-text: #17223b;
-  --v2-store-muted: #6f7b91;
-  --v2-store-accent: #4f6df5;
-  --v2-store-emerald: #0f9f82;
-  min-height: 100vh;
-  color-scheme: light;
-  background: var(--v2-store-bg);
-  color: var(--v2-store-text);
-  position: relative;
-  isolation: isolate;
+@theme { --font-sans: Inter, Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+*{box-sizing:border-box} html{background:#f7f7f5;color-scheme:light} body{margin:0;min-width:0;overflow-x:hidden;background:#f7f7f5;color:#0f172a;font-family:var(--font-sans)} button,input,select,textarea{font:inherit} button{cursor:pointer} button:disabled{cursor:not-allowed;opacity:.55} ::selection{background:#bbf7d0;color:#14532d}
+
+@layer components {
+  .storefrontViewHeader { @apply min-w-0; }
+  .storefrontBranchContext { @apply inline-flex items-center; }
+  .storefrontViewBody { @apply min-w-0; }
+  .skipLink { @apply fixed left-4 top-4 z-[100] -translate-y-24 rounded-xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-xl transition-transform focus:translate-y-0; }
+  .srOnly { @apply sr-only; }
+  .homeDeck { @apply grid min-w-0 gap-5 rounded-[32px] border border-slate-200 bg-white p-5 shadow-[0_18px_48px_rgba(15,23,42,.055)] sm:p-7 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,.7fr)] lg:items-stretch; }
+  .homeIntro { @apply flex min-w-0 flex-col justify-center py-3; }
+  .homeIntro h1 { @apply mt-3 max-w-3xl text-3xl font-bold tracking-[-0.055em] text-slate-950 sm:text-5xl sm:leading-[1.02]; }
+  .homeSubtitle { @apply mt-4 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base; }
+  .homeActions { @apply mt-6 flex flex-wrap gap-2; }
+  .metricDeck { @apply grid min-w-0 grid-cols-2 gap-3 rounded-[24px] bg-[#15261f] p-4 text-white sm:p-5; }
+  .metricDeck > * { @apply rounded-2xl border border-white/10 bg-white/[.06] p-4; }
+  .metricDeck small { @apply text-[9px] font-bold uppercase tracking-[.12em] text-emerald-100/70; }
+  .metricDeck strong { @apply mt-2 block text-xl font-bold tracking-[-.03em] text-white; }
+
+  .eyebrow { @apply text-[9px] font-bold uppercase tracking-[.16em] text-emerald-700; }
+  .sectionTitle { @apply mb-4 flex min-w-0 flex-wrap items-end justify-between gap-3; }
+  .sectionTitle h2 { @apply mt-1 text-xl font-semibold tracking-[-.035em] text-slate-950; }
+  .textAction { @apply inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 hover:text-emerald-600; }
+
+  .primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#15261f] bg-[#15261f] px-5 text-xs font-semibold text-white shadow-[0_10px_26px_rgba(21,38,31,.16)] transition hover:-translate-y-px hover:bg-[#213d31] hover:shadow-[0_14px_30px_rgba(21,38,31,.20)]; }
+  .secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-px hover:border-slate-300 hover:shadow-md; }
+  .compact { @apply min-h-10 px-4; }
+
+  .panel { @apply min-w-0 rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_12px_34px_rgba(15,23,42,.045)] sm:p-6; }
+  .notice { @apply mb-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-800; }
+  .notice.success { @apply border-emerald-200 bg-emerald-50 text-emerald-700; }
+  .notice.error { @apply border-rose-200 bg-rose-50 text-rose-700; }
+
+  .catalogControls { @apply mb-4 grid min-w-0 gap-3 rounded-[22px] border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[minmax(0,1fr)_auto]; }
+  .catalogToolbar { @apply flex min-w-0 flex-wrap items-center gap-2; }
+  .catalogToolbar input { @apply min-h-11 min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 text-xs outline-none placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100; }
+  .sortControl { @apply flex items-center gap-2 text-[10px] font-semibold text-slate-500; }
+  .sortControl select { @apply min-h-10 rounded-full border border-slate-200 bg-white px-3 text-xs text-slate-700 outline-none; }
+
+  .productGrid { @apply grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4; }
+  .compactGrid { @apply lg:grid-cols-3; }
+  .productCard { @apply flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,.045)] transition duration-200 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_18px_42px_rgba(21,38,31,.09)]; }
+  .productImage { @apply grid aspect-[4/3] w-full place-items-center bg-[#eef1eb] text-4xl font-black tracking-[-.05em] text-[#3d5a4d] transition; }
+  .productCard:hover .productImage { @apply bg-[#e8ede5]; }
+  .productCard .body { @apply flex flex-1 flex-col p-3.5 sm:p-4; }
+  .productCard small { @apply text-[9px] font-semibold uppercase tracking-[.08em] text-slate-400; }
+  .productCard h3 { @apply mt-1.5 line-clamp-2 text-sm font-semibold leading-5 text-slate-900; }
+  .priceRow { @apply mt-3 flex flex-wrap items-end justify-between gap-2; }
+  .priceRow strong, .detailPrice { @apply text-base font-bold tracking-[-.03em] text-slate-950; }
+  .cardActions { @apply mt-auto flex gap-2 pt-4; }
+  .cardActions button { @apply flex-1 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800; }
+  .favoriteAction { @apply grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-400 hover:text-rose-500; }
+
+  .productDetail { @apply grid min-w-0 gap-6 lg:grid-cols-[minmax(320px,.85fr)_minmax(0,1.15fr)]; }
+  .productDetailVisual { @apply grid min-h-[320px] place-items-center rounded-[30px] border border-slate-200 bg-[#eef1eb] text-7xl font-black text-[#3d5a4d] shadow-[inset_0_1px_rgba(255,255,255,.8)]; }
+  .productDetailBody { @apply min-w-0 rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_16px_42px_rgba(15,23,42,.05)] sm:p-7; }
+  .productSku { @apply text-[9px] font-bold uppercase tracking-[.14em] text-slate-400; }
+  .productDetailBody h2 { @apply mt-2 text-2xl font-bold tracking-[-.04em] text-slate-950; }
+  .inventoryList { @apply mt-4 grid gap-2 sm:grid-cols-2; }
+  .inventoryList > * { @apply rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600; }
+
+  .checkoutGrid { @apply grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_400px]; }
+  .cartRow { @apply grid min-w-0 gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto]; }
+  .qty { @apply inline-flex items-center gap-2; }
+  .total { @apply text-lg font-bold tracking-[-.03em] text-slate-950; }
+  .orderPanel { @apply rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_36px_rgba(15,23,42,.055)]; }
+  .paymentChooser { @apply grid gap-2; }
+
+  .emptyState { @apply grid min-h-48 place-items-center rounded-[24px] border border-dashed border-slate-200 bg-white/70 p-8 text-center text-slate-500; }
+  .emptyIcon { @apply mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm; }
+  .skeletonBlock { @apply h-24 animate-pulse rounded-[22px] bg-slate-200/70; }
+  input,select,textarea { @apply min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100; }
 }
-.storefrontApp[data-visual-version="p5-v2"]::before,
-.storefrontApp[data-visual-version="p5-v2"]::after {
-  content: "";
-  position: fixed;
-  z-index: 0;
-  border-radius: 999px;
-  pointer-events: none;
-  filter: blur(120px);
+
+.mobileNav{@apply fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-1 rounded-[22px] border border-white/70 bg-white/92 p-1.5 shadow-[0_18px_50px_rgba(15,23,42,.16)] backdrop-blur-xl md:hidden;}
+.mobileNav button { @apply flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-2xl border-0 bg-transparent text-[9px] font-semibold text-slate-400 transition; }
+.mobileNav button.active { @apply bg-[#15261f] text-white shadow-sm; }
+.mobileIconWrap { @apply grid h-6 w-6 place-items-center; }
+
+@media(max-width:767px){
+  .productGrid { @apply gap-2; }
+  .productCard { @apply rounded-[18px]; }
+  .productCard .body { @apply p-3; }
+  .homeDeck { @apply rounded-[24px] p-4; }
+  .metricDeck { @apply rounded-[20px] p-3; }
 }
-.storefrontApp[data-visual-version="p5-v2"]::before { width: 320px; height: 320px; right: 8%; top: 70px; background: #cad6ff; opacity: .42; }
-.storefrontApp[data-visual-version="p5-v2"]::after { width: 280px; height: 280px; left: 6%; bottom: 40px; background: #bfeee3; opacity: .30; }
-.storefrontApp[data-visual-version="p5-v2"] > * { position: relative; z-index: 1; }
-.storefrontApp[data-visual-version="p5-v2"] .storefrontHeader {
-  border-color: rgba(68,88,126,.12);
-  background: rgba(250,252,255,.84);
-  backdrop-filter: blur(22px) saturate(145%);
-  box-shadow: 0 8px 28px rgba(38,54,91,.08);
-}
-.storefrontApp[data-visual-version="p5-v2"] .storefrontHeaderInner { height: 74px; max-width: 1540px; gap: 16px; }
-.storefrontApp[data-visual-version="p5-v2"] .brandMark {
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(255,255,255,.65);
-  border-radius: 15px;
-  background: #516ff5;
-  color: white;
-  box-shadow: 0 10px 24px rgba(73,100,224,.23), inset 0 1px rgba(255,255,255,.28);
-}
-.storefrontApp[data-visual-version="p5-v2"] .brandText strong { color: #17223b; font-size: 15px; }
-.storefrontApp[data-visual-version="p5-v2"] .brandText small { color: #8390a6; }
-.storefrontApp[data-visual-version="p5-v2"] .desktopNav { margin-left: 28px; gap: 5px; }
-.storefrontApp[data-visual-version="p5-v2"] .desktopNav button,
-.storefrontApp[data-visual-version="p5-v2"] .accountShortcut {
-  min-height: 40px;
-  border-radius: 12px;
-  color: #6b7890;
-}
-.storefrontApp[data-visual-version="p5-v2"] .desktopNav button:hover { background: rgba(81,111,245,.07); color: #283b76; }
-.storefrontApp[data-visual-version="p5-v2"] .desktopNav button.active {
-  border: 1px solid rgba(81,111,245,.14);
-  background: rgba(81,111,245,.10);
-  color: #334fc5;
-  box-shadow: inset 0 1px rgba(255,255,255,.45);
-}
-.storefrontApp[data-visual-version="p5-v2"] .accountShortcut {
-  border-color: rgba(72,92,132,.15);
-  background: rgba(255,255,255,.84);
-  color: #30415f;
-  box-shadow: 0 7px 18px rgba(38,54,91,.07);
-}
-.storefrontApp[data-visual-version="p5-v2"] .branchChooser select {
-  border-color: rgba(72,92,132,.16);
-  background: rgba(255,255,255,.88);
-  color: #263754;
-  box-shadow: 0 5px 14px rgba(38,54,91,.05);
-}
-.storefrontApp[data-visual-version="p5-v2"] .storefrontMain { max-width: 1540px; padding: 28px; }
-.storefrontApp[data-visual-version="p5-v2"] .viewContext { color: #8490a4; }
-.storefrontApp[data-visual-version="p5-v2"] .viewKicker { color: #4f6df5; }
-.storefrontApp[data-visual-version="p5-v2"] .storefrontViewHeader {
-  margin-bottom: 20px;
-  padding: 22px 24px;
-  border: 1px solid var(--v2-store-border);
-  border-radius: 22px;
-  background: rgba(255,255,255,.80);
-  backdrop-filter: blur(18px) saturate(135%);
-  box-shadow: 0 18px 45px rgba(48,63,98,.09), inset 0 1px rgba(255,255,255,.7);
-}
-.storefrontApp[data-visual-version="p5-v2"] .storefrontViewHeader h1 { color: #17223b; font-size: 30px; letter-spacing: -.035em; }
-.storefrontApp[data-visual-version="p5-v2"] .storefrontViewHeader p { color: #728096; font-size: 13.5px; }
-.storefrontApp[data-visual-version="p5-v2"] .storefrontBranchContext {
-  border-color: rgba(15,159,130,.16);
-  background: rgba(15,159,130,.08);
-  color: #087862;
-}
-.storefrontApp[data-visual-version="p5-v2"] .panel,
-.storefrontApp[data-visual-version="p5-v2"] .orderPanel,
-.storefrontApp[data-visual-version="p5-v2"] .productDetail,
-.storefrontApp[data-visual-version="p5-v2"] .homeDeck {
-  border-color: var(--v2-store-border);
-  border-radius: 22px;
-  background: var(--v2-store-surface);
-  color: var(--v2-store-text);
-  backdrop-filter: blur(16px) saturate(125%);
-  box-shadow: 0 16px 38px rgba(48,63,98,.09), inset 0 1px rgba(255,255,255,.66);
-}
-.storefrontApp[data-visual-version="p5-v2"] .homeDeck { padding: 30px; }
-.storefrontApp[data-visual-version="p5-v2"] .homeIntro { gap: 28px; }
-.storefrontApp[data-visual-version="p5-v2"] .homeIntro h1 { color: #17223b; font-size: clamp(38px, 4vw, 58px); font-weight: 720; line-height: 1.04; letter-spacing: -.05em; }
-.storefrontApp[data-visual-version="p5-v2"] .homeSubtitle { color: #69768c; font-size: 15px; line-height: 1.75; }
-.storefrontApp[data-visual-version="p5-v2"] .eyebrow { color: #4f6df5; }
-.storefrontApp[data-visual-version="p5-v2"] .metricDeck { gap: 12px; }
-.storefrontApp[data-visual-version="p5-v2"] .metricDeck>div {
-  border-color: rgba(72,92,132,.12);
-  border-radius: 17px;
-  background: rgba(255,255,255,.76);
-  box-shadow: 0 8px 20px rgba(48,63,98,.055);
-}
-.storefrontApp[data-visual-version="p5-v2"] .metricDeck strong { color: #17223b; }
-.storefrontApp[data-visual-version="p5-v2"] .metricDeck small { color: #7c899e; }
-.storefrontApp[data-visual-version="p5-v2"] .primary,
-.storefrontApp[data-visual-version="p5-v2"] .secondary,
-.storefrontApp[data-visual-version="p5-v2"] .textAction,
-.storefrontApp[data-visual-version="p5-v2"] .favoriteAction,
-.storefrontApp[data-visual-version="p5-v2"] .qty button,
-.storefrontApp[data-visual-version="p5-v2"] .cardActions button,
-.storefrontApp[data-visual-version="p5-v2"] .homeActions button {
-  border-radius: 12px;
-  border-color: rgba(72,92,132,.15);
-  background: rgba(255,255,255,.86);
-  color: #30415f;
-  box-shadow: 0 7px 18px rgba(38,54,91,.06);
-}
-.storefrontApp[data-visual-version="p5-v2"] .primary {
-  border-color: #4f6df5;
-  background: #4f6df5;
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(79,109,245,.22), inset 0 1px rgba(255,255,255,.22);
-}
-.storefrontApp[data-visual-version="p5-v2"] .primary:hover { background: #607cf7; transform: translateY(-1px); }
-.storefrontApp[data-visual-version="p5-v2"] .textAction { border-color: transparent; background: transparent; color: #405ed4; box-shadow: none; }
-.storefrontApp[data-visual-version="p5-v2"] .catalogToolbar {
-  padding: 12px;
-  border: 1px solid var(--v2-store-border);
-  border-radius: 18px;
-  background: rgba(255,255,255,.78);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 10px 28px rgba(48,63,98,.07);
-}
-.storefrontApp[data-visual-version="p5-v2"] .catalogControls input,
-.storefrontApp[data-visual-version="p5-v2"] .sortControl,
-.storefrontApp[data-visual-version="p5-v2"] .panel input,
-.storefrontApp[data-visual-version="p5-v2"] .panel select,
-.storefrontApp[data-visual-version="p5-v2"] .panel textarea,
-.storefrontApp[data-visual-version="p5-v2"] .productDetail input,
-.storefrontApp[data-visual-version="p5-v2"] .productDetail select {
-  border-color: rgba(72,92,132,.16);
-  background: #fff;
-  color: #243450;
-  box-shadow: inset 0 1px 2px rgba(40,55,90,.035);
-}
-.storefrontApp[data-visual-version="p5-v2"] .productGrid { gap: 16px; }
-.storefrontApp[data-visual-version="p5-v2"] .productCard {
-  overflow: hidden;
-  border-color: rgba(72,92,132,.13);
-  border-radius: 19px;
-  background: rgba(255,255,255,.94);
-  color: #1d2942;
-  box-shadow: 0 12px 30px rgba(48,63,98,.08);
-}
-.storefrontApp[data-visual-version="p5-v2"] .productCard:hover {
-  border-color: rgba(79,109,245,.25);
-  transform: translateY(-4px);
-  box-shadow: 0 20px 42px rgba(48,63,98,.13);
-}
-.storefrontApp[data-visual-version="p5-v2"] .productImage,
-.storefrontApp[data-visual-version="p5-v2"] .productDetailVisual {
-  background: #eef2ff;
-  color: #8693aa;
-}
-.storefrontApp[data-visual-version="p5-v2"] .productCard h3,
-.storefrontApp[data-visual-version="p5-v2"] .priceRow strong,
-.storefrontApp[data-visual-version="p5-v2"] .detailPrice,
-.storefrontApp[data-visual-version="p5-v2"] .productDetailBody h1,
-.storefrontApp[data-visual-version="p5-v2"] .total { color: #17223b; }
-.storefrontApp[data-visual-version="p5-v2"] .productSku { color: #8b96a8; }
-.storefrontApp[data-visual-version="p5-v2"] .productDetail { gap: 26px; }
-.storefrontApp[data-visual-version="p5-v2"] .cartRow,
-.storefrontApp[data-visual-version="p5-v2"] .inventoryList>div { border-color: rgba(72,92,132,.11); }
-.storefrontApp[data-visual-version="p5-v2"] .notice {
-  border-color: rgba(79,109,245,.15);
-  background: rgba(79,109,245,.07);
-  color: #334fbf;
-}
-.storefrontApp[data-visual-version="p5-v2"] .emptyState {
-  border-color: rgba(72,92,132,.18);
-  border-radius: 18px;
-  background: rgba(255,255,255,.66);
-  color: #8390a5;
-}
-.storefrontApp[data-visual-version="p5-v2"] .mobileNav {
-  border-color: rgba(72,92,132,.13);
-  background: rgba(250,252,255,.92);
-  backdrop-filter: blur(20px) saturate(140%);
-  box-shadow: 0 -8px 24px rgba(48,63,98,.08);
-}
-.storefrontApp[data-visual-version="p5-v2"] .mobileNav button { color: #7b879c; }
-.storefrontApp[data-visual-version="p5-v2"] .mobileNav button.active { background: rgba(79,109,245,.09); color: #405ed4; }
-.storefrontApp[data-visual-version="p5-v2"] .skeletonBlock { background: #e6eaf2; }
-@media(max-width:639px){
-  .storefrontApp[data-visual-version="p5-v2"] .storefrontMain { padding: 16px 12px 26px; }
-  .storefrontApp[data-visual-version="p5-v2"] .storefrontViewHeader { padding: 17px; border-radius: 17px; }
-  .storefrontApp[data-visual-version="p5-v2"] .homeDeck,
-  .storefrontApp[data-visual-version="p5-v2"] .panel,
-  .storefrontApp[data-visual-version="p5-v2"] .orderPanel,
-  .storefrontApp[data-visual-version="p5-v2"] .productDetail { border-radius: 17px; padding: 16px; }
-  .storefrontApp[data-visual-version="p5-v2"] .homeIntro h1 { font-size: 34px; }
-  .storefrontApp[data-visual-version="p5-v2"] .productGrid { gap: 10px; }
-  .storefrontApp[data-visual-version="p5-v2"] .productCard { border-radius: 15px; }
-}
-.storefrontApp[data-visual-version="p5-v2"] .storefrontViewBody { min-width: 0; }
+@media(pointer:coarse){ button,select,input{min-height:44px} }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { transition-duration:.01ms!important; animation-duration:.01ms!important; animation-iteration-count:1!important; } }
+
+.storefrontMain { @apply mx-auto w-full max-w-[1480px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-16; }
+:focus-visible { outline: 2px solid #059669; outline-offset: 2px; }
+
+.storefrontHeader { @apply min-w-0; }
+.desktopNav { @apply min-w-0; }
+@media(max-width:767px){ .storefrontHeader { @apply min-w-0; } }

@@ -7,13 +7,23 @@ import { sourceFingerprint } from './lib/source-fingerprint.mjs';
 const root = process.cwd();
 const browserPath = path.join(root, 'handoff/quality/browser-uat-latest.json');
 const mapPath = path.join(root, 'config/p5-visual-surface-map.json');
+const v3Path = path.join(root, 'config/p5-v3-tailwind-rebuild.json');
 const output = path.join(root, 'handoff/quality/github-p5-visual-rebuild-probe-latest.json');
 
 if (!fs.existsSync(browserPath)) throw new Error(`P5 browser evidence tidak ditemukan: ${browserPath}`);
 const browser = JSON.parse(fs.readFileSync(browserPath, 'utf8'));
 const visualMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+const v3 = JSON.parse(fs.readFileSync(v3Path, 'utf8'));
 const current = sourceFingerprint(root);
 const evidenceFingerprint = browser?.sourceIdentity?.value || browser?.runtimeSourceFingerprint || null;
+
+if (v3.phase !== 'P5-V3' || v3.decision?.deliveryBoundary !== 'ONE_P5_FULL_V3_TOTAL_UI_REBUILD') {
+  throw new Error('P5 V3 canonical visual contract tidak aktif.');
+}
+if (v3.decision?.businessLogicChangesAllowed !== false || v3.decision?.apiContractChangesAllowed !== false) {
+  throw new Error('P5 V3 business/API freeze contract hilang.');
+}
+if (v3.decision?.humanAcceptanceRequired !== true) throw new Error('P5 V3 human acceptance gate hilang.');
 
 if (browser.status !== 'PASS') throw new Error(`P5 browser UAT belum PASS: ${browser.status}`);
 if (!evidenceFingerprint || evidenceFingerprint !== current.value) {
@@ -75,11 +85,19 @@ const result = {
     employeePortalVisuals: requiredCounts.employeePortal === matrix.employeePortal.length,
     responsiveDesktopTabletMobile: true,
     browserRuntimeExceptions: checks.get('BROWSER_RUNTIME_EXCEPTIONS')?.status === 'PASS',
+    p5V3TailwindTotalRebuildContract: v3.phase === 'P5-V3' && v3.decision.tailwindUtilityFirstRequired === true,
+    businessApiAuthorityFrozen: v3.decision.businessLogicChangesAllowed === false && v3.decision.apiContractChangesAllowed === false,
   },
   screenshotCounts: requiredCounts,
+  visualGeneration: 'P5-V3',
+  visualContract: {
+    deliveryBoundary: v3.decision.deliveryBoundary,
+    productThemes: Object.fromEntries(Object.entries(v3.products).map(([key, value]) => [key, value.theme])),
+    humanAcceptanceRequired: true,
+  },
   humanAcceptance: 'PENDING',
   productionTouched: false,
-  note: 'P5 exact-source automated evidence proves the rebuilt four-product visual composition, page-level screenshot matrix, and desktop/tablet/mobile geometry. Human UI acceptance remains a distinct mandatory P5/P7 operator gate.',
+  note: 'P5 V3 exact-source automated evidence proves the Tailwind total UI rebuild, four distinct product identities, page-level screenshot matrix, and desktop/tablet/mobile geometry. Business/API authority remains frozen and Human UI acceptance remains a distinct mandatory gate.',
 };
 if (!Object.values(result.checks).every(Boolean)) throw new Error(`P5 checks incomplete: ${JSON.stringify(result.checks)}`);
 fs.mkdirSync(path.dirname(output), { recursive: true });

@@ -11,7 +11,7 @@ const employeeShell = read('apps/employee-portal/app/employee-portal-shell.tsx')
 const employeePackage = JSON.parse(read('apps/employee-portal/package.json'));
 
 test('F12R2 Admin uses one Tailwind accent and no decorative gradient', () => {
-  assert.match(adminCss, /--color-app-accent:\s*#3b82f6/i);
+  assert.match(adminCss, /--color-app-accent:\s*#0284c7/i);
   assert.match(adminCss, /@import\s+["']tailwindcss["']/);
   assert.doesNotMatch(adminCss, /(?:radial|linear|conic)-gradient\s*\(/i);
 });
