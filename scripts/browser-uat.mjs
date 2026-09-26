@@ -290,6 +290,54 @@ async function main() {
     if (loginBody?.code === 'TWO_FACTOR_REQUIRED') throw new Error('Akun UAT membutuhkan 2FA; gunakan akun staging UAT khusus atau jalankan login manual tervalidasi.');
     evidence.checks.push({ id: 'ADMIN_API_LOGIN', status: 'PASS' });
 
+    if (String(process.env.T360_UAT_PREPARE_P5_STOREFRONT_FIXTURE || '').toLowerCase() === 'true') {
+      const fixtureHost = new URL(apiUrl).hostname;
+      const fixtureEnvironment = String(process.env.T360_UAT_ENVIRONMENT || '').trim();
+      if (!['localhost', '127.0.0.1', '::1'].includes(fixtureHost)) throw new Error(`P5 Storefront fixture menolak target non-loopback: ${fixtureHost}`);
+      if (!/(GITHUB|LOCAL_UAT|STAGING|CI)/i.test(fixtureEnvironment)) throw new Error(`P5 Storefront fixture menolak environment yang tidak eksplisit non-production: ${fixtureEnvironment || '<empty>'}`);
+      const authHeaders = { authorization: `Bearer ${loginBody.accessToken}` };
+      const branchCode = String(process.env.T360_UAT_STOREFRONT_BRANCH_CODE || process.env.SEED_BRANCH_CODE || process.env.NEXT_PUBLIC_BRANCH_CODE || 'PUSAT').trim() || 'PUSAT';
+      const catalogUrl = `${apiUrl}/products?branchCode=${encodeURIComponent(branchCode)}&limit=1`;
+      const catalogResponse = await http(catalogUrl);
+      const catalogBody = await catalogResponse.json().catch(() => ({}));
+      if (!catalogResponse.ok) throw new Error(`P5 Storefront fixture gagal membaca katalog publik (HTTP ${catalogResponse.status}).`);
+      let fixtureAction = 'EXISTING';
+      let fixtureProductId = catalogBody?.items?.[0]?.id || null;
+      if (!fixtureProductId) {
+        const uniqueSuffix = `${Date.now()}-${process.pid}`;
+        const createResponse = await http(`${apiUrl}/products`, {
+          method: 'POST',
+          headers: { ...authHeaders, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            sku: `P5-UAT-${uniqueSuffix}`,
+            name: 'P5 Browser UAT Product',
+            description: 'Fixture non-production untuk membuktikan visual detail produk P5.',
+            unit: 'PCS',
+            productType: 'PHYSICAL',
+            costPrice: 10000,
+            salePrice: 15000,
+            minStock: 0,
+            isActive: true,
+          }),
+        });
+        const created = await createResponse.json().catch(() => ({}));
+        if (!createResponse.ok || !created?.id) throw new Error(`P5 Storefront fixture gagal membuat produk (HTTP ${createResponse.status}).`);
+        fixtureAction = 'CREATED';
+        fixtureProductId = created.id;
+        const deadline = Date.now() + 15000;
+        let visible = false;
+        while (Date.now() < deadline) {
+          const verifyResponse = await http(catalogUrl);
+          const verifyBody = await verifyResponse.json().catch(() => ({}));
+          visible = verifyResponse.ok && Array.isArray(verifyBody?.items) && verifyBody.items.some((item) => item?.id === fixtureProductId);
+          if (visible) break;
+          await sleep(300);
+        }
+        if (!visible) throw new Error('P5 Storefront fixture berhasil dibuat tetapi tidak muncul pada katalog publik branch yang sama.');
+      }
+      evidence.checks.push({ id: 'P5_STOREFRONT_PRODUCT_FIXTURE', status: 'PASS', action: fixtureAction, branchCode, productId: fixtureProductId, productionTouched: false });
+    }
+
     if (String(process.env.T360_UAT_PREPARE_EMPLOYEE_SELF || '').toLowerCase() === 'true') {
       if (!loginBody.user?.sub) throw new Error('Login UAT tidak membawa user.sub untuk fixture Employee Portal CI.');
       const authHeaders = { authorization: `Bearer ${loginBody.accessToken}` };

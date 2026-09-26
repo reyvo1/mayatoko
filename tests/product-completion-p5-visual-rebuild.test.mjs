@@ -82,9 +82,24 @@ test('P5 browser UAT creates exact page-level screenshot matrix and keeps human 
   ]) assert.match(browserUat, new RegExp(marker));
   assert.match(browserUat, /humanAcceptance:\s*'PENDING'/);
   assert.match(browserUat, /T360_UAT_PREPARE_EMPLOYEE_SELF/);
+  assert.match(browserUat, /T360_UAT_PREPARE_P5_STOREFRONT_FIXTURE/);
+  assert.match(browserUat, /P5_STOREFRONT_PRODUCT_FIXTURE/);
+  assert.match(browserUat, /P5 Storefront fixture menolak target non-loopback/);
+  assert.match(browserUat, /P5 Storefront fixture menolak environment yang tidak eksplisit non-production/);
+  assert.match(browserUat, /method:\s*'POST'[\s\S]*?\$\{apiUrl\}\/products/);
+  assert.match(browserUat, /productionTouched:\s*false/);
   assert.match(p5Probe, /humanAcceptance:\s*'PENDING'/);
   assert.match(p5Probe, /github-p5-visual-rebuild-probe-latest\.json/);
   assert.match(p5Probe, /productionTouched:\s*false/);
+});
+
+test('P5 storefront visual fixture is explicit in both heavy GitHub workflows and does not weaken product-detail coverage', () => {
+  for (const workflow of [fullSystem, fullUat]) {
+    assert.match(workflow, /T360_UAT_PREPARE_P5_STOREFRONT_FIXTURE:\s*'true'/);
+    assert.match(workflow, /T360_UAT_STOREFRONT_BRANCH_CODE:\s*PUSAT/);
+  }
+  assert.match(browserUat, /P5 Storefront detail produk tidak dapat dibuka dari katalog runtime/);
+  assert.match(browserUat, /data-visual-view'\) === 'product'/);
 });
 
 test('P5 visual audit is permanent and exact-runtime P5 probe is mandatory in both heavy workflows', () => {
